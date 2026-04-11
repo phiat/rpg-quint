@@ -2,6 +2,8 @@
 
 A raylib RPG game built on formally verified game logic. Every game rule is specified in [Quint](https://quint-lang.org/), tested via Model-Based Testing (MBT), and implemented in [Odin](https://odin-lang.org/).
 
+Inspired by: [Model-Based Testing for D&D](https://www.loskutoff.com/blog/model-based-testing-dnd/)
+
 ## The Game
 
 **Quint Crawl** is a turn-based RPG rendered with raylib. Explore a 3x3 world grid, fight enemies, gather resources, craft gear, and level up to conquer the Castle.

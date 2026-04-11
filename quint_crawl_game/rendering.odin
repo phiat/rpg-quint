@@ -159,13 +159,13 @@ draw_enemy_shape :: proc(cx, cy: f32, tier: int, shake: f32) {
 			{cx + ox - 30, cy - 20},
 			{cx + ox - 80, cy - 40},
 			{cx + ox - 30, cy + 10},
-			{color.r - 30, color.g, color.b, 200},
+			{color.r - 30 if color.r >= 30 else 0, color.g, color.b, 200},
 		)
 		rl.DrawTriangle(
 			{cx + ox + 30, cy - 20},
 			{cx + ox + 80, cy - 40},
 			{cx + ox + 30, cy + 10},
-			{color.r - 30, color.g, color.b, 200},
+			{color.r - 30 if color.r >= 30 else 0, color.g, color.b, 200},
 		)
 		// Eyes
 		rl.DrawCircle(i32(cx + ox) - 12, i32(cy) - 30, 6, {255, 255, 0, 255})

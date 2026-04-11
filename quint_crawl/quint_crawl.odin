@@ -76,7 +76,7 @@ init_game :: proc(g: ^Game_State) {
 move :: proc(g: ^Game_State, dx, dy: int) -> bool {
 	nx, ny := g.pos_x + dx, g.pos_y + dy
 	if nx < 0 || nx > 2 || ny < 0 || ny > 2 do return false
-	if g.in_combat || g.game_won do return false
+	if g.in_combat || g.game_won || g.hp <= 0 do return false
 	if zone_level_req(nx, ny) > g.level do return false
 	g.pos_x = nx
 	g.pos_y = ny
@@ -102,6 +102,14 @@ combat_attack :: proc(g: ^Game_State) -> bool {
 	}
 	g.enemy_hp = max(new_enemy_hp, 0)
 	g.hp = max(new_hp, 0)
+
+	// Player died during combat — end combat
+	if g.hp <= 0 {
+		g.in_combat = false
+		g.enemy_hp = 0
+		g.enemy_attack = 0
+		return true
+	}
 
 	if new_enemy_hp <= 0 {
 		// Enemy defeated — rewards
@@ -140,7 +148,7 @@ flee_combat :: proc(g: ^Game_State) -> bool {
 }
 
 rest_at_village :: proc(g: ^Game_State) -> bool {
-	if g.in_combat || g.game_won do return false
+	if g.in_combat || g.game_won || g.hp <= 0 do return false
 	if g.pos_x != 0 || g.pos_y != 0 do return false
 	if g.hp >= g.max_hp do return false
 	g.hp = g.max_hp
@@ -148,7 +156,7 @@ rest_at_village :: proc(g: ^Game_State) -> bool {
 }
 
 buy_potion :: proc(g: ^Game_State) -> bool {
-	if g.in_combat || g.game_won do return false
+	if g.in_combat || g.game_won || g.hp <= 0 do return false
 	if g.pos_x != 0 || g.pos_y != 0 do return false
 	if g.gold < 10 do return false
 	g.gold -= 10
@@ -157,21 +165,21 @@ buy_potion :: proc(g: ^Game_State) -> bool {
 }
 
 gather_wood :: proc(g: ^Game_State) -> bool {
-	if g.in_combat || g.game_won do return false
+	if g.in_combat || g.game_won || g.hp <= 0 do return false
 	if g.pos_x != 1 || g.pos_y != 0 do return false
 	g.qty_wood += 1
 	return true
 }
 
 mine_iron :: proc(g: ^Game_State) -> bool {
-	if g.in_combat || g.game_won do return false
+	if g.in_combat || g.game_won || g.hp <= 0 do return false
 	if g.pos_x != 2 || g.pos_y != 1 do return false
 	g.qty_iron += 1
 	return true
 }
 
 craft_sword :: proc(g: ^Game_State) -> bool {
-	if g.in_combat || g.game_won do return false
+	if g.in_combat || g.game_won || g.hp <= 0 do return false
 	if g.pos_x != 0 || g.pos_y != 0 do return false
 	if g.qty_wood < 1 || g.qty_iron < 2 do return false
 	g.qty_wood -= 1
@@ -181,7 +189,7 @@ craft_sword :: proc(g: ^Game_State) -> bool {
 }
 
 equip_sword :: proc(g: ^Game_State) -> bool {
-	if g.in_combat || g.game_won do return false
+	if g.in_combat || g.game_won || g.hp <= 0 do return false
 	if g.qty_sword < 1 || g.has_sword do return false
 	g.has_sword = true
 	g.qty_sword -= 1

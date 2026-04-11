@@ -7,7 +7,7 @@ import "core:fmt"
 handle_title_input :: proc(app: ^App_State) {
 	if rl.IsKeyPressed(.ENTER) || rl.IsKeyPressed(.SPACE) {
 		qc.init_game(&app.game)
-		clear(&app.messages)
+		clear_messages(app)
 		app.screen = .Map
 		add_message(app, "Welcome to Quint Crawl! Explore the world.", TEXT_BRIGHT)
 	}
@@ -30,14 +30,14 @@ handle_map_input :: proc(app: ^App_State) {
 
 	if moved {
 		zone := qc.zone_name(g.pos_x, g.pos_y)
-		add_message(app, fmt.aprintf("Entered %s", zone), TEXT_BRIGHT)
+		add_message(app, fmt.tprintf("Entered %s", zone), TEXT_BRIGHT)
 	}
 
 	// Enter combat
 	if rl.IsKeyPressed(.E) {
 		if qc.enter_combat(g) {
 			tier := qc.zone_level_req(g.pos_x, g.pos_y) - 1
-			add_message(app, fmt.aprintf("A %s appears!", ENEMY_NAMES[tier]), BAR_HP_FG)
+			add_message(app, fmt.tprintf("A %s appears!", ENEMY_NAMES[tier]), BAR_HP_FG)
 			app.screen = .Combat
 		}
 	}
@@ -97,19 +97,19 @@ handle_combat_input :: proc(app: ^App_State) {
 		old_level := g.level
 		if qc.combat_attack(g) {
 			dmg_dealt := old_enemy_hp - g.enemy_hp
-			add_message(app, fmt.aprintf("You deal %d damage!", dmg_dealt), {255, 200, 100, 255})
+			add_message(app, fmt.tprintf("You deal %d damage!", dmg_dealt), {255, 200, 100, 255})
 
 			if g.enemy_hp <= 0 {
 				add_message(app, "Enemy defeated!", {100, 255, 100, 255})
 				tier := qc.zone_level_req(g.pos_x, g.pos_y) - 1
-				add_message(app, fmt.aprintf("+%d XP, +%d Gold", qc.ZONE_XP_REWARD[tier], qc.ZONE_GOLD_REWARD[tier]), TEXT_GOLD)
+				add_message(app, fmt.tprintf("+%d XP, +%d Gold", qc.ZONE_XP_REWARD[tier], qc.ZONE_GOLD_REWARD[tier]), TEXT_GOLD)
 				if g.level > old_level {
-					add_message(app, fmt.aprintf("LEVEL UP! Now level %d!", g.level), {255, 255, 100, 255})
+					add_message(app, fmt.tprintf("LEVEL UP! Now level %d!", g.level), {255, 255, 100, 255})
 				}
 			} else {
 				dmg_taken := old_hp - g.hp
 				if dmg_taken > 0 {
-					add_message(app, fmt.aprintf("Enemy hits you for %d!", dmg_taken), BAR_HP_FG)
+					add_message(app, fmt.tprintf("Enemy hits you for %d!", dmg_taken), BAR_HP_FG)
 				}
 				app.shake_timer = 0.2
 				app.flash_color = {255, 50, 50, 80}
@@ -123,7 +123,7 @@ handle_combat_input :: proc(app: ^App_State) {
 		old_hp := g.hp
 		if qc.combat_potion(g) {
 			healed := g.hp - old_hp
-			add_message(app, fmt.aprintf("Used potion. Healed %d HP!", healed), {100, 220, 100, 255})
+			add_message(app, fmt.tprintf("Used potion. Healed %d HP!", healed), {100, 220, 100, 255})
 		}
 	}
 
@@ -133,7 +133,7 @@ handle_combat_input :: proc(app: ^App_State) {
 		if qc.flee_combat(g) {
 			dmg := old_hp - g.hp
 			if dmg > 0 {
-				add_message(app, fmt.aprintf("Fled! Took %d damage escaping.", dmg), {255, 180, 100, 255})
+				add_message(app, fmt.tprintf("Fled! Took %d damage escaping.", dmg), {255, 180, 100, 255})
 			} else {
 				add_message(app, "Fled from battle!", {255, 180, 100, 255})
 			}
@@ -146,7 +146,7 @@ handle_combat_input :: proc(app: ^App_State) {
 handle_endscreen_input :: proc(app: ^App_State) {
 	if rl.IsKeyPressed(.ENTER) || rl.IsKeyPressed(.SPACE) {
 		qc.init_game(&app.game)
-		clear(&app.messages)
+		clear_messages(app)
 		app.screen = .Map
 		add_message(app, "A new adventure begins...", TEXT_BRIGHT)
 	}

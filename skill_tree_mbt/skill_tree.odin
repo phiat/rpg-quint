@@ -54,6 +54,7 @@ unlock_shadow_step :: proc(st: ^Skill_Tree) -> bool {
 }
 
 earn_points :: proc(st: ^Skill_Tree, amount: int) {
+	if amount <= 0 do return
 	st.skill_points += amount
 	st.total_earned += amount
 }

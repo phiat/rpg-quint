@@ -35,7 +35,7 @@ draw_hud :: proc(app: ^App_State) {
 	y += 24
 
 	// XP bar
-	xp_target := 10 if g.level < 2 else (25 if g.level < 3 else g.xp)
+	xp_target := qc.XP_THRESHOLDS[g.level + 1] if g.level < 3 else g.xp
 	rl.DrawText("XP", x, y, 14, TEXT_DIM)
 	y += 16
 	draw_bar(x, y, w, 16, g.xp, xp_target, BAR_XP_FG, BAR_XP_BG)
@@ -47,7 +47,7 @@ draw_hud :: proc(app: ^App_State) {
 	// Attack
 	atk := qc.attack_power(g)
 	if g.has_sword {
-		rl.DrawText(fmt.ctprintf("ATK: %d (+5)", g.base_attack), x, y, 16, TEXT_BRIGHT)
+		rl.DrawText(fmt.ctprintf("ATK: %d (%d+5)", atk, g.base_attack), x, y, 16, TEXT_BRIGHT)
 	} else {
 		rl.DrawText(fmt.ctprintf("ATK: %d", atk), x, y, 16, TEXT_BRIGHT)
 	}

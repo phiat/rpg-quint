@@ -114,6 +114,7 @@ module quint_crawl {
   action move_up = all {
     not(in_combat),
     not(game_won),
+    hp > 0,
     pos_y > 0,
     zone_level_req(pos_x, pos_y - 1) <= level,
     pos_y' = pos_y - 1,
@@ -129,6 +130,7 @@ module quint_crawl {
   action move_down = all {
     not(in_combat),
     not(game_won),
+    hp > 0,
     pos_y < 2,
     zone_level_req(pos_x, pos_y + 1) <= level,
     pos_y' = pos_y + 1,
@@ -144,6 +146,7 @@ module quint_crawl {
   action move_left = all {
     not(in_combat),
     not(game_won),
+    hp > 0,
     pos_x > 0,
     zone_level_req(pos_x - 1, pos_y) <= level,
     pos_x' = pos_x - 1,
@@ -159,6 +162,7 @@ module quint_crawl {
   action move_right = all {
     not(in_combat),
     not(game_won),
+    hp > 0,
     pos_x < 2,
     zone_level_req(pos_x + 1, pos_y) <= level,
     pos_x' = pos_x + 1,
@@ -196,15 +200,15 @@ module quint_crawl {
     enemy_hp > 0,
     val new_enemy_hp = enemy_hp - attack_power
     val new_hp = if (new_enemy_hp > 0) hp - enemy_attack else hp
-    val gained_xp = if (new_enemy_hp <= 0) xp + zone_xp_reward(pos_x, pos_y) else xp
+    val gained_xp = if (new_enemy_hp <= 0 and new_hp > 0) xp + zone_xp_reward(pos_x, pos_y) else xp
     val new_level = if (level < 3 and gained_xp >= xp_threshold(level + 1)) level + 1 else level
     all {
-      enemy_hp' = if (new_enemy_hp < 0) 0 else new_enemy_hp,
+      enemy_hp' = if (new_enemy_hp <= 0 or new_hp <= 0) 0 else new_enemy_hp,
       hp' = if (new_hp < 0) 0 else new_hp,
-      in_combat' = if (new_enemy_hp <= 0) false else true,
+      in_combat' = if (new_enemy_hp <= 0 or new_hp <= 0) false else true,
       xp' = gained_xp,
       gold' = if (new_enemy_hp <= 0) gold + zone_gold_reward(pos_x, pos_y) else gold,
-      enemy_attack' = if (new_enemy_hp <= 0) 0 else enemy_attack,
+      enemy_attack' = if (new_enemy_hp <= 0 or new_hp <= 0) 0 else enemy_attack,
       level' = new_level,
       max_hp' = if (new_level > level) max_hp + 20 else max_hp,
       base_attack' = if (new_level > level) base_attack + 3 else base_attack,
@@ -260,6 +264,7 @@ module quint_crawl {
   action rest_at_village = all {
     not(in_combat),
     not(game_won),
+    hp > 0,
     pos_x == 0,
     pos_y == 0,
     hp < max_hp,
@@ -277,6 +282,7 @@ module quint_crawl {
   action buy_potion = all {
     not(in_combat),
     not(game_won),
+    hp > 0,
     pos_x == 0,
     pos_y == 0,
     gold >= 10,
@@ -295,6 +301,7 @@ module quint_crawl {
   action gather_wood = all {
     not(in_combat),
     not(game_won),
+    hp > 0,
     pos_x == 1,
     pos_y == 0,
     qty_wood' = qty_wood + 1,
@@ -311,6 +318,7 @@ module quint_crawl {
   action mine_iron = all {
     not(in_combat),
     not(game_won),
+    hp > 0,
     pos_x == 2,
     pos_y == 1,
     qty_iron' = qty_iron + 1,
@@ -327,6 +335,7 @@ module quint_crawl {
   action craft_sword = all {
     not(in_combat),
     not(game_won),
+    hp > 0,
     pos_x == 0,
     pos_y == 0,
     qty_wood >= 1,
@@ -346,6 +355,7 @@ module quint_crawl {
   action equip_sword = all {
     not(in_combat),
     not(game_won),
+    hp > 0,
     qty_sword >= 1,
     not(has_sword),
     has_sword' = true,

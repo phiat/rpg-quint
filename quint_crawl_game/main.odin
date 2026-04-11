@@ -3,6 +3,7 @@ package quint_crawl_game
 import qc "../quint_crawl"
 import rl "vendor:raylib"
 import "core:fmt"
+import "core:strings"
 
 // --- Screen state machine ---
 Screen :: enum {
@@ -33,9 +34,17 @@ App_State :: struct {
 
 add_message :: proc(app: ^App_State, text: string, color: rl.Color) {
 	if len(app.messages) >= MAX_MESSAGES {
+		delete(app.messages[0].text)
 		ordered_remove(&app.messages, 0)
 	}
-	append(&app.messages, Message{text = fmt.aprintf("%s", text), color = color, timer = MESSAGE_LIFETIME})
+	append(&app.messages, Message{text = strings.clone(text), color = color, timer = MESSAGE_LIFETIME})
+}
+
+clear_messages :: proc(app: ^App_State) {
+	for &msg in app.messages {
+		delete(msg.text)
+	}
+	clear(&app.messages)
 }
 
 check_screen_transitions :: proc(app: ^App_State) {
@@ -66,6 +75,7 @@ update :: proc(app: ^App_State) {
 	for i := len(app.messages) - 1; i >= 0; i -= 1 {
 		app.messages[i].timer -= dt
 		if app.messages[i].timer <= 0 {
+			delete(app.messages[i].text)
 			ordered_remove(&app.messages, i)
 		}
 	}
