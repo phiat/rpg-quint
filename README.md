@@ -17,14 +17,17 @@ Inspired by: [Model-Based Testing for D&D](https://www.loskutoff.com/blog/model-
 just play             # build and run the game
 ```
 
-Controls: WASD to move, E to fight, A to attack, K for combo, P for potions, V to poison, X for antidote, F to flee, T to repair, F5 to save, F9 to load. See the HUD sidebar for zone-specific actions.
+Controls: WASD to move, E to fight, A to attack, K for combo, H for heavy strike, Y for battle cry, P for potions, V to poison, X for antidote, F to flee, R to rest, B to buy potions, G to gather wood, M to mine iron, C to craft, Q to equip, T to repair, F5 to save, F9 to load. See the HUD sidebar for zone-specific actions.
 
 Features:
 - 3x3 world grid with level-gated zones (Village → Castle)
 - Turn-based combat against tiered enemies (Slime, Skeleton, Dragon)
+- Stamina system — actions cost stamina, restored by resting
 - Combo system — 3-hit chain (Slash → Thrust → Finisher) with damage multipliers
+- Cooldown abilities — heavy strike (2x damage) and battle cry (ATK buff)
 - Status effects — poison, ATK/DEF buffs with turn-based ticking
 - Per-zone weather (Clear/Rain/Fog/Storm) affecting combat, gathering, and movement
+- Loot drops with pity-counter guarantee system
 - Resource gathering (wood, iron), crafting, and equipment
 - Sword durability — degrades per attack, repair at village
 - Save/load snapshot with full state round-trip
@@ -109,7 +112,14 @@ justfile               Task runner for common workflows
 | **trap** | Trap/hazard system on 2x2 grid with perception | Triggered implies present, HP bounded, perception bounded |
 | **companion** | Companion/pet system (wolf/hawk/turtle) with loyalty | Loyalty bounded, passives match type, one active companion |
 | **salvage** | Salvage/disenchant inverse crafting | Level-based output, material conservation, non-negative quantities |
-| **quint_crawl** | Full RPG game state machine | HP bounded, gold non-negative, level gates, durability bounded, combo bounded, status effects bounded, weather deterministic, win condition correct |
+| **auction** | Timed auction house with bidding | Bids monotonic, winner pays highest, gold conserved |
+| **faction** | Alliance/betrayal faction system | Faction membership consistent, betrayal costs enforced |
+| **fast_travel** | Waypoint-based fast travel | Unlocked waypoints persistent, travel requires unlock |
+| **dialogue** | Branching dialogue trees | Node reachability, visited tracking, choice validity |
+| **fog_of_war** | Exploration reveal system | Revealed tiles monotonic, visibility radius bounded |
+| **permadeath** | Permadeath with legacy bonuses | Death permanent, legacy bonuses carry forward |
+| **bounty** | Bounty board quest system | Bounty rewards match difficulty, completion tracked |
+| **quint_crawl** | Full RPG game state machine | HP bounded, gold non-negative, level gates, durability bounded, combo bounded, stamina bounded, cooldowns bounded, loot pity bounded, status effects bounded, weather deterministic, win condition correct |
 
 ## Quick start
 

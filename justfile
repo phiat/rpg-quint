@@ -62,6 +62,10 @@ traces:
         social/skill_tree:skill_tree_run \
         social/reputation:reputation_run \
         social/summoning:summoning_run \
+        economy/auction:auction_run \
+        social/faction:faction_run \
+        social/dialogue:dialogue_run \
+        world/fast_travel:fast_travel_run \
         quint_crawl:quint_crawl_run; \
     do \
         path="${spec%%:*}"; \
@@ -106,6 +110,7 @@ test:
         mbt/economy/shop_mbt mbt/economy/dynamic_shop_mbt mbt/economy/trade_mbt mbt/economy/loot_mbt \
         mbt/world/world_grid_mbt mbt/world/trap_mbt mbt/world/respawn_mbt mbt/world/companion_mbt \
         mbt/social/party_mbt mbt/social/quest_mbt mbt/social/skill_tree_mbt mbt/social/reputation_mbt mbt/social/summoning_mbt \
+        mbt/economy/auction_mbt mbt/social/faction_mbt mbt/social/dialogue_mbt mbt/world/fast_travel_mbt \
         quint_crawl_mbt; \
     do \
         name=$(basename "$d"); \
