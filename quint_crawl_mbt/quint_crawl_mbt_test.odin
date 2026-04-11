@@ -152,54 +152,78 @@ crawl_step :: proc(driver: rawptr, action: string, picks: map[string]mbt.ITF_Val
 crawl_state :: proc(driver: rawptr) -> map[string]mbt.ITF_Value {
 	g := cast(^qc.Game_State)driver
 	state := make(map[string]mbt.ITF_Value)
-	state["hp"] = mbt.ITF_Int{g.hp}
-	state["max_hp"] = mbt.ITF_Int{g.max_hp}
-	state["base_attack"] = mbt.ITF_Int{g.base_attack}
-	state["xp"] = mbt.ITF_Int{g.xp}
-	state["level"] = mbt.ITF_Int{g.level}
-	state["gold"] = mbt.ITF_Int{g.gold}
-	state["pos_x"] = mbt.ITF_Int{g.pos_x}
-	state["pos_y"] = mbt.ITF_Int{g.pos_y}
-	state["qty_potion"] = mbt.ITF_Int{g.qty_potion}
-	state["qty_wood"] = mbt.ITF_Int{g.qty_wood}
-	state["qty_iron"] = mbt.ITF_Int{g.qty_iron}
-	state["qty_sword"] = mbt.ITF_Int{g.qty_sword}
-	state["has_sword"] = mbt.ITF_Bool{g.has_sword}
-	state["in_combat"] = mbt.ITF_Bool{g.in_combat}
-	state["enemy_hp"] = mbt.ITF_Int{g.enemy_hp}
-	state["enemy_attack"] = mbt.ITF_Int{g.enemy_attack}
-	state["game_won"] = mbt.ITF_Bool{g.game_won}
-	state["sword_dur"] = mbt.ITF_Int{g.sword_dur}
-	state["sword_max_dur"] = mbt.ITF_Int{g.sword_max_dur}
-	state["player_poison_dur"] = mbt.ITF_Int{g.player_poison_dur}
-	state["player_atk_buff_dur"] = mbt.ITF_Int{g.player_atk_buff_dur}
-	state["player_def_buff_dur"] = mbt.ITF_Int{g.player_def_buff_dur}
-	state["enemy_poison_dur"] = mbt.ITF_Int{g.enemy_poison_dur}
-	state["combo_count"] = mbt.ITF_Int{g.combo_count}
 
-	state["turn_count"] = mbt.ITF_Int{g.turn_count}
-	state["saved_exists"] = mbt.ITF_Bool{g.saved_exists}
-	state["stamina"] = mbt.ITF_Int{g.stamina}
-	state["max_stamina"] = mbt.ITF_Int{g.max_stamina}
-	state["cd_heavy_strike"] = mbt.ITF_Int{g.cd_heavy_strike}
-	state["cd_battle_cry"] = mbt.ITF_Int{g.cd_battle_cry}
-	state["pity_counter"] = mbt.ITF_Int{g.pity_counter}
-	state["last_drop"] = mbt.ITF_Int{g.last_drop}
-	state["cd_fortify"] = mbt.ITF_Int{g.cd_fortify}
-	state["skill_points"] = mbt.ITF_Int{g.skill_points}
-	state["skill_combo"] = mbt.ITF_Bool{g.skill_combo}
-	state["skill_poison"] = mbt.ITF_Bool{g.skill_poison}
-	state["skill_shield_block"] = mbt.ITF_Bool{g.skill_shield_block}
-	state["skill_heavy_strike"] = mbt.ITF_Bool{g.skill_heavy_strike}
-	state["skill_counter_attack"] = mbt.ITF_Bool{g.skill_counter_attack}
-	state["skill_battle_cry"] = mbt.ITF_Bool{g.skill_battle_cry}
-	state["skill_fortify"] = mbt.ITF_Bool{g.skill_fortify}
-	state["qty_venom_sac"] = mbt.ITF_Int{g.qty_venom_sac}
-	state["enemy_element"] = mbt.ITF_Int{g.enemy_element}
-	state["enchant_slot_1"] = mbt.ITF_Int{g.enchant_slot_1}
-	state["enchant_slot_2"] = mbt.ITF_Int{g.enchant_slot_2}
-	state["enchant_slot_3"] = mbt.ITF_Int{g.enchant_slot_3}
-	state["salvage_level"] = mbt.ITF_Int{g.salvage_level}
+	// ch: CharState
+	ch := make(map[string]mbt.ITF_Value)
+	ch["hp"] = mbt.ITF_Int{g.hp}
+	ch["max_hp"] = mbt.ITF_Int{g.max_hp}
+	ch["base_attack"] = mbt.ITF_Int{g.base_attack}
+	ch["xp"] = mbt.ITF_Int{g.xp}
+	ch["level"] = mbt.ITF_Int{g.level}
+	ch["gold"] = mbt.ITF_Int{g.gold}
+	ch["stamina"] = mbt.ITF_Int{g.stamina}
+	ch["max_stamina"] = mbt.ITF_Int{g.max_stamina}
+	ch["skill_points"] = mbt.ITF_Int{g.skill_points}
+	ch["skill_combo"] = mbt.ITF_Bool{g.skill_combo}
+	ch["skill_poison"] = mbt.ITF_Bool{g.skill_poison}
+	ch["skill_shield_block"] = mbt.ITF_Bool{g.skill_shield_block}
+	ch["skill_heavy_strike"] = mbt.ITF_Bool{g.skill_heavy_strike}
+	ch["skill_counter_attack"] = mbt.ITF_Bool{g.skill_counter_attack}
+	ch["skill_battle_cry"] = mbt.ITF_Bool{g.skill_battle_cry}
+	ch["skill_fortify"] = mbt.ITF_Bool{g.skill_fortify}
+	state["ch"] = mbt.ITF_Record{ch}
+
+	// inv: InvState
+	inv := make(map[string]mbt.ITF_Value)
+	inv["qty_potion"] = mbt.ITF_Int{g.qty_potion}
+	inv["qty_wood"] = mbt.ITF_Int{g.qty_wood}
+	inv["qty_iron"] = mbt.ITF_Int{g.qty_iron}
+	inv["qty_sword"] = mbt.ITF_Int{g.qty_sword}
+	inv["has_sword"] = mbt.ITF_Bool{g.has_sword}
+	inv["qty_venom_sac"] = mbt.ITF_Int{g.qty_venom_sac}
+	inv["salvage_level"] = mbt.ITF_Int{g.salvage_level}
+	state["inv"] = mbt.ITF_Record{inv}
+
+	// eqp: EquipState
+	eqp := make(map[string]mbt.ITF_Value)
+	eqp["sword_dur"] = mbt.ITF_Int{g.sword_dur}
+	eqp["sword_max_dur"] = mbt.ITF_Int{g.sword_max_dur}
+	eqp["enchant_slot_1"] = mbt.ITF_Int{g.enchant_slot_1}
+	eqp["enchant_slot_2"] = mbt.ITF_Int{g.enchant_slot_2}
+	eqp["enchant_slot_3"] = mbt.ITF_Int{g.enchant_slot_3}
+	state["eqp"] = mbt.ITF_Record{eqp}
+
+	// cb: CombatState
+	cb := make(map[string]mbt.ITF_Value)
+	cb["in_combat"] = mbt.ITF_Bool{g.in_combat}
+	cb["enemy_hp"] = mbt.ITF_Int{g.enemy_hp}
+	cb["enemy_attack"] = mbt.ITF_Int{g.enemy_attack}
+	cb["enemy_element"] = mbt.ITF_Int{g.enemy_element}
+	cb["combo_count"] = mbt.ITF_Int{g.combo_count}
+	cb["player_poison_dur"] = mbt.ITF_Int{g.player_poison_dur}
+	cb["player_atk_buff_dur"] = mbt.ITF_Int{g.player_atk_buff_dur}
+	cb["player_def_buff_dur"] = mbt.ITF_Int{g.player_def_buff_dur}
+	cb["enemy_poison_dur"] = mbt.ITF_Int{g.enemy_poison_dur}
+	cb["cd_heavy_strike"] = mbt.ITF_Int{g.cd_heavy_strike}
+	cb["cd_battle_cry"] = mbt.ITF_Int{g.cd_battle_cry}
+	cb["cd_fortify"] = mbt.ITF_Int{g.cd_fortify}
+	state["cb"] = mbt.ITF_Record{cb}
+
+	// w: WorldState
+	w := make(map[string]mbt.ITF_Value)
+	w["pos_x"] = mbt.ITF_Int{g.pos_x}
+	w["pos_y"] = mbt.ITF_Int{g.pos_y}
+	w["turn_count"] = mbt.ITF_Int{g.turn_count}
+	state["w"] = mbt.ITF_Record{w}
+
+	// meta: MetaState
+	mt := make(map[string]mbt.ITF_Value)
+	mt["game_won"] = mbt.ITF_Bool{g.game_won}
+	mt["saved_exists"] = mbt.ITF_Bool{g.saved_exists}
+	mt["pity_counter"] = mbt.ITF_Int{g.pity_counter}
+	mt["last_drop"] = mbt.ITF_Int{g.last_drop}
+	state["meta"] = mbt.ITF_Record{mt}
+
 	return state
 }
 

@@ -41,7 +41,14 @@ replay_trace :: proc(
 
 		// Get implementation state
 		actual := get_state(driver)
-		defer delete(actual)
+		defer {
+			for _, val in actual {
+				if rec, is_rec := val.(ITF_Record); is_rec {
+					delete(rec.fields)
+				}
+			}
+			delete(actual)
+		}
 
 		// Compare each variable
 		step_ok := true
@@ -101,6 +108,16 @@ values_equal :: proc(a, b: ITF_Value) -> bool {
 			}
 			return true
 		}
+	case ITF_Record:
+		if vb, ok := b.(ITF_Record); ok {
+			if len(va.fields) != len(vb.fields) do return false
+			for k, va_field in va.fields {
+				vb_field, has := vb.fields[k]
+				if !has do return false
+				if !values_equal(va_field, vb_field) do return false
+			}
+			return true
+		}
 	case ITF_None:
 		if _, ok := b.(ITF_None); ok {
 			return true
@@ -129,6 +146,19 @@ format_value :: proc(v: ITF_Value) -> string {
 		}
 		joined := strings.join(parts[:], ", ")
 		result := fmt.aprintf("[%s]", joined)
+		delete(joined)
+		return result
+	case ITF_Record:
+		parts := make([dynamic]string)
+		defer {
+			for part in parts do delete(part)
+			delete(parts)
+		}
+		for k, v in val.fields {
+			append(&parts, fmt.aprintf("%s: %s", k, format_value(v)))
+		}
+		joined := strings.join(parts[:], ", ")
+		result := fmt.aprintf("{%s}", joined)
 		delete(joined)
 		return result
 	case ITF_None:

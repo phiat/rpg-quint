@@ -11,6 +11,7 @@ ITF_Value :: union {
 	ITF_Str,
 	ITF_Bool,
 	ITF_List,
+	ITF_Record,
 	ITF_None,
 }
 
@@ -25,6 +26,9 @@ ITF_Bool :: struct {
 }
 ITF_List :: struct {
 	items: [dynamic]ITF_Value,
+}
+ITF_Record :: struct {
+	fields: map[string]ITF_Value,
 }
 ITF_None :: struct {}
 
@@ -208,8 +212,13 @@ convert_json_value :: proc(val: json.Value, allocator := context.allocator) -> I
 				return list
 			}
 		}
-		// Fallback: unknown object, return None
-		return ITF_None{}
+		// Fallback: treat as record (key-value fields)
+		rec := ITF_Record{}
+		rec.fields = make(map[string]ITF_Value, allocator = allocator)
+		for rkey, rval in obj {
+			rec.fields[strings.clone(string(rkey), allocator)] = convert_json_value(rval, allocator)
+		}
+		return rec
 	}
 	return ITF_None{}
 }
@@ -247,6 +256,14 @@ value_as_list :: proc(v: ITF_Value) -> ([]ITF_Value, bool) {
 	return nil, false
 }
 
+// Helper: extract record from ITF_Value
+value_as_record :: proc(v: ITF_Value) -> (map[string]ITF_Value, bool) {
+	if val, ok := v.(ITF_Record); ok {
+		return val.fields, true
+	}
+	return nil, false
+}
+
 // Helper: check if value is None
 value_is_none :: proc(v: ITF_Value) -> bool {
 	_, ok := v.(ITF_None)
@@ -263,6 +280,12 @@ delete_itf_value :: proc(v: ITF_Value, allocator := context.allocator) {
 			delete_itf_value(item, allocator)
 		}
 		delete(val.items)
+	case ITF_Record:
+		for key, field in val.fields {
+			delete(key, allocator)
+			delete_itf_value(field, allocator)
+		}
+		delete(val.fields)
 	case ITF_Int, ITF_Bool, ITF_None:
 		// no heap allocations
 	}
