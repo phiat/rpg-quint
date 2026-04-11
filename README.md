@@ -17,7 +17,15 @@ Inspired by: [Model-Based Testing for D&D](https://www.loskutoff.com/blog/model-
 just play             # build and run the game
 ```
 
-Controls: WASD to move, E to fight, A to attack, P for potions, F to flee. See the HUD sidebar for zone-specific actions.
+Controls: WASD to move, E to fight, A to attack, P for potions, F to flee, T to repair. See the HUD sidebar for zone-specific actions.
+
+Features:
+- 3x3 world grid with level-gated zones (Village → Castle)
+- Turn-based combat against tiered enemies (Slime, Skeleton, Dragon)
+- Resource gathering (wood, iron), crafting, and equipment
+- Sword durability — degrades per attack, repair at village
+- Day/night shader cycle with atmospheric color grading
+- Post-processing shader pipeline (extensible for weather, zone effects)
 
 The game logic in `quint_crawl/` is the single source of truth — shared by both the raylib game and the MBT test harness. Every state transition is formally specified and verified.
 
@@ -38,12 +46,13 @@ specs/*.qnt  ──[quint run --mbt]──▶  traces/*.itf.json  ──[odin te
 ## Project structure
 
 ```
-quint_crawl_game/   Raylib game executable (rendering, input, UI)
-quint_crawl/        Shared game logic (Game_State, actions, constants)
-specs/              Quint specifications (.qnt)
+quint_crawl/        Shared game logic (Game_State, all action procs, constants)
+quint_crawl_game/   Raylib game executable (rendering, input, UI, shaders)
+  assets/           GLSL shaders (daynight.fs, etc.)
+specs/              Quint formal specifications (.qnt)
 traces/             Generated ITF trace files (.itf.json)
 quint_mbt/          Shared Odin library: ITF parser + trace replayer
-*_mbt/              Per-module Odin implementation + MBT test harness
+*_mbt/              Per-module Odin MBT test harnesses
 docs/               Design documents (asset specs, etc.)
 justfile            Task runner for common workflows
 ```
@@ -77,7 +86,7 @@ justfile            Task runner for common workflows
 | **reputation** | Faction reputation with rivalries | Standings bounded [-100, 100] |
 | **summoning** | Timed summon slots (3 max) | Count consistent, inactive zeroed, durations non-negative |
 | **world_grid** | 3x3 level-gated zone grid | Position bounded, zone matches, level gates respected |
-| **quint_crawl** | Full RPG game state machine | HP bounded, gold non-negative, level gates, win condition correct |
+| **quint_crawl** | Full RPG game state machine | HP bounded, gold non-negative, level gates, durability bounded, win condition correct |
 
 ## Quick start
 
