@@ -66,6 +66,7 @@ traces:
         social/faction:faction_run \
         social/dialogue:dialogue_run \
         world/fast_travel:fast_travel_run \
+        world/fog_of_war:fog_of_war_run \
         quint_crawl:quint_crawl_run; \
     do \
         path="${spec%%:*}"; \
@@ -118,7 +119,7 @@ test:
         mbt/combat/combat_mbt mbt/combat/combat_full_mbt mbt/combat/status_mbt mbt/combat/cooldown_mbt mbt/combat/elemental_mbt \
         mbt/items/equip_mbt mbt/items/durability_mbt mbt/items/enchantment_mbt mbt/items/stacking_mbt mbt/items/crafting_mbt mbt/items/capacity_craft_mbt mbt/items/gated_craft_mbt mbt/items/salvage_mbt \
         mbt/economy/shop_mbt mbt/economy/dynamic_shop_mbt mbt/economy/trade_mbt mbt/economy/loot_mbt \
-        mbt/world/world_grid_mbt mbt/world/trap_mbt mbt/world/respawn_mbt mbt/world/companion_mbt \
+        mbt/world/world_grid_mbt mbt/world/trap_mbt mbt/world/respawn_mbt mbt/world/companion_mbt mbt/world/fog_of_war_mbt \
         mbt/social/party_mbt mbt/social/quest_mbt mbt/social/skill_tree_mbt mbt/social/reputation_mbt mbt/social/summoning_mbt \
         mbt/economy/auction_mbt mbt/social/faction_mbt mbt/social/dialogue_mbt mbt/world/fast_travel_mbt \
         quint_crawl_mbt; \

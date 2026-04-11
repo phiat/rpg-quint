@@ -159,6 +159,19 @@ draw_hud :: proc(app: ^App_State) {
 			draw_action(x, &y, "[L]", "Claim Victory!", true)
 		}
 
+		// Fast travel (if any waypoints besides current)
+		has_waypoints := false
+		for wx in 0 ..< qc.WORLD_SIZE {
+			for wy in 0 ..< qc.WORLD_SIZE {
+				if g.waypoints[wx][wy] && (wx != g.pos_x || wy != g.pos_y) {
+					has_waypoints = true
+				}
+			}
+		}
+		if has_waypoints {
+			draw_action(x, &y, "[J]", "Fast Travel", true)
+		}
+
 		// Save/Load
 		draw_action(x, &y, "[F5]", "Save", true)
 		draw_action(x, &y, "[F9]", "Load", g.saved_exists)

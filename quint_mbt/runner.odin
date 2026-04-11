@@ -120,7 +120,10 @@ format_value :: proc(v: ITF_Value) -> string {
 		return fmt.aprintf("%v", val.value)
 	case ITF_List:
 		parts := make([dynamic]string)
-		defer delete(parts)
+		defer {
+			for part in parts do delete(part)
+			delete(parts)
+		}
 		for item in val.items {
 			append(&parts, format_value(item))
 		}
@@ -132,6 +135,15 @@ format_value :: proc(v: ITF_Value) -> string {
 		return "None"
 	}
 	return "<unknown>"
+}
+
+// Free MBT result allocations (format_value strings + errors array)
+delete_result :: proc(result: ^MBT_Result) {
+	for &err in result.errors {
+		delete(err.expected)
+		delete(err.actual)
+	}
+	delete(result.errors)
 }
 
 // Print a summary of the MBT result

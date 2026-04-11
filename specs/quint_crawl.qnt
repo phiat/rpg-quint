@@ -1051,6 +1051,18 @@ module quint_crawl {
 
   /// Last drop is valid (0=none, 1=potion)
   val last_drop_valid = last_drop >= 0 and last_drop <= 1
+
+  /// XP thresholds increase with level (progression is monotonic)
+  val xp_thresholds_monotonic = and {
+    xp_threshold(2) < xp_threshold(3),
+    xp_threshold(3) < xp_threshold(4),
+    xp_threshold(4) < xp_threshold(5),
+  }
+
+  /// Win condition requires Castle position
+  val win_requires_castle = game_won.implies(
+    pos_x % 3 == 2 and pos_y % 3 == 2 and zone_level(pos_x, pos_y) >= MAX_LEVEL
+  )
 }
 
 module quint_crawl_run {

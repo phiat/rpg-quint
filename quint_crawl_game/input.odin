@@ -96,6 +96,26 @@ handle_map_input :: proc(app: ^App_State) {
 		}
 	}
 
+	// Fast travel (cycles to next waypoint)
+	if rl.IsKeyPressed(.J) {
+		// Find next waypoint after current position
+		found := false
+		for i in 1 ..< qc.WORLD_SIZE * qc.WORLD_SIZE {
+			idx := (g.pos_x * qc.WORLD_SIZE + g.pos_y + i) % (qc.WORLD_SIZE * qc.WORLD_SIZE)
+			wx := idx / qc.WORLD_SIZE
+			wy := idx % qc.WORLD_SIZE
+			if qc.fast_travel(g, wx, wy) {
+				zone := qc.zone_name(g.pos_x, g.pos_y)
+				add_message(app, fmt.tprintf("Fast traveled to %s!", zone), {100, 200, 255, 255})
+				found = true
+				break
+			}
+		}
+		if !found {
+			add_message(app, "No available waypoints.", TEXT_DIM)
+		}
+	}
+
 	// Claim victory
 	if rl.IsKeyPressed(.L) {
 		if qc.claim_victory(g) {

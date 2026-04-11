@@ -155,9 +155,9 @@ update :: proc(app: ^App_State) {
 		}
 	}
 
-	// Advance day/night cycle
-	app.day_time += dt * DAY_CYCLE_SPEED
-	if app.day_time > 1.0 do app.day_time -= 1.0
+	// Day/night cycle driven by turn count
+	app.day_time = f32(app.game.turn_count) / TURNS_PER_DAY
+	app.day_time -= f32(int(app.day_time))  // wrap to [0, 1)
 }
 
 main :: proc() {

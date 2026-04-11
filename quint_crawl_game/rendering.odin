@@ -31,13 +31,23 @@ draw_tile :: proc(x, y: int, g: ^qc.Game_State) {
 	is_current := x == g.pos_x && y == g.pos_y
 	level_req := qc.zone_level(x, y)
 	locked := level_req > g.level
+	revealed := qc.is_revealed(g, x, y)
+
+	// Unrevealed: dark tile with minimal border
+	if !revealed {
+		rl.DrawRectangle(px, py, TILE_SIZE, TILE_SIZE, {12, 12, 18, 255})
+		rl.DrawRectangleLinesEx({f32(px), f32(py), f32(TILE_SIZE), f32(TILE_SIZE)}, 1, {40, 40, 50, 255})
+		return
+	}
 
 	// Tile background
 	color := tile_color(x, y)
+	visited := g.visited[x][y]
 	if !is_current {
-		color.r = u8(f32(color.r) * 0.7)
-		color.g = u8(f32(color.g) * 0.7)
-		color.b = u8(f32(color.b) * 0.7)
+		dim := f32(0.7) if visited else f32(0.5)  // unvisited-but-revealed is dimmer
+		color.r = u8(f32(color.r) * dim)
+		color.g = u8(f32(color.g) * dim)
+		color.b = u8(f32(color.b) * dim)
 	}
 	rl.DrawRectangle(px, py, TILE_SIZE, TILE_SIZE, color)
 
@@ -45,7 +55,8 @@ draw_tile :: proc(x, y: int, g: ^qc.Game_State) {
 	abbrev := zone_abbrev(x, y)
 	name_size := i32(10)
 	name_w := rl.MeasureText(abbrev, name_size)
-	rl.DrawText(abbrev, px + (TILE_SIZE - name_w) / 2, py + 2, name_size, TEXT_BRIGHT)
+	text_alpha := u8(255) if visited else u8(140)
+	rl.DrawText(abbrev, px + (TILE_SIZE - name_w) / 2, py + 2, name_size, {TEXT_BRIGHT.r, TEXT_BRIGHT.g, TEXT_BRIGHT.b, text_alpha})
 
 	// Level pips (colored dots in bottom-left corner)
 	pip_colors := [5]rl.Color{
@@ -60,6 +71,13 @@ draw_tile :: proc(x, y: int, g: ^qc.Game_State) {
 	pip_y := py + TILE_SIZE - pip_size * 2 - 2
 	for i in 0 ..< level_req {
 		rl.DrawRectangle(px + 3 + i32(i) * (pip_size + 2), pip_y, pip_size, pip_size, pip_color)
+	}
+
+	// Waypoint marker (small diamond on village tiles)
+	if g.waypoints[x][y] && !is_current {
+		wp_x := f32(px + TILE_SIZE - 8)
+		wp_y := f32(py + 8)
+		rl.DrawPoly({wp_x, wp_y}, 4, 4, 45, {100, 200, 255, 180})
 	}
 
 	// Locked overlay
@@ -237,6 +255,9 @@ draw_tile_tooltip :: proc(g: ^qc.Game_State) {
 	in_tile_x := int(rel_x) % (TILE_SIZE + TILE_PAD)
 	in_tile_y := int(rel_y) % (TILE_SIZE + TILE_PAD)
 	if in_tile_x >= TILE_SIZE || in_tile_y >= TILE_SIZE do return
+
+	// Hide tooltip for unrevealed tiles
+	if !qc.is_revealed(g, tile_x, tile_y) do return
 
 	// Build tooltip
 	zone := qc.zone_name(tile_x, tile_y)

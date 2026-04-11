@@ -59,8 +59,8 @@ ENEMY_COLORS := [qc.MAX_LEVEL]rl.Color{
 
 ENEMY_NAMES := [qc.MAX_LEVEL]string{"Slime", "Skeleton", "Wolf", "Wraith", "Dragon"}
 
-// Day/night cycle (temporary - will be driven by game state later)
-DAY_CYCLE_SPEED :: f32(0.03)  // full cycle in ~33 seconds for testing
+// Day/night cycle — driven by turn count
+TURNS_PER_DAY :: f32(40.0)   // full day/night cycle every 40 turns
 
 // Screen transitions
 TRANSITION_DURATION :: f32(0.3)  // total transition time (fade out + fade in)

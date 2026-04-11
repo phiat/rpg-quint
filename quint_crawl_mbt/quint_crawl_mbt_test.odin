@@ -144,9 +144,11 @@ test_quint_crawl_trace_replay :: proc(t: ^testing.T) {
 			log.errorf("Failed to parse %s: %v", file, err)
 			testing.fail_now(t)
 		}
+		defer mbt.delete_trace(&trace)
 
 		g: qc.Game_State
 		result := mbt.replay_trace(&trace, &g, crawl_step, crawl_state)
+		defer mbt.delete_result(&result)
 
 		if result.failed > 0 {
 			mbt.print_result(&result)

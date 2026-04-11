@@ -53,6 +53,15 @@ POISON_APPLY_TIER :: 2
 LOOT_DROP_MODULO :: 3
 MAX_COMBO_CHAIN :: 3
 
+// Common guard checks
+can_act_map :: proc(g: ^Game_State) -> bool {
+	return !g.in_combat && !g.game_won && g.hp > 0
+}
+
+can_act_combat :: proc(g: ^Game_State) -> bool {
+	return g.in_combat && !g.game_won && g.hp > 0 && g.enemy_hp > 0
+}
+
 Save_Data :: struct {
 	hp:           int,
 	max_hp:       int,
@@ -113,6 +122,10 @@ Game_State :: struct {
 	last_drop:           int,
 	// World state
 	turn_count:          int,
+	// Fog of war
+	visited:             [WORLD_SIZE][WORLD_SIZE]bool,
+	// Fast travel
+	waypoints:           [WORLD_SIZE][WORLD_SIZE]bool,
 	// Save/Load
 	saved_exists:        bool,
 	save_data:           Save_Data,
@@ -205,16 +218,61 @@ init_game :: proc(g: ^Game_State) {
 	g.cd_battle_cry = 0
 	g.pity_counter = 0
 	g.last_drop = 0
+	// Fog of war: clear all, mark starting zone + neighbors as revealed
+	for x in 0 ..< WORLD_SIZE {
+		for y in 0 ..< WORLD_SIZE {
+			g.visited[x][y] = false
+			g.waypoints[x][y] = false
+		}
+	}
+	g.visited[0][0] = true
+	g.waypoints[0][0] = true  // starting village is a waypoint
+	update_revealed(g)
+}
+
+// Fog of war: a zone is revealed if visited or orthogonally adjacent to a visited zone
+is_revealed :: proc(g: ^Game_State, x, y: int) -> bool {
+	if x < 0 || x >= WORLD_SIZE || y < 0 || y >= WORLD_SIZE do return false
+	if g.visited[x][y] do return true
+	if x > 0 && g.visited[x - 1][y] do return true
+	if x < WORLD_SIZE - 1 && g.visited[x + 1][y] do return true
+	if y > 0 && g.visited[x][y - 1] do return true
+	if y < WORLD_SIZE - 1 && g.visited[x][y + 1] do return true
+	return false
+}
+
+// Update revealed state (call after any move)
+update_revealed :: proc(g: ^Game_State) {
+	// revealed is derived from visited — no separate storage needed
+	// We use is_revealed() as a pure function instead
+}
+
+// Fast travel to a waypoint
+fast_travel :: proc(g: ^Game_State, tx, ty: int) -> bool {
+	if !can_act_map(g) do return false
+	if tx < 0 || tx >= WORLD_SIZE || ty < 0 || ty >= WORLD_SIZE do return false
+	if !g.waypoints[tx][ty] do return false
+	if tx == g.pos_x && ty == g.pos_y do return false  // already there
+	if zone_level(tx, ty) > g.level do return false
+	g.pos_x = tx
+	g.pos_y = ty
+	g.turn_count += 1
+	return true
 }
 
 move :: proc(g: ^Game_State, dx, dy: int) -> bool {
 	nx, ny := g.pos_x + dx, g.pos_y + dy
 	if nx < 0 || nx >= WORLD_SIZE || ny < 0 || ny >= WORLD_SIZE do return false
-	if g.in_combat || g.game_won || g.hp <= 0 do return false
+	if !can_act_map(g) do return false
 	if zone_level(nx, ny) > g.level do return false
 	g.pos_x = nx
 	g.pos_y = ny
 	g.turn_count += 1
+	// Mark visited + unlock waypoint at villages
+	g.visited[nx][ny] = true
+	if zone_has_services(nx, ny) {
+		g.waypoints[nx][ny] = true
+	}
 	// Storm damage (can't kill — floor at 1)
 	if zone_weather(nx, ny, g.turn_count) == 3 {
 		g.hp = max(g.hp - STORM_MOVE_DMG, 1)
@@ -223,7 +281,7 @@ move :: proc(g: ^Game_State, dx, dy: int) -> bool {
 }
 
 enter_combat :: proc(g: ^Game_State) -> bool {
-	if g.in_combat || g.game_won || g.hp <= 0 do return false
+	if !can_act_map(g) do return false
 	g.turn_count += 1
 	g.in_combat = true
 	g.enemy_hp = zone_enemy_hp(g.pos_x, g.pos_y)
@@ -338,7 +396,7 @@ resolve_combat_hit :: proc(g: ^Game_State, dmg: int) -> bool {
 }
 
 combat_attack :: proc(g: ^Game_State) -> bool {
-	if !g.in_combat || g.game_won || g.hp <= 0 || g.enemy_hp <= 0 do return false
+	if !can_act_combat(g) do return false
 	if g.stamina < ATTACK_STAMINA do return false
 	g.turn_count += 1
 	g.stamina -= ATTACK_STAMINA
@@ -380,7 +438,7 @@ flee_combat :: proc(g: ^Game_State) -> bool {
 }
 
 rest_at_village :: proc(g: ^Game_State) -> bool {
-	if g.in_combat || g.game_won || g.hp <= 0 do return false
+	if !can_act_map(g) do return false
 	if !zone_has_services(g.pos_x, g.pos_y) do return false
 	if g.hp >= g.max_hp && g.stamina >= g.max_stamina do return false
 	g.turn_count += 1
@@ -390,7 +448,7 @@ rest_at_village :: proc(g: ^Game_State) -> bool {
 }
 
 buy_potion :: proc(g: ^Game_State) -> bool {
-	if g.in_combat || g.game_won || g.hp <= 0 do return false
+	if !can_act_map(g) do return false
 	if !zone_has_services(g.pos_x, g.pos_y) do return false
 	if g.gold < POTION_COST do return false
 	g.turn_count += 1
@@ -400,7 +458,7 @@ buy_potion :: proc(g: ^Game_State) -> bool {
 }
 
 gather_wood :: proc(g: ^Game_State) -> bool {
-	if g.in_combat || g.game_won || g.hp <= 0 do return false
+	if !can_act_map(g) do return false
 	if !zone_has_wood(g.pos_x, g.pos_y) do return false
 	g.turn_count += 1
 	rain_bonus := RAIN_GATHER_BONUS if zone_weather(g.pos_x, g.pos_y, g.turn_count) == 1 else 0
@@ -409,7 +467,7 @@ gather_wood :: proc(g: ^Game_State) -> bool {
 }
 
 mine_iron :: proc(g: ^Game_State) -> bool {
-	if g.in_combat || g.game_won || g.hp <= 0 do return false
+	if !can_act_map(g) do return false
 	if !zone_has_iron(g.pos_x, g.pos_y) do return false
 	g.turn_count += 1
 	rain_bonus := RAIN_GATHER_BONUS if zone_weather(g.pos_x, g.pos_y, g.turn_count) == 1 else 0
@@ -418,7 +476,7 @@ mine_iron :: proc(g: ^Game_State) -> bool {
 }
 
 craft_sword :: proc(g: ^Game_State) -> bool {
-	if g.in_combat || g.game_won || g.hp <= 0 do return false
+	if !can_act_map(g) do return false
 	if !zone_has_services(g.pos_x, g.pos_y) do return false
 	if g.qty_wood < CRAFT_WOOD_COST || g.qty_iron < CRAFT_IRON_COST do return false
 	g.turn_count += 1
@@ -429,7 +487,7 @@ craft_sword :: proc(g: ^Game_State) -> bool {
 }
 
 equip_sword :: proc(g: ^Game_State) -> bool {
-	if g.in_combat || g.game_won || g.hp <= 0 do return false
+	if !can_act_map(g) do return false
 	if g.qty_sword < 1 || g.has_sword do return false
 	g.turn_count += 1
 	g.has_sword = true
@@ -439,7 +497,7 @@ equip_sword :: proc(g: ^Game_State) -> bool {
 }
 
 repair_sword :: proc(g: ^Game_State) -> bool {
-	if g.in_combat || g.game_won || g.hp <= 0 do return false
+	if !can_act_map(g) do return false
 	if !zone_has_services(g.pos_x, g.pos_y) do return false
 	if !g.has_sword do return false
 	if g.sword_dur >= g.sword_max_dur do return false
@@ -451,7 +509,7 @@ repair_sword :: proc(g: ^Game_State) -> bool {
 }
 
 claim_victory :: proc(g: ^Game_State) -> bool {
-	if g.in_combat || g.game_won || g.hp <= 0 do return false
+	if !can_act_map(g) do return false
 	if g.level < MAX_LEVEL do return false
 	// Must be on a Castle biome (x%3==2, y%3==2) at zone level >= MAX_LEVEL
 	if g.pos_x % 3 != 2 || g.pos_y % 3 != 2 do return false
@@ -473,7 +531,7 @@ use_antidote :: proc(g: ^Game_State) -> bool {
 }
 
 poison_strike :: proc(g: ^Game_State) -> bool {
-	if !g.in_combat || g.game_won || g.hp <= 0 || g.enemy_hp <= 0 do return false
+	if !can_act_combat(g) do return false
 	if g.enemy_poison_dur != 0 do return false  // can't stack
 	if g.stamina < ATTACK_STAMINA do return false
 	g.turn_count += 1
@@ -501,7 +559,7 @@ poison_strike :: proc(g: ^Game_State) -> bool {
 }
 
 combo_attack :: proc(g: ^Game_State) -> bool {
-	if !g.in_combat || g.game_won || g.hp <= 0 || g.enemy_hp <= 0 do return false
+	if !can_act_combat(g) do return false
 	if g.combo_count >= MAX_COMBO_CHAIN do return false
 	if g.stamina < COMBO_STAMINA do return false
 	g.turn_count += 1
@@ -532,7 +590,7 @@ combo_attack :: proc(g: ^Game_State) -> bool {
 }
 
 heavy_strike :: proc(g: ^Game_State) -> bool {
-	if !g.in_combat || g.game_won || g.hp <= 0 || g.enemy_hp <= 0 do return false
+	if !can_act_combat(g) do return false
 	if g.cd_heavy_strike != 0 do return false
 	if g.stamina < HEAVY_STRIKE_STAMINA do return false
 	g.turn_count += 1
@@ -559,7 +617,7 @@ heavy_strike :: proc(g: ^Game_State) -> bool {
 }
 
 battle_cry :: proc(g: ^Game_State) -> bool {
-	if !g.in_combat || g.game_won || g.hp <= 0 || g.enemy_hp <= 0 do return false
+	if !can_act_combat(g) do return false
 	if g.cd_battle_cry != 0 do return false
 	if g.stamina < BATTLE_CRY_STAMINA do return false
 	g.turn_count += 1
@@ -604,7 +662,7 @@ battle_cry :: proc(g: ^Game_State) -> bool {
 }
 
 save_game :: proc(g: ^Game_State) -> bool {
-	if g.in_combat || g.game_won || g.hp <= 0 do return false
+	if !can_act_map(g) do return false
 	g.saved_exists = true
 	g.save_data = Save_Data{
 		hp           = g.hp,

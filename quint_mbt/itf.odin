@@ -252,3 +252,41 @@ value_is_none :: proc(v: ITF_Value) -> bool {
 	_, ok := v.(ITF_None)
 	return ok
 }
+
+// Free an ITF value's allocations
+delete_itf_value :: proc(v: ITF_Value, allocator := context.allocator) {
+	switch val in v {
+	case ITF_Str:
+		delete(val.value, allocator)
+	case ITF_List:
+		for item in val.items {
+			delete_itf_value(item, allocator)
+		}
+		delete(val.items)
+	case ITF_Int, ITF_Bool, ITF_None:
+		// no heap allocations
+	}
+}
+
+// Free an ITF state's allocations
+delete_itf_state :: proc(state: ^ITF_State, allocator := context.allocator) {
+	delete(state.action_taken, allocator)
+	for key, val in state.nondet_picks {
+		delete(key, allocator)
+		delete_itf_value(val, allocator)
+	}
+	delete(state.nondet_picks)
+	for key, val in state.vars {
+		delete(key, allocator)
+		delete_itf_value(val, allocator)
+	}
+	delete(state.vars)
+}
+
+// Free an entire ITF trace
+delete_trace :: proc(trace: ^ITF_Trace, allocator := context.allocator) {
+	for &state in trace.states {
+		delete_itf_state(&state, allocator)
+	}
+	delete(trace.states)
+}
