@@ -161,7 +161,13 @@ draw_hud :: proc(app: ^App_State) {
 			y^ += 18
 		}
 
-		draw_action(x, &y, "[E]", "Fight", true)
+		can_fight := g.last_kill_turn == 0 || g.turn_count - g.last_kill_turn >= qc.RESPAWN_TURNS
+		if can_fight {
+			draw_action(x, &y, "[E]", "Fight", true)
+		} else {
+			remaining := qc.RESPAWN_TURNS - (g.turn_count - g.last_kill_turn)
+			draw_action(x, &y, "[E]", fmt.ctprintf("Respawn in %d turns", remaining), false)
+		}
 
 		// Town actions
 		if qc.zone_has_services(g.pos_x, g.pos_y) {

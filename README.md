@@ -35,6 +35,7 @@ Features:
 - Status effects — poison, ATK/DEF buffs with turn-based ticking
 - Venom sac system — consumable for poison strike, dropped from ZL2+ enemies or crafted at village
 - Per-zone weather (Clear/Rain/Fog/Storm) affecting combat, gathering, and movement
+- Enemy respawn timer — 5-turn cooldown after defeating an enemy before new combat available
 - Loot drops with pity-counter guarantee system
 - Resource gathering (wood, iron), crafting, and equipment
 - Elemental damage — 4-element cycle (Fire>Ice>Lightning>Earth>Fire) with 2x/1x/0.5x multipliers

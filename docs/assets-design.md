@@ -28,13 +28,13 @@ The game currently renders everything procedurally (colored shapes, rectangles, 
 ### Grid Layout Reference
 
 ```
-         x=0           x=1           x=2
-y=0   Village(1)    Forest(1)     Swamp(1)
-y=1   Plains(1)     Cave(2)       Mountain(2)
-y=2   Ruins(2)      Shrine(2)     Castle(3)
+         x%3=0         x%3=1         x%3=2
+y%3=0  Village        Forest        Swamp
+y%3=1  Plains         Cave          Mountain
+y%3=2  Ruins          Shrine        Castle
 ```
 
-Level requirements in parentheses. The player starts at Village (0,0) and must reach level 3 to access Castle (2,2).
+This 3x3 biome pattern tiles across the full 9x9 world grid. Zone level = `(x+y)/3 + 1` (capped at 5). The player starts at (0,0) and must reach level 5 to access the highest-level Castle zones and claim victory.
 
 ## Character Sprites (64x64)
 
@@ -55,9 +55,11 @@ One enemy per zone tier. Displayed centered in the combat screen.
 
 | File | Tier | Name | HP | ATK | Description | Color Key |
 |------|------|------|----|-----|-------------|-----------|
-| `enemy_tier1.png` | 1 | Slime | 15 | 5 | Amorphous green blob with simple eyes, non-threatening | Green `#64B464` |
-| `enemy_tier2.png` | 2 | Skeleton | 30 | 8 | Undead warrior, angular bones, hollow eye sockets, maybe a rusty weapon | Yellow `#B4B464` |
-| `enemy_tier3.png` | 3 | Dragon | 50 | 12 | Winged dragon, menacing, red scales, glowing yellow eyes | Red `#C85050`, eyes `#FFFF00` |
+| `enemy_tier1.png` | 1 | Slime | 20 | 6 | Amorphous green blob with simple eyes, non-threatening | Green `#64B464` |
+| `enemy_tier2.png` | 2 | Skeleton | 40 | 10 | Undead warrior, angular bones, hollow eye sockets, rusty weapon | Yellow `#B4B464` |
+| `enemy_tier3.png` | 3 | Wolf | 60 | 14 | Feral gray wolf, red eyes, snarling, hunched posture | Gray `#808090` |
+| `enemy_tier4.png` | 4 | Wraith | 80 | 18 | Ghostly floating figure, dark cloak, glowing purple eyes | Purple `#9050B4` |
+| `enemy_tier5.png` | 5 | Dragon | 100 | 22 | Winged dragon, menacing, red scales, glowing yellow eyes | Red `#C85050`, eyes `#FFFF00` |
 
 ### Optional Enemy Variants
 
@@ -77,6 +79,7 @@ Used in the HUD sidebar inventory display.
 | `icon_sword_broken.png` | Broken Sword | Cracked/dimmed blade, 0 durability |
 | `icon_wood.png` | Wood | Bundle of logs/sticks, crafting material |
 | `icon_iron.png` | Iron Ore | Gray metallic chunk, crafting material |
+| `icon_venom_sac.png` | Venom Sac | Green bulbous sac, poison crafting ingredient |
 | `icon_gold.png` | Gold (optional) | Gold coin/pouch for the gold counter |
 
 ## Weather Icons (32x32)
@@ -145,23 +148,23 @@ Applied on top of tile backgrounds when weather is active. Should be subtle (alp
 |----------|-------|-----------|
 | Tile backgrounds | 9 | 240x240 |
 | Player sprite | 1 | 64x64 |
-| Enemy sprites | 3 | 128x128 |
-| Item icons | 5 | 32x32 |
+| Enemy sprites | 5 | 128x128 |
+| Item icons | 6 | 32x32 |
 | Weather icons | 4 | 32x32 |
 | Status effect icons | 4 | 24x24 |
 | Combo icons | 3 | 24x24 |
-| **Total** | **29** | |
+| **Total** | **33** | |
 
 ### Optional (polish)
 
 | Category | Count | Size Each |
 |----------|-------|-----------|
 | Player variants | 2 | 64x64 |
-| Enemy variants | 6 | 128x128 |
+| Enemy variants | 10 | 128x128 |
 | Weather tile overlays | 3 | 240x240 |
 | UI elements | 10 | various |
 | Gold icon | 1 | 32x32 |
-| **Total** | **22** | |
+| **Total** | **26** | |
 
 ## Integration Notes
 

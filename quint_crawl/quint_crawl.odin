@@ -67,6 +67,7 @@ SALVAGE_WOOD_BASE :: 0
 SALVAGE_IRON_BASE :: 1
 UPGRADE_SALVAGE_COST :: 15
 MAX_SALVAGE_LEVEL :: 3
+RESPAWN_TURNS :: 5
 
 // Common guard checks
 can_act_map :: proc(g: ^Game_State) -> bool {
@@ -111,6 +112,7 @@ Save_Data :: struct {
 	enchant_slot_2: int,
 	enchant_slot_3: int,
 	salvage_level: int,
+	last_kill_turn: int,
 }
 
 Game_State :: struct {
@@ -174,6 +176,8 @@ Game_State :: struct {
 	enchant_slot_3:      int,
 	// Salvage
 	salvage_level:       int,  // 1-3, determines material recovery
+	// Respawn timer
+	last_kill_turn:      int,
 	// Save/Load
 	saved_exists:        bool,
 	save_data:           Save_Data,
@@ -415,6 +419,7 @@ move :: proc(g: ^Game_State, dx, dy: int) -> bool {
 
 enter_combat :: proc(g: ^Game_State) -> bool {
 	if !can_act_map(g) do return false
+	if g.last_kill_turn != 0 && g.turn_count - g.last_kill_turn < RESPAWN_TURNS do return false
 	g.turn_count += 1
 	g.in_combat = true
 	g.enemy_hp = zone_enemy_hp(g.pos_x, g.pos_y)
@@ -528,7 +533,8 @@ resolve_combat_hit :: proc(g: ^Game_State, dmg: int) -> bool {
 	}
 
 	if new_enemy_hp <= 0 {
-		// Enemy defeated, player alive — XP, loot, level-up
+		// Enemy defeated, player alive — XP, loot, level-up, respawn timer
+		g.last_kill_turn = g.turn_count
 		g.xp += zone_xp_reward(g.pos_x, g.pos_y)
 		g.in_combat = false
 		g.enemy_attack = 0
@@ -1203,6 +1209,7 @@ save_game :: proc(g: ^Game_State) -> bool {
 		enchant_slot_2 = g.enchant_slot_2,
 		enchant_slot_3 = g.enchant_slot_3,
 		salvage_level = g.salvage_level,
+		last_kill_turn = g.last_kill_turn,
 	}
 	return true
 }
@@ -1243,6 +1250,7 @@ load_game :: proc(g: ^Game_State) -> bool {
 	g.enchant_slot_2 = s.enchant_slot_2
 	g.enchant_slot_3 = s.enchant_slot_3
 	g.salvage_level = s.salvage_level
+	g.last_kill_turn = s.last_kill_turn
 	// Clear combat/status state (save is only outside combat)
 	g.in_combat = false
 	g.enemy_hp = 0

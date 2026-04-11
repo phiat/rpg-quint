@@ -31,6 +31,7 @@ module quint_crawl {
 
   type MetaState = {
     game_won: bool, saved_exists: bool, pity_counter: int, last_drop: int,
+    last_kill_turn: int,
   }
 
   // === State variables ===
@@ -89,6 +90,7 @@ module quint_crawl {
   val SALVAGE_IRON_BASE = 1
   val UPGRADE_SALVAGE_COST = 15
   val MAX_SALVAGE_LEVEL = 3
+  val RESPAWN_TURNS = 5           // turns after kill before combat available again
 
   // --- World scaling constants ---
   val WORLD_SIZE = 9
@@ -230,7 +232,7 @@ module quint_crawl {
       cd_heavy_strike: 0, cd_battle_cry: 0, cd_fortify: 0,
     },
     w' = { pos_x: 0, pos_y: 0, turn_count: 0 },
-    meta' = { game_won: false, saved_exists: false, pity_counter: 0, last_drop: 0 },
+    meta' = { game_won: false, saved_exists: false, pity_counter: 0, last_drop: 0, last_kill_turn: 0 },
   }
 
   // === Movement (only when not in combat) ===
@@ -307,6 +309,7 @@ module quint_crawl {
   // Fog (weather=2) reduces enemy attack
   action enter_combat = all {
     not(cb.in_combat), not(meta.game_won), ch.hp > 0,
+    (meta.last_kill_turn == 0 or w.turn_count - meta.last_kill_turn >= RESPAWN_TURNS),
     val weather = zone_weather(w.pos_x, w.pos_y, w.turn_count + 1)
     val fog_penalty = if (weather == 2) FOG_ATK_PENALTY else 0
     val raw_atk = zone_enemy_attack(w.pos_x, w.pos_y) - fog_penalty
@@ -391,7 +394,8 @@ module quint_crawl {
                qty_venom_sac: if (drops_venom) inv.qty_venom_sac + 1 else inv.qty_venom_sac,
       },
       w' = { ...w, turn_count: w.turn_count + 1 },
-      meta' = { ...meta, pity_counter: new_pity, last_drop: new_last_drop },
+      meta' = { ...meta, pity_counter: new_pity, last_drop: new_last_drop,
+               last_kill_turn: if (enemy_defeated_alive) w.turn_count + 1 else meta.last_kill_turn },
     }
   }
 
@@ -661,7 +665,8 @@ module quint_crawl {
                qty_venom_sac: if (drops_venom) inv.qty_venom_sac + 1 else inv.qty_venom_sac,
       },
       w' = { ...w, turn_count: w.turn_count + 1 },
-      meta' = { ...meta, pity_counter: new_pity, last_drop: new_last_drop },
+      meta' = { ...meta, pity_counter: new_pity, last_drop: new_last_drop,
+               last_kill_turn: if (enemy_defeated_alive) w.turn_count + 1 else meta.last_kill_turn },
     }
   }
 
@@ -730,7 +735,8 @@ module quint_crawl {
                qty_venom_sac: if (drops_venom) inv.qty_venom_sac + 1 else inv.qty_venom_sac,
       },
       w' = { ...w, turn_count: w.turn_count + 1 },
-      meta' = { ...meta, pity_counter: new_pity, last_drop: new_last_drop },
+      meta' = { ...meta, pity_counter: new_pity, last_drop: new_last_drop,
+               last_kill_turn: if (enemy_defeated_alive) w.turn_count + 1 else meta.last_kill_turn },
     }
   }
 
@@ -954,7 +960,8 @@ module quint_crawl {
                qty_venom_sac: if (drops_venom) inv.qty_venom_sac + 1 else inv.qty_venom_sac,
       },
       w' = { ...w, turn_count: w.turn_count + 1 },
-      meta' = { ...meta, pity_counter: new_pity, last_drop: new_last_drop },
+      meta' = { ...meta, pity_counter: new_pity, last_drop: new_last_drop,
+               last_kill_turn: if (enemy_defeated_alive) w.turn_count + 1 else meta.last_kill_turn },
     }
   }
 
@@ -1263,6 +1270,9 @@ module quint_crawl {
 
   /// Last drop is valid (0=none, 1=potion, 2=venom_sac)
   val last_drop_valid = meta.last_drop >= 0 and meta.last_drop <= 2
+
+  /// Last kill turn is non-negative and bounded by turn count
+  val last_kill_turn_bounded = meta.last_kill_turn >= 0 and meta.last_kill_turn <= w.turn_count
 
   /// XP thresholds increase with level
   val xp_thresholds_monotonic = and {

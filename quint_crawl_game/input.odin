@@ -44,6 +44,9 @@ handle_map_input :: proc(app: ^App_State) {
 		if qc.enter_combat(g) {
 			tier := qc.zone_level(g.pos_x, g.pos_y) - 1
 			add_message(app, fmt.tprintf("A %s appears!", ENEMY_NAMES[tier]), BAR_HP_FG)
+		} else if !g.in_combat && g.last_kill_turn != 0 && g.turn_count - g.last_kill_turn < qc.RESPAWN_TURNS {
+			remaining := qc.RESPAWN_TURNS - (g.turn_count - g.last_kill_turn)
+			add_message(app, fmt.tprintf("No enemies yet... %d turns until respawn.", remaining), TEXT_DIM)
 		}
 	}
 
