@@ -86,6 +86,13 @@ draw_combat :: proc(app: ^App_State) {
 		rl.DrawText(fmt.ctprintf("ATK: %d", atk), 200, player_cy + 48, 16, TEXT_BRIGHT)
 	}
 
+	// Stamina bar in combat
+	sta_bar_x := i32(200)
+	sta_bar_y := player_cy + 70
+	rl.DrawText("STA", sta_bar_x, sta_bar_y - 2, 12, TEXT_DIM)
+	draw_bar(sta_bar_x + 30, sta_bar_y, 120, 12, g.stamina, g.max_stamina, {50, 200, 120, 255}, {20, 60, 40, 255})
+	rl.DrawText(fmt.ctprintf("%d/%d", g.stamina, g.max_stamina), sta_bar_x + 155, sta_bar_y - 1, 12, {50, 200, 120, 255})
+
 	// --- Status effects ---
 	status_y := i32(500)
 	if g.player_poison_dur > 0 {
@@ -134,7 +141,8 @@ draw_combat :: proc(app: ^App_State) {
 
 	// Row 2: Poison strike / Antidote
 	action_y2 := action_y + 28
-	ps_color := rl.Color{100, 220, 50, 255} if g.enemy_poison_dur == 0 else rl.Color{60, 60, 70, 255}
+	ps_ok := g.enemy_poison_dur == 0 && g.stamina >= qc.ATTACK_STAMINA
+	ps_color := rl.Color{100, 220, 50, 255} if ps_ok else rl.Color{60, 60, 70, 255}
 	rl.DrawText("[V]", 60, action_y2, 20, ps_color)
 	rl.DrawText("Poison", 100, action_y2, 20, ps_color)
 
@@ -142,6 +150,26 @@ draw_combat :: proc(app: ^App_State) {
 	anti_color := rl.Color{100, 220, 50, 255} if anti_ok else rl.Color{60, 60, 70, 255}
 	rl.DrawText("[X]", 230, action_y2, 20, anti_color)
 	rl.DrawText("Antidote", 270, action_y2, 20, anti_color)
+
+	// Row 3: Heavy strike / Battle cry (with cooldown indicators)
+	action_y3 := action_y2 + 28
+	hs_ok := g.cd_heavy_strike == 0 && g.stamina >= qc.HEAVY_STRIKE_STAMINA && g.enemy_hp > 0
+	hs_color := rl.Color{255, 120, 50, 255} if hs_ok else rl.Color{60, 60, 70, 255}
+	rl.DrawText("[H]", 60, action_y3, 20, hs_color)
+	if g.cd_heavy_strike > 0 {
+		rl.DrawText(fmt.ctprintf("Heavy (%d)", g.cd_heavy_strike), 100, action_y3, 20, hs_color)
+	} else {
+		rl.DrawText("Heavy", 100, action_y3, 20, hs_color)
+	}
+
+	bc_ok := g.cd_battle_cry == 0 && g.stamina >= qc.BATTLE_CRY_STAMINA && g.enemy_hp > 0
+	bc_color := rl.Color{255, 200, 100, 255} if bc_ok else rl.Color{60, 60, 70, 255}
+	rl.DrawText("[Y]", 230, action_y3, 20, bc_color)
+	if g.cd_battle_cry > 0 {
+		rl.DrawText(fmt.ctprintf("Warcry (%d)", g.cd_battle_cry), 270, action_y3, 20, bc_color)
+	} else {
+		rl.DrawText("Warcry", 270, action_y3, 20, bc_color)
+	}
 
 	// Flash overlay for hit feedback
 	if app.flash_timer > 0 {

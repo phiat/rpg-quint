@@ -37,6 +37,18 @@ module quint_crawl {
   var combo_count: int   // 0-3: current position in combo chain
   var combo_timer: int   // turns remaining before combo resets
 
+  // === Stamina ===
+  var stamina: int       // current stamina (combat actions cost stamina)
+  var max_stamina: int   // max stamina (increases on level-up)
+
+  // === Cooldowns (combat-only, tick down each combat turn) ===
+  var cd_heavy_strike: int  // turns until heavy strike available
+  var cd_battle_cry: int    // turns until battle cry available
+
+  // === Loot ===
+  var pity_counter: int  // kills since last loot drop (guarantees drop at PITY_THRESHOLD)
+  var last_drop: int     // 0=none, 1=potion dropped
+
   // === World state ===
   var turn_count: int  // global turn counter (drives weather rotation)
 
@@ -58,6 +70,14 @@ module quint_crawl {
   val STORM_MOVE_DMG = 2 // damage taken when moving in storm
   val FOG_ATK_PENALTY = 2 // enemy attack reduced in fog
   val RAIN_GATHER_BONUS = 1 // extra resources gathered in rain
+  val ATTACK_STAMINA = 2    // stamina cost for basic attack / poison strike
+  val COMBO_STAMINA = 3     // stamina cost for combo attack
+  val HEAVY_STRIKE_STAMINA = 5  // stamina cost for heavy strike
+  val BATTLE_CRY_STAMINA = 3    // stamina cost for battle cry
+  val HEAVY_STRIKE_CD = 3   // cooldown turns for heavy strike
+  val BATTLE_CRY_CD = 4     // cooldown turns for battle cry
+  val PITY_THRESHOLD = 5    // kills without drop before guaranteed drop
+  val STAMINA_REGEN = 3     // stamina restored per rest tick
 
   // Weather types: 0=Clear, 1=Rain, 2=Fog, 3=Storm
   // Deterministic weather based on turn and zone
@@ -154,6 +174,12 @@ module quint_crawl {
     combo_timer' = 0,
     turn_count' = 0,
     saved_exists' = false,
+    stamina' = 10,
+    max_stamina' = 10,
+    cd_heavy_strike' = 0,
+    cd_battle_cry' = 0,
+    pity_counter' = 0,
+    last_drop' = 0,
   }
 
   // === Movement (only when not in combat) ===
@@ -178,6 +204,9 @@ module quint_crawl {
       combo_count' = 0, combo_timer' = 0,
       saved_exists' = saved_exists,
       turn_count' = turn_count + 1,
+      stamina' = stamina, max_stamina' = max_stamina,
+      cd_heavy_strike' = 0, cd_battle_cry' = 0,
+      pity_counter' = pity_counter, last_drop' = last_drop,
     }
   }
 
@@ -201,6 +230,9 @@ module quint_crawl {
       combo_count' = 0, combo_timer' = 0,
       saved_exists' = saved_exists,
       turn_count' = turn_count + 1,
+      stamina' = stamina, max_stamina' = max_stamina,
+      cd_heavy_strike' = 0, cd_battle_cry' = 0,
+      pity_counter' = pity_counter, last_drop' = last_drop,
     }
   }
 
@@ -224,6 +256,9 @@ module quint_crawl {
       combo_count' = 0, combo_timer' = 0,
       saved_exists' = saved_exists,
       turn_count' = turn_count + 1,
+      stamina' = stamina, max_stamina' = max_stamina,
+      cd_heavy_strike' = 0, cd_battle_cry' = 0,
+      pity_counter' = pity_counter, last_drop' = last_drop,
     }
   }
 
@@ -247,6 +282,9 @@ module quint_crawl {
       combo_count' = 0, combo_timer' = 0,
       saved_exists' = saved_exists,
       turn_count' = turn_count + 1,
+      stamina' = stamina, max_stamina' = max_stamina,
+      cd_heavy_strike' = 0, cd_battle_cry' = 0,
+      pity_counter' = pity_counter, last_drop' = last_drop,
     }
   }
 
@@ -273,12 +311,16 @@ module quint_crawl {
       combo_count' = 0, combo_timer' = 0,
       saved_exists' = saved_exists,
       turn_count' = turn_count + 1,
+      stamina' = stamina, max_stamina' = max_stamina,
+      cd_heavy_strike' = 0, cd_battle_cry' = 0,
+      pity_counter' = pity_counter, last_drop' = 0,
     }
   }
 
   // === Combat: attack enemy ===
   action combat_attack = all {
     in_combat, not(game_won), hp > 0, enemy_hp > 0,
+    stamina >= ATTACK_STAMINA,
     // Degrade sword on attack (only if equipped and not already broken)
     val new_sword_dur = if (has_sword and sword_dur > 0) sword_dur - 1 else sword_dur
     // Enemy takes poison damage if poisoned
@@ -303,6 +345,14 @@ module quint_crawl {
     val next_enemy_poison = if (enemy_poison_dur > 0) enemy_poison_dur - 1 else 0
     // Combat ends?
     val combat_ends = (new_enemy_hp <= 0 or new_hp <= 0)
+    // Loot drop on enemy defeat (deterministic pity system)
+    val enemy_defeated_alive = (new_enemy_hp <= 0 and new_hp > 0)
+    val drop_trigger = (pity_counter >= PITY_THRESHOLD or (turn_count % 3 == 0))
+    val should_drop = enemy_defeated_alive and drop_trigger
+    val new_pity = if (should_drop) 0
+                   else if (enemy_defeated_alive) pity_counter + 1
+                   else pity_counter
+    val new_last_drop = if (should_drop) 1 else 0
     all {
       enemy_hp' = if (combat_ends) 0 else new_enemy_hp,
       hp' = if (new_hp < 0) 0 else new_hp,
@@ -315,7 +365,8 @@ module quint_crawl {
       base_attack' = if (new_level > level) base_attack + 3 else base_attack,
       game_won' = (new_level >= 3),
       pos_x' = pos_x, pos_y' = pos_y,
-      qty_potion' = qty_potion, qty_wood' = qty_wood,
+      qty_potion' = if (should_drop) qty_potion + 1 else qty_potion,
+      qty_wood' = qty_wood,
       qty_iron' = qty_iron, qty_sword' = qty_sword, has_sword' = has_sword,
       sword_dur' = new_sword_dur, sword_max_dur' = sword_max_dur,
       // Clear statuses if combat ends, otherwise tick
@@ -326,10 +377,16 @@ module quint_crawl {
       combo_count' = combo_count, combo_timer' = combo_timer,
       saved_exists' = saved_exists,
       turn_count' = turn_count + 1,
+      stamina' = stamina - ATTACK_STAMINA,
+      max_stamina' = if (new_level > level) max_stamina + 5 else max_stamina,
+      cd_heavy_strike' = if (combat_ends) 0 else (if (cd_heavy_strike > 0) cd_heavy_strike - 1 else 0),
+      cd_battle_cry' = if (combat_ends) 0 else (if (cd_battle_cry > 0) cd_battle_cry - 1 else 0),
+      pity_counter' = new_pity,
+      last_drop' = new_last_drop,
     }
   }
 
-  // === Combat: use potion ===
+  // === Combat: use potion (quick action — no stamina cost, no CD tick) ===
   action combat_potion = all {
     in_combat, not(game_won), qty_potion > 0, hp > 0,
     hp' = clamp_hp(hp + 20, max_hp),
@@ -347,6 +404,9 @@ module quint_crawl {
     combo_count' = 0, combo_timer' = 0,
     saved_exists' = saved_exists,
     turn_count' = turn_count + 1,
+    stamina' = stamina, max_stamina' = max_stamina,
+    cd_heavy_strike' = cd_heavy_strike, cd_battle_cry' = cd_battle_cry,
+    pity_counter' = pity_counter, last_drop' = last_drop,
   }
 
   // === Flee combat ===
@@ -368,6 +428,9 @@ module quint_crawl {
       combo_count' = 0, combo_timer' = 0,
       saved_exists' = saved_exists,
       turn_count' = turn_count + 1,
+      stamina' = stamina, max_stamina' = max_stamina,
+      cd_heavy_strike' = 0, cd_battle_cry' = 0,
+      pity_counter' = pity_counter, last_drop' = last_drop,
     }
   }
 
@@ -375,7 +438,7 @@ module quint_crawl {
   action rest_at_village = all {
     not(in_combat), not(game_won), hp > 0,
     pos_x == 0, pos_y == 0,
-    hp < max_hp,
+    hp < max_hp or stamina < max_stamina,
     hp' = max_hp,
     max_hp' = max_hp, base_attack' = base_attack,
     xp' = xp, level' = level, gold' = gold,
@@ -390,6 +453,9 @@ module quint_crawl {
     combo_count' = 0, combo_timer' = 0,
     saved_exists' = saved_exists,
     turn_count' = turn_count + 1,
+    stamina' = max_stamina, max_stamina' = max_stamina,
+    cd_heavy_strike' = 0, cd_battle_cry' = 0,
+    pity_counter' = pity_counter, last_drop' = last_drop,
   }
 
   // === Buy potion (at village, costs 10 gold) ===
@@ -411,6 +477,9 @@ module quint_crawl {
     combo_count' = 0, combo_timer' = 0,
     saved_exists' = saved_exists,
     turn_count' = turn_count + 1,
+    stamina' = stamina, max_stamina' = max_stamina,
+    cd_heavy_strike' = 0, cd_battle_cry' = 0,
+    pity_counter' = pity_counter, last_drop' = last_drop,
   }
 
   // === Repair sword (at village, costs gold) ===
@@ -435,6 +504,9 @@ module quint_crawl {
     combo_count' = 0, combo_timer' = 0,
     saved_exists' = saved_exists,
     turn_count' = turn_count + 1,
+    stamina' = stamina, max_stamina' = max_stamina,
+    cd_heavy_strike' = 0, cd_battle_cry' = 0,
+    pity_counter' = pity_counter, last_drop' = last_drop,
   }
 
   // === Gather wood (in Forest x=1,y=0) ===
@@ -458,6 +530,9 @@ module quint_crawl {
       combo_count' = 0, combo_timer' = 0,
       saved_exists' = saved_exists,
       turn_count' = turn_count + 1,
+      stamina' = stamina, max_stamina' = max_stamina,
+      cd_heavy_strike' = 0, cd_battle_cry' = 0,
+      pity_counter' = pity_counter, last_drop' = last_drop,
     }
   }
 
@@ -482,6 +557,9 @@ module quint_crawl {
       combo_count' = 0, combo_timer' = 0,
       saved_exists' = saved_exists,
       turn_count' = turn_count + 1,
+      stamina' = stamina, max_stamina' = max_stamina,
+      cd_heavy_strike' = 0, cd_battle_cry' = 0,
+      pity_counter' = pity_counter, last_drop' = last_drop,
     }
   }
 
@@ -504,6 +582,9 @@ module quint_crawl {
     combo_count' = 0, combo_timer' = 0,
     saved_exists' = saved_exists,
     turn_count' = turn_count + 1,
+    stamina' = stamina, max_stamina' = max_stamina,
+    cd_heavy_strike' = 0, cd_battle_cry' = 0,
+    pity_counter' = pity_counter, last_drop' = last_drop,
   }
 
   // === Equip sword (sets durability to max) ===
@@ -524,9 +605,12 @@ module quint_crawl {
     combo_count' = 0, combo_timer' = 0,
     saved_exists' = saved_exists,
     turn_count' = turn_count + 1,
+    stamina' = stamina, max_stamina' = max_stamina,
+    cd_heavy_strike' = 0, cd_battle_cry' = 0,
+    pity_counter' = pity_counter, last_drop' = last_drop,
   }
 
-  // === Use antidote (costs 1 potion, clears player poison in combat) ===
+  // === Use antidote (quick action — costs 1 potion, clears player poison, no CD tick) ===
   action use_antidote = all {
     in_combat, not(game_won), hp > 0,
     qty_potion > 0, player_poison_dur > 0,
@@ -546,12 +630,16 @@ module quint_crawl {
     combo_count' = 0, combo_timer' = 0,
     saved_exists' = saved_exists,
     turn_count' = turn_count + 1,
+    stamina' = stamina, max_stamina' = max_stamina,
+    cd_heavy_strike' = cd_heavy_strike, cd_battle_cry' = cd_battle_cry,
+    pity_counter' = pity_counter, last_drop' = last_drop,
   }
 
-  // === Poison strike (apply poison to enemy, uses a turn — enemy hits back) ===
+  // === Poison strike (apply poison to enemy, enemy hits back) ===
   action poison_strike = all {
     in_combat, not(game_won), hp > 0, enemy_hp > 0,
     enemy_poison_dur == 0,  // can't stack poison
+    stamina >= ATTACK_STAMINA,
     val dmg_taken = if (player_def_buff_dur > 0) enemy_attack - DEF_BUFF_REDUCTION else enemy_attack
     val effective_dmg = if (dmg_taken < 1) 1 else dmg_taken
     val new_hp = hp - effective_dmg
@@ -575,6 +663,11 @@ module quint_crawl {
       combo_count' = 0, combo_timer' = 0,
       saved_exists' = saved_exists,
       turn_count' = turn_count + 1,
+      stamina' = stamina - ATTACK_STAMINA,
+      max_stamina' = max_stamina,
+      cd_heavy_strike' = if (combat_ends) 0 else (if (cd_heavy_strike > 0) cd_heavy_strike - 1 else 0),
+      cd_battle_cry' = if (combat_ends) 0 else (if (cd_battle_cry > 0) cd_battle_cry - 1 else 0),
+      pity_counter' = pity_counter, last_drop' = last_drop,
     }
   }
 
@@ -582,6 +675,7 @@ module quint_crawl {
   action combo_attack = all {
     in_combat, not(game_won), hp > 0, enemy_hp > 0,
     combo_count < 3,
+    stamina >= COMBO_STAMINA,
     val next_combo = combo_count + 1
     val base_dmg = attack_power
     val combo_dmg = if (next_combo == 1) base_dmg
@@ -616,6 +710,14 @@ module quint_crawl {
     val new_combo_timer = if (combat_ends) 0
                           else if (next_combo >= 3) 0
                           else COMBO_WINDOW
+    // Loot drop on enemy defeat
+    val enemy_defeated_alive = (new_enemy_hp <= 0 and new_hp > 0)
+    val drop_trigger = (pity_counter >= PITY_THRESHOLD or (turn_count % 3 == 0))
+    val should_drop = enemy_defeated_alive and drop_trigger
+    val new_pity = if (should_drop) 0
+                   else if (enemy_defeated_alive) pity_counter + 1
+                   else pity_counter
+    val new_last_drop = if (should_drop) 1 else 0
     all {
       enemy_hp' = if (combat_ends) 0 else new_enemy_hp,
       hp' = if (new_hp < 0) 0 else new_hp,
@@ -628,7 +730,8 @@ module quint_crawl {
       base_attack' = if (new_level > level) base_attack + 3 else base_attack,
       game_won' = (new_level >= 3),
       pos_x' = pos_x, pos_y' = pos_y,
-      qty_potion' = qty_potion, qty_wood' = qty_wood,
+      qty_potion' = if (should_drop) qty_potion + 1 else qty_potion,
+      qty_wood' = qty_wood,
       qty_iron' = qty_iron, qty_sword' = qty_sword, has_sword' = has_sword,
       sword_dur' = new_sword_dur, sword_max_dur' = sword_max_dur,
       player_poison_dur' = if (combat_ends) 0 else next_player_poison,
@@ -639,6 +742,128 @@ module quint_crawl {
       combo_timer' = new_combo_timer,
       saved_exists' = saved_exists,
       turn_count' = turn_count + 1,
+      stamina' = stamina - COMBO_STAMINA,
+      max_stamina' = if (new_level > level) max_stamina + 5 else max_stamina,
+      cd_heavy_strike' = if (combat_ends) 0 else (if (cd_heavy_strike > 0) cd_heavy_strike - 1 else 0),
+      cd_battle_cry' = if (combat_ends) 0 else (if (cd_battle_cry > 0) cd_battle_cry - 1 else 0),
+      pity_counter' = new_pity,
+      last_drop' = new_last_drop,
+    }
+  }
+
+  // === Heavy strike (2x damage, costs 5 stamina, 3-turn cooldown) ===
+  action heavy_strike = all {
+    in_combat, not(game_won), hp > 0, enemy_hp > 0,
+    cd_heavy_strike == 0,
+    stamina >= HEAVY_STRIKE_STAMINA,
+    val heavy_dmg = attack_power * 2
+    // Degrade sword
+    val new_sword_dur = if (has_sword and sword_dur > 0) sword_dur - 1 else sword_dur
+    // Enemy takes heavy + poison damage
+    val enemy_poison_dmg = if (enemy_poison_dur > 0) POISON_DMG else 0
+    val new_enemy_hp = enemy_hp - heavy_dmg - enemy_poison_dmg
+    // Player takes enemy hit (reduced by DEF buff) + poison
+    val enemy_dmg = if (player_def_buff_dur > 0) enemy_attack - DEF_BUFF_REDUCTION else enemy_attack
+    val effective_enemy_dmg = if (enemy_dmg < 1) 1 else enemy_dmg
+    val poison_dmg = if (player_poison_dur > 0) POISON_DMG else 0
+    val new_hp = if (new_enemy_hp > 0) hp - effective_enemy_dmg - poison_dmg else hp - poison_dmg
+    val gained_xp = if (new_enemy_hp <= 0 and new_hp > 0) xp + zone_xp_reward(pos_x, pos_y) else xp
+    val new_level = if (level < 3 and gained_xp >= xp_threshold(level + 1)) level + 1 else level
+    // Status ticking
+    val zone_tier = zone_level_req(pos_x, pos_y)
+    val apply_poison = (zone_tier >= 2 and player_poison_dur == 0 and new_enemy_hp > 0)
+    val next_player_poison = if (apply_poison) STATUS_DURATION
+                             else if (player_poison_dur > 0) player_poison_dur - 1
+                             else 0
+    val next_atk_buff = if (player_atk_buff_dur > 0) player_atk_buff_dur - 1 else 0
+    val next_def_buff = if (player_def_buff_dur > 0) player_def_buff_dur - 1 else 0
+    val next_enemy_poison = if (enemy_poison_dur > 0) enemy_poison_dur - 1 else 0
+    val combat_ends = (new_enemy_hp <= 0 or new_hp <= 0)
+    // Loot drop on enemy defeat
+    val enemy_defeated_alive = (new_enemy_hp <= 0 and new_hp > 0)
+    val drop_trigger = (pity_counter >= PITY_THRESHOLD or (turn_count % 3 == 0))
+    val should_drop = enemy_defeated_alive and drop_trigger
+    val new_pity = if (should_drop) 0
+                   else if (enemy_defeated_alive) pity_counter + 1
+                   else pity_counter
+    val new_last_drop = if (should_drop) 1 else 0
+    all {
+      enemy_hp' = if (combat_ends) 0 else new_enemy_hp,
+      hp' = if (new_hp < 0) 0 else new_hp,
+      in_combat' = if (combat_ends) false else true,
+      xp' = gained_xp,
+      gold' = if (new_enemy_hp <= 0) gold + zone_gold_reward(pos_x, pos_y) else gold,
+      enemy_attack' = if (combat_ends) 0 else enemy_attack,
+      level' = new_level,
+      max_hp' = if (new_level > level) max_hp + 20 else max_hp,
+      base_attack' = if (new_level > level) base_attack + 3 else base_attack,
+      game_won' = (new_level >= 3),
+      pos_x' = pos_x, pos_y' = pos_y,
+      qty_potion' = if (should_drop) qty_potion + 1 else qty_potion,
+      qty_wood' = qty_wood,
+      qty_iron' = qty_iron, qty_sword' = qty_sword, has_sword' = has_sword,
+      sword_dur' = new_sword_dur, sword_max_dur' = sword_max_dur,
+      player_poison_dur' = if (combat_ends) 0 else next_player_poison,
+      player_atk_buff_dur' = if (combat_ends) 0 else next_atk_buff,
+      player_def_buff_dur' = if (combat_ends) 0 else next_def_buff,
+      enemy_poison_dur' = if (combat_ends) 0 else next_enemy_poison,
+      combo_count' = 0, combo_timer' = 0,  // heavy strike breaks combo
+      saved_exists' = saved_exists,
+      turn_count' = turn_count + 1,
+      stamina' = stamina - HEAVY_STRIKE_STAMINA,
+      max_stamina' = if (new_level > level) max_stamina + 5 else max_stamina,
+      cd_heavy_strike' = if (combat_ends) 0 else HEAVY_STRIKE_CD,
+      cd_battle_cry' = if (combat_ends) 0 else (if (cd_battle_cry > 0) cd_battle_cry - 1 else 0),
+      pity_counter' = new_pity,
+      last_drop' = new_last_drop,
+    }
+  }
+
+  // === Battle cry (grants ATK buff, costs 3 stamina, 4-turn cooldown) ===
+  // Enemy hits back. Resets combo.
+  action battle_cry = all {
+    in_combat, not(game_won), hp > 0, enemy_hp > 0,
+    cd_battle_cry == 0,
+    stamina >= BATTLE_CRY_STAMINA,
+    // Enemy hits player
+    val enemy_dmg = if (player_def_buff_dur > 0) enemy_attack - DEF_BUFF_REDUCTION else enemy_attack
+    val effective_enemy_dmg = if (enemy_dmg < 1) 1 else enemy_dmg
+    val poison_dmg = if (player_poison_dur > 0) POISON_DMG else 0
+    val new_hp = hp - effective_enemy_dmg - poison_dmg
+    val combat_ends = (new_hp <= 0)
+    // Status ticking
+    val zone_tier = zone_level_req(pos_x, pos_y)
+    val apply_poison = (zone_tier >= 2 and player_poison_dur == 0)
+    val next_player_poison = if (apply_poison) STATUS_DURATION
+                             else if (player_poison_dur > 0) player_poison_dur - 1
+                             else 0
+    val next_def_buff = if (player_def_buff_dur > 0) player_def_buff_dur - 1 else 0
+    val next_enemy_poison = if (enemy_poison_dur > 0) enemy_poison_dur - 1 else 0
+    all {
+      hp' = if (new_hp < 0) 0 else new_hp,
+      in_combat' = if (combat_ends) false else true,
+      enemy_hp' = if (combat_ends) 0 else enemy_hp,
+      enemy_attack' = if (combat_ends) 0 else enemy_attack,
+      // Grant ATK buff (fresh STATUS_DURATION)
+      player_atk_buff_dur' = if (combat_ends) 0 else STATUS_DURATION,
+      player_poison_dur' = if (combat_ends) 0 else next_player_poison,
+      player_def_buff_dur' = if (combat_ends) 0 else next_def_buff,
+      enemy_poison_dur' = if (combat_ends) 0 else next_enemy_poison,
+      max_hp' = max_hp, base_attack' = base_attack,
+      xp' = xp, level' = level, gold' = gold,
+      pos_x' = pos_x, pos_y' = pos_y,
+      qty_potion' = qty_potion, qty_wood' = qty_wood, qty_iron' = qty_iron,
+      qty_sword' = qty_sword, has_sword' = has_sword,
+      game_won' = game_won,
+      sword_dur' = sword_dur, sword_max_dur' = sword_max_dur,
+      combo_count' = 0, combo_timer' = 0,  // battle cry breaks combo
+      saved_exists' = saved_exists,
+      turn_count' = turn_count + 1,
+      stamina' = stamina - BATTLE_CRY_STAMINA,
+      max_stamina' = max_stamina,
+      cd_heavy_strike' = if (combat_ends) 0 else (if (cd_heavy_strike > 0) cd_heavy_strike - 1 else 0),
+      cd_battle_cry' = if (combat_ends) 0 else BATTLE_CRY_CD,
+      pity_counter' = pity_counter, last_drop' = last_drop,
     }
   }
 
@@ -658,6 +883,9 @@ module quint_crawl {
     combo_count' = combo_count, combo_timer' = combo_timer,
     saved_exists' = true,
     turn_count' = turn_count,
+    stamina' = stamina, max_stamina' = max_stamina,
+    cd_heavy_strike' = cd_heavy_strike, cd_battle_cry' = cd_battle_cry,
+    pity_counter' = pity_counter, last_drop' = last_drop,
   }
 
   // === Load game (requires a save to exist) ===
@@ -678,6 +906,9 @@ module quint_crawl {
     combo_count' = combo_count, combo_timer' = combo_timer,
     saved_exists' = saved_exists,
     turn_count' = turn_count,
+    stamina' = stamina, max_stamina' = max_stamina,
+    cd_heavy_strike' = cd_heavy_strike, cd_battle_cry' = cd_battle_cry,
+    pity_counter' = pity_counter, last_drop' = last_drop,
   }
 
   // === Step ===
@@ -687,6 +918,7 @@ module quint_crawl {
     rest_at_village, buy_potion, repair_sword,
     gather_wood, mine_iron, craft_sword, equip_sword,
     use_antidote, poison_strike, combo_attack,
+    heavy_strike, battle_cry,
     save_game, load_game,
   }
 
@@ -762,6 +994,29 @@ module quint_crawl {
   /// Weather is deterministic: same inputs always produce same weather
   val weather_bounded = zone_weather(pos_x, pos_y, turn_count) >= 0 and
                         zone_weather(pos_x, pos_y, turn_count) <= 3
+
+  /// Stamina bounded [0, max_stamina]
+  val stamina_bounded = stamina >= 0 and stamina <= max_stamina
+
+  /// Max stamina is positive
+  val max_stamina_positive = max_stamina >= 10
+
+  /// Cooldowns are non-negative and bounded
+  val cooldowns_bounded = and {
+    cd_heavy_strike >= 0, cd_heavy_strike <= HEAVY_STRIKE_CD,
+    cd_battle_cry >= 0, cd_battle_cry <= BATTLE_CRY_CD,
+  }
+
+  /// Cooldowns only active during combat
+  val cooldowns_only_in_combat = not(in_combat).implies(
+    cd_heavy_strike == 0 and cd_battle_cry == 0
+  )
+
+  /// Pity counter bounded [0, PITY_THRESHOLD]
+  val pity_bounded = pity_counter >= 0 and pity_counter <= PITY_THRESHOLD
+
+  /// Last drop is valid (0=none, 1=potion)
+  val last_drop_valid = last_drop >= 0 and last_drop <= 1
 }
 
 module quint_crawl_run {

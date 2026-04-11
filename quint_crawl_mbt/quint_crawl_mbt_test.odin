@@ -66,6 +66,12 @@ crawl_step :: proc(driver: rawptr, action: string, picks: map[string]mbt.ITF_Val
 	case "combo_attack":
 		qc.combo_attack(g)
 		return true
+	case "heavy_strike":
+		qc.heavy_strike(g)
+		return true
+	case "battle_cry":
+		qc.battle_cry(g)
+		return true
 	case "save_game":
 		qc.save_game(g)
 		return true
@@ -107,6 +113,12 @@ crawl_state :: proc(driver: rawptr) -> map[string]mbt.ITF_Value {
 	state["combo_timer"] = mbt.ITF_Int{g.combo_timer}
 	state["turn_count"] = mbt.ITF_Int{g.turn_count}
 	state["saved_exists"] = mbt.ITF_Bool{g.saved_exists}
+	state["stamina"] = mbt.ITF_Int{g.stamina}
+	state["max_stamina"] = mbt.ITF_Int{g.max_stamina}
+	state["cd_heavy_strike"] = mbt.ITF_Int{g.cd_heavy_strike}
+	state["cd_battle_cry"] = mbt.ITF_Int{g.cd_battle_cry}
+	state["pity_counter"] = mbt.ITF_Int{g.pity_counter}
+	state["last_drop"] = mbt.ITF_Int{g.last_drop}
 	return state
 }
 

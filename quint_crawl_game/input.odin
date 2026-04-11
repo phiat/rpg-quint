@@ -126,6 +126,9 @@ handle_enemy_defeated :: proc(app: ^App_State, old_level: int) {
 		20 if leveled else 0,
 		3 if leveled else 0,
 	)
+	if g.last_drop == 1 {
+		add_message(app, "Loot: +1 Potion!", {100, 220, 255, 255})
+	}
 }
 
 // Helper: handle player taking damage in combat (shake + flash + poison notification)
@@ -234,6 +237,36 @@ handle_combat_input :: proc(app: ^App_State) {
 	if rl.IsKeyPressed(.X) {
 		if qc.use_antidote(g) {
 			add_message(app, "Used antidote! Poison cured.", {100, 220, 50, 255})
+		}
+	}
+
+	// Heavy strike
+	if rl.IsKeyPressed(.H) {
+		old_enemy_hp := g.enemy_hp
+		old_hp := g.hp
+		old_level := g.level
+		old_poison := g.player_poison_dur
+		if qc.heavy_strike(g) {
+			dmg_dealt := old_enemy_hp - g.enemy_hp
+			add_message(app, fmt.tprintf("HEAVY STRIKE! %d damage!", dmg_dealt), {255, 120, 50, 255})
+
+			if g.enemy_hp <= 0 {
+				handle_enemy_defeated(app, old_level)
+			} else {
+				handle_combat_damage(app, old_hp, old_poison, {255, 120, 50, 80})
+			}
+		}
+	}
+
+	// Battle cry
+	if rl.IsKeyPressed(.Y) {
+		old_hp := g.hp
+		old_poison := g.player_poison_dur
+		if qc.battle_cry(g) {
+			add_message(app, "BATTLE CRY! ATK boosted!", {255, 200, 100, 255})
+			if g.hp < old_hp {
+				handle_combat_damage(app, old_hp, old_poison, {255, 200, 100, 60})
+			}
 		}
 	}
 

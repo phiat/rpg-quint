@@ -30,6 +30,14 @@ STORM_MOVE_DMG :: 2
 FOG_ATK_PENALTY :: 2
 RAIN_GATHER_BONUS :: 1
 COMBO_WINDOW :: 3
+ATTACK_STAMINA :: 2
+COMBO_STAMINA :: 3
+HEAVY_STRIKE_STAMINA :: 5
+BATTLE_CRY_STAMINA :: 3
+HEAVY_STRIKE_CD :: 3
+BATTLE_CRY_CD :: 4
+PITY_THRESHOLD :: 5
+STAMINA_REGEN :: 3
 
 Save_Data :: struct {
 	hp:           int,
@@ -48,6 +56,9 @@ Save_Data :: struct {
 	sword_dur:    int,
 	sword_max_dur: int,
 	turn_count:   int,
+	stamina:      int,
+	max_stamina:  int,
+	pity_counter: int,
 }
 
 Game_State :: struct {
@@ -78,6 +89,15 @@ Game_State :: struct {
 	// Combo state
 	combo_count:         int,
 	combo_timer:         int,
+	// Stamina
+	stamina:             int,
+	max_stamina:         int,
+	// Cooldowns
+	cd_heavy_strike:     int,
+	cd_battle_cry:       int,
+	// Loot
+	pity_counter:        int,
+	last_drop:           int,
 	// World state
 	turn_count:          int,
 	// Save/Load
@@ -134,6 +154,12 @@ init_game :: proc(g: ^Game_State) {
 	g.combo_timer = 0
 	g.turn_count = 0
 	g.saved_exists = false
+	g.stamina = 10
+	g.max_stamina = 10
+	g.cd_heavy_strike = 0
+	g.cd_battle_cry = 0
+	g.pity_counter = 0
+	g.last_drop = 0
 }
 
 move :: proc(g: ^Game_State, dx, dy: int) -> bool {
@@ -164,7 +190,37 @@ enter_combat :: proc(g: ^Game_State) -> bool {
 	g.enemy_attack = max(raw_atk, 1)
 	g.combo_count = 0
 	g.combo_timer = 0
+	g.cd_heavy_strike = 0
+	g.cd_battle_cry = 0
+	g.last_drop = 0
 	return true
+}
+
+// Tick cooldowns (decrement by 1, min 0). Call on full combat turns.
+tick_cooldowns :: proc(g: ^Game_State) {
+	if g.cd_heavy_strike > 0 do g.cd_heavy_strike -= 1
+	if g.cd_battle_cry > 0 do g.cd_battle_cry -= 1
+}
+
+// Reset cooldowns when leaving combat
+reset_cooldowns :: proc(g: ^Game_State) {
+	g.cd_heavy_strike = 0
+	g.cd_battle_cry = 0
+}
+
+// Resolve loot drop on enemy defeat. Uses pre-increment turn for determinism (matches spec).
+resolve_loot :: proc(g: ^Game_State) {
+	// turn_count was already incremented before resolve_combat_hit, so use -1 to match spec
+	pre_turn := g.turn_count - 1
+	should_drop := g.pity_counter >= PITY_THRESHOLD || (pre_turn % 3 == 0)
+	if should_drop {
+		g.qty_potion += 1
+		g.pity_counter = 0
+		g.last_drop = 1
+	} else {
+		g.pity_counter += 1
+		g.last_drop = 0
+	}
 }
 
 // Shared combat hit resolution: applies damage, ticks statuses, resolves combat end.
@@ -197,6 +253,7 @@ resolve_combat_hit :: proc(g: ^Game_State, dmg: int) -> bool {
 		g.player_atk_buff_dur = 0
 		g.player_def_buff_dur = 0
 		g.enemy_poison_dur = 0
+		reset_cooldowns(g)
 	} else {
 		zone_tier := zone_level_req(g.pos_x, g.pos_y)
 		if zone_tier >= 2 && g.player_poison_dur == 0 {
@@ -207,6 +264,7 @@ resolve_combat_hit :: proc(g: ^Game_State, dmg: int) -> bool {
 		if g.player_atk_buff_dur > 0 do g.player_atk_buff_dur -= 1
 		if g.player_def_buff_dur > 0 do g.player_def_buff_dur -= 1
 		if g.enemy_poison_dur > 0 do g.enemy_poison_dur -= 1
+		tick_cooldowns(g)
 	}
 
 	// Player died — end combat
@@ -224,10 +282,13 @@ resolve_combat_hit :: proc(g: ^Game_State, dmg: int) -> bool {
 		g.gold += ZONE_GOLD_REWARD[zlvl]
 		g.in_combat = false
 		g.enemy_attack = 0
+		// Loot drop
+		resolve_loot(g)
 		if g.level < 3 && g.xp >= XP_THRESHOLDS[g.level + 1] {
 			g.level += 1
 			g.max_hp += 20
 			g.base_attack += 3
+			g.max_stamina += 5
 		}
 		if g.level >= 3 {
 			g.game_won = true
@@ -238,7 +299,9 @@ resolve_combat_hit :: proc(g: ^Game_State, dmg: int) -> bool {
 
 combat_attack :: proc(g: ^Game_State) -> bool {
 	if !g.in_combat || g.game_won || g.hp <= 0 || g.enemy_hp <= 0 do return false
+	if g.stamina < ATTACK_STAMINA do return false
 	g.turn_count += 1
+	g.stamina -= ATTACK_STAMINA
 	combat_ends := resolve_combat_hit(g, attack_power(g))
 	// Plain attack preserves combo (spec: combo_count' = combo_count)
 	if combat_ends {
@@ -255,6 +318,7 @@ combat_potion :: proc(g: ^Game_State) -> bool {
 	g.qty_potion -= 1
 	g.combo_count = 0
 	g.combo_timer = 0
+	// Quick action: no stamina cost, no CD tick
 	return true
 }
 
@@ -271,15 +335,17 @@ flee_combat :: proc(g: ^Game_State) -> bool {
 	g.enemy_poison_dur = 0
 	g.combo_count = 0
 	g.combo_timer = 0
+	reset_cooldowns(g)
 	return true
 }
 
 rest_at_village :: proc(g: ^Game_State) -> bool {
 	if g.in_combat || g.game_won || g.hp <= 0 do return false
 	if g.pos_x != 0 || g.pos_y != 0 do return false
-	if g.hp >= g.max_hp do return false
+	if g.hp >= g.max_hp && g.stamina >= g.max_stamina do return false
 	g.turn_count += 1
 	g.hp = g.max_hp
+	g.stamina = g.max_stamina
 	return true
 }
 
@@ -352,13 +418,16 @@ use_antidote :: proc(g: ^Game_State) -> bool {
 	g.player_poison_dur = 0
 	g.combo_count = 0
 	g.combo_timer = 0
+	// Quick action: no stamina cost, no CD tick
 	return true
 }
 
 poison_strike :: proc(g: ^Game_State) -> bool {
 	if !g.in_combat || g.game_won || g.hp <= 0 || g.enemy_hp <= 0 do return false
 	if g.enemy_poison_dur != 0 do return false  // can't stack
+	if g.stamina < ATTACK_STAMINA do return false
 	g.turn_count += 1
+	g.stamina -= ATTACK_STAMINA
 	// Enemy hits back
 	enemy_dmg := g.enemy_attack - (DEF_BUFF_REDUCTION if g.player_def_buff_dur > 0 else 0)
 	if enemy_dmg < 1 do enemy_dmg = 1
@@ -371,8 +440,114 @@ poison_strike :: proc(g: ^Game_State) -> bool {
 		g.player_atk_buff_dur = 0
 		g.player_def_buff_dur = 0
 		g.enemy_poison_dur = 0
+		reset_cooldowns(g)
 	} else {
 		g.enemy_poison_dur = STATUS_DURATION
+		tick_cooldowns(g)
+	}
+	g.combo_count = 0
+	g.combo_timer = 0
+	return true
+}
+
+combo_attack :: proc(g: ^Game_State) -> bool {
+	if !g.in_combat || g.game_won || g.hp <= 0 || g.enemy_hp <= 0 do return false
+	if g.combo_count >= 3 do return false
+	if g.stamina < COMBO_STAMINA do return false
+	g.turn_count += 1
+	g.stamina -= COMBO_STAMINA
+
+	next_combo := g.combo_count + 1
+	base_dmg := attack_power(g)
+	combo_dmg: int
+	switch next_combo {
+	case 1:
+		combo_dmg = base_dmg
+	case 2:
+		combo_dmg = (base_dmg * 3) / 2
+	case:
+		combo_dmg = base_dmg * 2
+	}
+
+	combat_ends := resolve_combat_hit(g, combo_dmg)
+
+	// Combo state: reset on combat end or chain complete, else advance
+	if combat_ends || next_combo >= 3 {
+		g.combo_count = 0
+		g.combo_timer = 0
+	} else {
+		g.combo_count = next_combo
+		g.combo_timer = COMBO_WINDOW
+	}
+	return true
+}
+
+heavy_strike :: proc(g: ^Game_State) -> bool {
+	if !g.in_combat || g.game_won || g.hp <= 0 || g.enemy_hp <= 0 do return false
+	if g.cd_heavy_strike != 0 do return false
+	if g.stamina < HEAVY_STRIKE_STAMINA do return false
+	g.turn_count += 1
+	g.stamina -= HEAVY_STRIKE_STAMINA
+
+	heavy_dmg := attack_power(g) * 2
+
+	// Set CD before resolve (resolve_combat_hit ticks CDs, but we set after)
+	// Actually, resolve_combat_hit ticks CDs. We need to set AFTER tick.
+	// But resolve resets CDs on combat end. So handle like spec:
+	// - resolve_combat_hit handles normal ticking
+	// - we override cd_heavy_strike after
+
+	combat_ends := resolve_combat_hit(g, heavy_dmg)
+
+	// Override CD: resolve already ticked/reset it, but we want to SET it
+	if !combat_ends {
+		g.cd_heavy_strike = HEAVY_STRIKE_CD
+	}
+	// Heavy strike breaks combo
+	g.combo_count = 0
+	g.combo_timer = 0
+	return true
+}
+
+battle_cry :: proc(g: ^Game_State) -> bool {
+	if !g.in_combat || g.game_won || g.hp <= 0 || g.enemy_hp <= 0 do return false
+	if g.cd_battle_cry != 0 do return false
+	if g.stamina < BATTLE_CRY_STAMINA do return false
+	g.turn_count += 1
+	g.stamina -= BATTLE_CRY_STAMINA
+
+	// Enemy hits back
+	enemy_dmg := g.enemy_attack - (DEF_BUFF_REDUCTION if g.player_def_buff_dur > 0 else 0)
+	if enemy_dmg < 1 do enemy_dmg = 1
+	poison_dmg := POISON_DMG if g.player_poison_dur > 0 else 0
+	g.hp = max(g.hp - enemy_dmg - poison_dmg, 0)
+
+	combat_ends := (g.hp <= 0)
+
+	if combat_ends {
+		g.in_combat = false
+		g.enemy_hp = 0
+		g.enemy_attack = 0
+		g.player_poison_dur = 0
+		g.player_atk_buff_dur = 0
+		g.player_def_buff_dur = 0
+		g.enemy_poison_dur = 0
+		reset_cooldowns(g)
+	} else {
+		// Grant ATK buff
+		g.player_atk_buff_dur = STATUS_DURATION
+		// Tick statuses
+		zone_tier := zone_level_req(g.pos_x, g.pos_y)
+		if zone_tier >= 2 && g.player_poison_dur == 0 {
+			g.player_poison_dur = STATUS_DURATION
+		} else if g.player_poison_dur > 0 {
+			g.player_poison_dur -= 1
+		}
+		if g.player_def_buff_dur > 0 do g.player_def_buff_dur -= 1
+		if g.enemy_poison_dur > 0 do g.enemy_poison_dur -= 1
+		// Tick CDs, then set battle_cry CD
+		tick_cooldowns(g)
+		g.cd_battle_cry = BATTLE_CRY_CD
 	}
 	g.combo_count = 0
 	g.combo_timer = 0
@@ -399,6 +574,9 @@ save_game :: proc(g: ^Game_State) -> bool {
 		sword_dur    = g.sword_dur,
 		sword_max_dur = g.sword_max_dur,
 		turn_count   = g.turn_count,
+		stamina      = g.stamina,
+		max_stamina  = g.max_stamina,
+		pity_counter = g.pity_counter,
 	}
 	return true
 }
@@ -422,6 +600,9 @@ load_game :: proc(g: ^Game_State) -> bool {
 	g.sword_dur = s.sword_dur
 	g.sword_max_dur = s.sword_max_dur
 	g.turn_count = s.turn_count
+	g.stamina = s.stamina
+	g.max_stamina = s.max_stamina
+	g.pity_counter = s.pity_counter
 	// Clear combat/status state (save is only outside combat)
 	g.in_combat = false
 	g.enemy_hp = 0
@@ -433,35 +614,8 @@ load_game :: proc(g: ^Game_State) -> bool {
 	g.enemy_poison_dur = 0
 	g.combo_count = 0
 	g.combo_timer = 0
-	return true
-}
-
-combo_attack :: proc(g: ^Game_State) -> bool {
-	if !g.in_combat || g.game_won || g.hp <= 0 || g.enemy_hp <= 0 do return false
-	if g.combo_count >= 3 do return false
-	g.turn_count += 1
-
-	next_combo := g.combo_count + 1
-	base_dmg := attack_power(g)
-	combo_dmg: int
-	switch next_combo {
-	case 1:
-		combo_dmg = base_dmg
-	case 2:
-		combo_dmg = (base_dmg * 3) / 2
-	case:
-		combo_dmg = base_dmg * 2
-	}
-
-	combat_ends := resolve_combat_hit(g, combo_dmg)
-
-	// Combo state: reset on combat end or chain complete, else advance
-	if combat_ends || next_combo >= 3 {
-		g.combo_count = 0
-		g.combo_timer = 0
-	} else {
-		g.combo_count = next_combo
-		g.combo_timer = COMBO_WINDOW
-	}
+	g.cd_heavy_strike = 0
+	g.cd_battle_cry = 0
+	g.last_drop = 0
 	return true
 }
