@@ -70,7 +70,7 @@ specs/*.qnt  ──[quint run --mbt]──▶  traces/*.itf.json  ──[odin te
 ```
 quint_crawl/           Shared game logic (Game_State, all action procs, constants)
 quint_crawl_game/      Raylib game executable (rendering, input, UI, shaders)
-  assets/              GLSL shaders (daynight.fs, etc.)
+  assets/              GLSL shaders (effects.fs)
 quint_mbt/             Shared Odin library: ITF parser + trace replayer
 quint_crawl_mbt/       MBT harness for the integrated game spec
 specs/                 Quint formal specifications

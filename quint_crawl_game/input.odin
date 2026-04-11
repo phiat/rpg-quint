@@ -133,10 +133,16 @@ handle_map_input :: proc(app: ^App_State) {
 		}
 	}
 
-	// Load game
+	// Load game (requires two presses within 2s — overwrites current progress)
 	if rl.IsKeyPressed(.F9) {
-		if qc.load_game(g) {
-			add_message(app, "Game loaded!", {100, 220, 255, 255})
+		if app.confirm_load_timer > 0 {
+			app.confirm_load_timer = 0
+			if qc.load_game(g) {
+				add_message(app, "Game loaded!", {100, 220, 255, 255})
+			}
+		} else {
+			app.confirm_load_timer = 2.0
+			add_message(app, "Press F9 again to overwrite current game", {255, 200, 60, 255})
 		}
 	}
 
@@ -147,12 +153,18 @@ handle_map_input :: proc(app: ^App_State) {
 		}
 	}
 
-	// Salvage sword (at village)
+	// Salvage sword (at village, destroys a sword — requires two presses within 2s)
 	if rl.IsKeyPressed(.BACKSLASH) {
-		if qc.salvage_sword(g) {
-			wood := qc.salvage_wood_yield(g.salvage_level)
-			iron := qc.salvage_iron_yield(g.salvage_level)
-			add_message(app, fmt.tprintf("Salvaged sword! +%d wood, +%d iron", wood, iron), {180, 140, 100, 255})
+		if app.confirm_salvage_timer > 0 {
+			app.confirm_salvage_timer = 0
+			if qc.salvage_sword(g) {
+				wood := qc.salvage_wood_yield(g.salvage_level)
+				iron := qc.salvage_iron_yield(g.salvage_level)
+				add_message(app, fmt.tprintf("Salvaged sword! +%d wood, +%d iron", wood, iron), {180, 140, 100, 255})
+			}
+		} else if g.qty_sword >= 1 && qc.zone_has_services(g.pos_x, g.pos_y) {
+			app.confirm_salvage_timer = 2.0
+			add_message(app, "Press \\ again to destroy sword", {255, 200, 60, 255})
 		}
 	}
 

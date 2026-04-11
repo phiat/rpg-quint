@@ -178,7 +178,7 @@ The rendering code in `rendering.odin` can be updated to check for asset files a
 
 ### Shader Pipeline
 
-The game already has a 2-pass post-processing shader pipeline (`quint_crawl_game/assets/daynight.fs` + `effects.fs`) that applies:
+The game already has a post-processing shader pipeline (`quint_crawl_game/assets/effects.fs`) that applies:
 - Day/night color grading (time-based)
 - Per-zone color tinting
 - Chromatic aberration on combat hits

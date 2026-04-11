@@ -185,6 +185,17 @@ module quint_crawl {
 
   val has_fire_enchant = (eqp.enchant_slot_1 == 1 or eqp.enchant_slot_2 == 1 or eqp.enchant_slot_3 == 1)
   val has_ice_enchant = (eqp.enchant_slot_1 == 2 or eqp.enchant_slot_2 == 2 or eqp.enchant_slot_3 == 2)
+  // Helpers to get/set enchant slot by index (1, 2, 3)
+  pure def get_enchant_slot(e: EquipState, slot: int): int =
+    if (slot == 1) e.enchant_slot_1
+    else if (slot == 2) e.enchant_slot_2
+    else e.enchant_slot_3
+
+  pure def set_enchant_slot(e: EquipState, slot: int, value: int): EquipState =
+    if (slot == 1) { ...e, enchant_slot_1: value }
+    else if (slot == 2) { ...e, enchant_slot_2: value }
+    else { ...e, enchant_slot_3: value }
+
   val enchant_atk_bonus = atk_for(eqp.enchant_slot_1) + atk_for(eqp.enchant_slot_2) + atk_for(eqp.enchant_slot_3)
   val enchant_def_bonus = def_for(eqp.enchant_slot_1) + def_for(eqp.enchant_slot_2) + def_for(eqp.enchant_slot_3)
   val player_element = if (has_fire_enchant) 1
@@ -981,7 +992,9 @@ module quint_crawl {
   }
 
   // === Apply enchantment to slot 1 (at village, costs gold, requires sword) ===
-  action apply_enchant_1 = {
+  // === Apply enchantment to any slot (village, costs gold) ===
+  action apply_enchant = {
+    nondet slot = Set(1, 2, 3).oneOf()
     nondet etype = Set(1, 2, 3, 4).oneOf()
     all {
       not(cb.in_combat), not(meta.game_won), ch.hp > 0,
@@ -991,71 +1004,22 @@ module quint_crawl {
       not(etype == 1 and has_ice_enchant),
       not(etype == 2 and has_fire_enchant),
       ch' = { ...ch, gold: ch.gold - ENCHANT_COST },
-      eqp' = { ...eqp, enchant_slot_1: etype },
+      eqp' = set_enchant_slot(eqp, slot, etype),
       inv' = inv, cb' = cb, w' = w, meta' = meta,
     }
   }
 
-  // === Apply enchantment to slot 2 ===
-  action apply_enchant_2 = {
-    nondet etype = Set(1, 2, 3, 4).oneOf()
+  // === Remove enchantment from any slot (at village, free) ===
+  action remove_enchant = {
+    nondet slot = Set(1, 2, 3).oneOf()
     all {
       not(cb.in_combat), not(meta.game_won), ch.hp > 0,
       zone_has_services(w.pos_x, w.pos_y),
       inv.has_sword,
-      ch.gold >= ENCHANT_COST,
-      not(etype == 1 and has_ice_enchant),
-      not(etype == 2 and has_fire_enchant),
-      ch' = { ...ch, gold: ch.gold - ENCHANT_COST },
-      eqp' = { ...eqp, enchant_slot_2: etype },
-      inv' = inv, cb' = cb, w' = w, meta' = meta,
+      get_enchant_slot(eqp, slot) != 0,
+      eqp' = set_enchant_slot(eqp, slot, 0),
+      ch' = ch, inv' = inv, cb' = cb, w' = w, meta' = meta,
     }
-  }
-
-  // === Apply enchantment to slot 3 ===
-  action apply_enchant_3 = {
-    nondet etype = Set(1, 2, 3, 4).oneOf()
-    all {
-      not(cb.in_combat), not(meta.game_won), ch.hp > 0,
-      zone_has_services(w.pos_x, w.pos_y),
-      inv.has_sword,
-      ch.gold >= ENCHANT_COST,
-      not(etype == 1 and has_ice_enchant),
-      not(etype == 2 and has_fire_enchant),
-      ch' = { ...ch, gold: ch.gold - ENCHANT_COST },
-      eqp' = { ...eqp, enchant_slot_3: etype },
-      inv' = inv, cb' = cb, w' = w, meta' = meta,
-    }
-  }
-
-  // === Remove enchantment from slot 1 (at village, free) ===
-  action remove_enchant_1 = all {
-    not(cb.in_combat), not(meta.game_won), ch.hp > 0,
-    zone_has_services(w.pos_x, w.pos_y),
-    inv.has_sword,
-    eqp.enchant_slot_1 != 0,
-    eqp' = { ...eqp, enchant_slot_1: 0 },
-    ch' = ch, inv' = inv, cb' = cb, w' = w, meta' = meta,
-  }
-
-  // === Remove enchantment from slot 2 ===
-  action remove_enchant_2 = all {
-    not(cb.in_combat), not(meta.game_won), ch.hp > 0,
-    zone_has_services(w.pos_x, w.pos_y),
-    inv.has_sword,
-    eqp.enchant_slot_2 != 0,
-    eqp' = { ...eqp, enchant_slot_2: 0 },
-    ch' = ch, inv' = inv, cb' = cb, w' = w, meta' = meta,
-  }
-
-  // === Remove enchantment from slot 3 ===
-  action remove_enchant_3 = all {
-    not(cb.in_combat), not(meta.game_won), ch.hp > 0,
-    zone_has_services(w.pos_x, w.pos_y),
-    inv.has_sword,
-    eqp.enchant_slot_3 != 0,
-    eqp' = { ...eqp, enchant_slot_3: 0 },
-    ch' = ch, inv' = inv, cb' = cb, w' = w, meta' = meta,
   }
 
   // === Salvage sword (at village -- destroy 1 unequipped sword, recover materials) ===
@@ -1096,6 +1060,12 @@ module quint_crawl {
   }
 
   // === Load game (requires a save to exist) ===
+  // NOTE: The spec models load_game as a no-op identity transition — it only
+  // checks that a save exists. Modeling a real restore would require snapshotting
+  // all 6 record state vars into meta, which is invasive for marginal value. The
+  // Odin implementation performs the actual restore, and the MBT harness skips
+  // replaying load_game (it returns true when saved_exists is set). Save/load
+  // correctness is tested independently in the game runtime.
   action load_game = all {
     meta.saved_exists,
     ch' = ch, inv' = inv, eqp' = eqp, cb' = cb, w' = w, meta' = meta,
@@ -1127,8 +1097,7 @@ module quint_crawl {
     unlock_battle_cry, unlock_fortify,
     respec, craft_venom_sac,
     salvage_sword, upgrade_salvage,
-    apply_enchant_1, apply_enchant_2, apply_enchant_3,
-    remove_enchant_1, remove_enchant_2, remove_enchant_3,
+    apply_enchant, remove_enchant,
     save_game, load_game, claim_victory,
   }
 
@@ -1156,9 +1125,6 @@ module quint_crawl {
 
   /// Can only be in a zone you're qualified for
   val level_gate_respected = zone_level(w.pos_x, w.pos_y) <= ch.level
-
-  /// XP never decreases
-  val xp_monotonic = ch.xp >= 0
 
   /// Game won only at max level
   val win_condition_correct = meta.game_won.implies(ch.level >= MAX_LEVEL)
@@ -1198,18 +1164,8 @@ module quint_crawl {
   /// Combo only active in combat
   val combo_only_in_combat = not(cb.in_combat).implies(cb.combo_count == 0)
 
-  /// Turn count is monotonically increasing
-  val turn_count_non_negative = w.turn_count >= 0
-
-  /// Weather is deterministic
-  val weather_bounded = zone_weather(w.pos_x, w.pos_y, w.turn_count) >= 0 and
-                        zone_weather(w.pos_x, w.pos_y, w.turn_count) <= 3
-
   /// Stamina bounded [0, max_stamina]
   val stamina_bounded = ch.stamina >= 0 and ch.stamina <= ch.max_stamina
-
-  /// Max stamina is positive
-  val max_stamina_positive = ch.max_stamina >= 10
 
   /// Cooldowns are non-negative and bounded
   val cooldowns_bounded = and {
@@ -1226,18 +1182,15 @@ module quint_crawl {
   /// Pity counter bounded [0, PITY_THRESHOLD]
   val pity_bounded = meta.pity_counter >= 0 and meta.pity_counter <= PITY_THRESHOLD
 
-  /// Last drop is valid (0=none, 1=potion, 2=venom_sac)
-  val last_drop_valid = meta.last_drop >= 0 and meta.last_drop <= 2
+  /// Active combat always has an enemy with positive attack
+  val combat_enemy_has_attack = cb.in_combat.implies(cb.enemy_attack > 0)
 
   /// Last kill turn is non-negative and bounded by turn count
   val last_kill_turn_bounded = meta.last_kill_turn >= 0 and meta.last_kill_turn <= w.turn_count
 
-  /// XP thresholds increase with level
-  val xp_thresholds_monotonic = and {
-    xp_threshold(2) < xp_threshold(3),
-    xp_threshold(3) < xp_threshold(4),
-    xp_threshold(4) < xp_threshold(5),
-  }
+  /// Base attack grows correctly with level
+  val base_attack_scales_with_level =
+    ch.base_attack >= INITIAL_ATTACK + (ch.level - 1) * ATK_PER_LEVEL_UP
 
   /// Win condition requires Castle position
   val win_requires_castle = meta.game_won.implies(

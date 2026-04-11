@@ -54,6 +54,9 @@ App_State :: struct {
 	// Combat victory rewards overlay
 	rewards:       Victory_Rewards,
 	showing_rewards: bool,
+	// Confirmation windows for destructive actions (seconds remaining)
+	confirm_load_timer:    f32,
+	confirm_salvage_timer: f32,
 }
 
 begin_victory_rewards :: proc(app: ^App_State, xp_gained, gold_gained: int, leveled_up: bool, new_level, hp_gained, atk_gained: int) {
@@ -125,6 +128,8 @@ update :: proc(app: ^App_State) {
 	if app.flash_timer > 0 do app.flash_timer -= dt
 	if app.bloom_timer > 0 do app.bloom_timer -= dt
 	if app.dissolve_timer > 0 do app.dissolve_timer -= dt
+	if app.confirm_load_timer > 0 do app.confirm_load_timer -= dt
+	if app.confirm_salvage_timer > 0 do app.confirm_salvage_timer -= dt
 	if app.showing_rewards do app.rewards.timer += dt
 
 	// Tick screen transition

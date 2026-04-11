@@ -111,26 +111,14 @@ crawl_step :: proc(driver: rawptr, action: string, picks: map[string]mbt.ITF_Val
 	case "craft_venom_sac":
 		qc.craft_venom_sac(g)
 		return true
-	case "apply_enchant_1":
+	case "apply_enchant":
+		slot_val := picks["slot"].(mbt.ITF_Int) or_return
 		etype_val := picks["etype"].(mbt.ITF_Int) or_return
-		qc.apply_enchant(g, 1, int(etype_val.value))
+		qc.apply_enchant(g, int(slot_val.value), int(etype_val.value))
 		return true
-	case "apply_enchant_2":
-		etype_val := picks["etype"].(mbt.ITF_Int) or_return
-		qc.apply_enchant(g, 2, int(etype_val.value))
-		return true
-	case "apply_enchant_3":
-		etype_val := picks["etype"].(mbt.ITF_Int) or_return
-		qc.apply_enchant(g, 3, int(etype_val.value))
-		return true
-	case "remove_enchant_1":
-		qc.remove_enchant(g, 1)
-		return true
-	case "remove_enchant_2":
-		qc.remove_enchant(g, 2)
-		return true
-	case "remove_enchant_3":
-		qc.remove_enchant(g, 3)
+	case "remove_enchant":
+		slot_val := picks["slot"].(mbt.ITF_Int) or_return
+		qc.remove_enchant(g, int(slot_val.value))
 		return true
 	case "salvage_sword":
 		qc.salvage_sword(g)
