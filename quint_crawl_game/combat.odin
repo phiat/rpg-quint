@@ -149,6 +149,118 @@ draw_combat :: proc(app: ^App_State) {
 		rl.DrawRectangle(0, 0, HUD_X, WINDOW_H, {app.flash_color.r, app.flash_color.g, app.flash_color.b, alpha})
 	}
 
-	// Combat hint
-	rl.DrawText("Space also attacks  |  Esc also flees", 140, WINDOW_H - 30, 12, TEXT_DIM)
+	// Victory rewards overlay
+	if app.showing_rewards {
+		draw_victory_rewards(app)
+	} else {
+		// Combat hint (only when actively fighting)
+		rl.DrawText("Space also attacks  |  Esc also flees", 140, WINDOW_H - 30, 12, TEXT_DIM)
+	}
+}
+
+// Smooth ease-out interpolation
+ease_out :: proc(t: f32) -> f32 {
+	return 1.0 - (1.0 - t) * (1.0 - t)
+}
+
+draw_victory_rewards :: proc(app: ^App_State) {
+	r := &app.rewards
+	t := r.timer
+
+	// Darken background
+	overlay_alpha := u8(min(f32(160), t * 400))
+	rl.DrawRectangle(0, 0, HUD_X, WINDOW_H, {0, 0, 0, overlay_alpha})
+
+	cx := i32(HUD_X) / 2
+	panel_w :: i32(400)
+	panel_h :: i32(300)
+	panel_x := cx - panel_w / 2
+	panel_y := i32(200)
+
+	// Panel background with border
+	rl.DrawRectangle(panel_x, panel_y, panel_w, panel_h, {30, 30, 50, 230})
+	rl.DrawRectangleLinesEx({f32(panel_x), f32(panel_y), f32(panel_w), f32(panel_h)}, 2, TEXT_GOLD)
+
+	// "VICTORY!" title — fades in immediately
+	title_alpha := u8(min(255, t * 600))
+	title_text :: "VICTORY!"
+	title_w := rl.MeasureText(title_text, 36)
+	rl.DrawText(title_text, cx - title_w / 2, panel_y + 16, 36, {255, 215, 0, title_alpha})
+
+	// Divider
+	if t > 0.2 {
+		div_progress := min((t - 0.2) * 5, 1.0)
+		div_w := i32(f32(panel_w - 40) * ease_out(div_progress))
+		rl.DrawRectangle(cx - div_w / 2, panel_y + 60, div_w, 2, {255, 215, 0, 120})
+	}
+
+	// XP gained — slides in from left
+	if t > REWARDS_XP_DELAY {
+		xp_t := min((t - REWARDS_XP_DELAY) / 0.5, 1.0)
+		xp_ease := ease_out(xp_t)
+		slide_x := i32(f32(-100) * (1.0 - xp_ease))
+
+		// Animated XP counter
+		displayed_xp := int(f32(r.xp_gained) * xp_ease)
+		xp_alpha := u8(255.0 * min(xp_t * 3, 1.0))
+
+		rl.DrawText(fmt.ctprintf("+%d XP", displayed_xp),
+			panel_x + 40 + slide_x, panel_y + 80, 24, {100, 180, 255, xp_alpha})
+
+		// XP bar
+		g := &app.game
+		xp_target := qc.XP_THRESHOLDS[g.level + 1] if g.level < 3 else g.xp
+		bar_w := panel_w - 80
+		bar_x := panel_x + 40 + slide_x
+		bar_y := panel_y + 110
+		draw_bar(bar_x, bar_y, bar_w, 14, g.xp, xp_target, BAR_XP_FG, BAR_XP_BG)
+		xp_str := fmt.ctprintf("%d/%d", g.xp, xp_target)
+		xp_str_w := rl.MeasureText(xp_str, 11)
+		rl.DrawText(xp_str, bar_x + (bar_w - xp_str_w) / 2, bar_y + 1, 11, TEXT_BRIGHT)
+	}
+
+	// Gold gained — slides in from right
+	if t > REWARDS_GOLD_DELAY {
+		gold_t := min((t - REWARDS_GOLD_DELAY) / 0.5, 1.0)
+		gold_ease := ease_out(gold_t)
+		slide_x := i32(f32(100) * (1.0 - gold_ease))
+
+		displayed_gold := int(f32(r.gold_gained) * gold_ease)
+		gold_alpha := u8(255.0 * min(gold_t * 3, 1.0))
+
+		rl.DrawText(fmt.ctprintf("+%d Gold", displayed_gold),
+			panel_x + 40 + slide_x, panel_y + 140, 24, {255, 215, 0, gold_alpha})
+	}
+
+	// Level-up section
+	if r.leveled_up && t > REWARDS_LEVEL_DELAY {
+		lvl_t := min((t - REWARDS_LEVEL_DELAY) / 0.6, 1.0)
+		lvl_ease := ease_out(lvl_t)
+		lvl_alpha := u8(255.0 * lvl_ease)
+
+		// Scale effect for level-up text
+		base_size := i32(28)
+		pop := f32(1.0) + (1.0 - lvl_ease) * 0.3  // starts 30% bigger, settles to normal
+		size := i32(f32(base_size) * pop)
+
+		lvl_text := fmt.ctprintf("LEVEL UP!  Lv.%d", r.new_level)
+		lvl_w := rl.MeasureText(lvl_text, size)
+		rl.DrawText(lvl_text, cx - lvl_w / 2, panel_y + 185, size, {255, 255, 100, lvl_alpha})
+
+		// Stat gains
+		if lvl_t > 0.3 {
+			stat_alpha := u8(255.0 * min((lvl_t - 0.3) * 3, 1.0))
+			rl.DrawText(fmt.ctprintf("+%d Max HP   +%d ATK", r.hp_gained, r.atk_gained),
+				panel_x + 80, panel_y + 220, 18, {180, 220, 180, stat_alpha})
+		}
+	}
+
+	// "Press ENTER to continue" — appears after everything else
+	prompt_delay := f32(1.4) if r.leveled_up else f32(1.0)
+	if t > prompt_delay {
+		pulse := u8(140 + i32(math.sin(app.pulse_timer * 2) * 60))
+		continue_text :: "Press ENTER to continue"
+		continue_w := rl.MeasureText(continue_text, 18)
+		rl.DrawText(continue_text, cx - continue_w / 2, panel_y + panel_h - 35, 18, {pulse, pulse, pulse, 255})
+	}
 }

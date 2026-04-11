@@ -113,8 +113,46 @@ handle_map_input :: proc(app: ^App_State) {
 	check_screen_transitions(app)
 }
 
+// Helper: handle enemy defeat — show rewards overlay
+handle_enemy_defeated :: proc(app: ^App_State, old_level: int) {
+	g := &app.game
+	tier := qc.zone_level_req(g.pos_x, g.pos_y) - 1
+	leveled := g.level > old_level
+	begin_victory_rewards(app,
+		qc.ZONE_XP_REWARD[tier],
+		qc.ZONE_GOLD_REWARD[tier],
+		leveled,
+		g.level,
+		20 if leveled else 0,
+		3 if leveled else 0,
+	)
+}
+
+// Helper: handle player taking damage in combat (shake + flash + poison notification)
+handle_combat_damage :: proc(app: ^App_State, old_hp: int, old_poison: int, flash_color: rl.Color) {
+	g := &app.game
+	dmg_taken := old_hp - g.hp
+	if dmg_taken > 0 {
+		add_message(app, fmt.tprintf("Enemy hits you for %d!", dmg_taken), BAR_HP_FG)
+	}
+	if old_poison == 0 && g.player_poison_dur > 0 {
+		add_message(app, "You've been poisoned!", {100, 220, 50, 255})
+	}
+	app.shake_timer = 0.2
+	app.flash_color = flash_color
+	app.flash_timer = 0.15
+}
+
 handle_combat_input :: proc(app: ^App_State) {
 	g := &app.game
+
+	// While showing victory rewards, only accept dismiss input
+	if app.showing_rewards {
+		if rl.IsKeyPressed(.ENTER) || rl.IsKeyPressed(.SPACE) {
+			dismiss_victory_rewards(app)
+		}
+		return
+	}
 
 	// Attack
 	if rl.IsKeyPressed(.A) || rl.IsKeyPressed(.SPACE) {
@@ -127,25 +165,9 @@ handle_combat_input :: proc(app: ^App_State) {
 			add_message(app, fmt.tprintf("You deal %d damage!", dmg_dealt), {255, 200, 100, 255})
 
 			if g.enemy_hp <= 0 {
-				app.dissolve_timer = 0.5
-				add_message(app, "Enemy defeated!", {100, 255, 100, 255})
-				tier := qc.zone_level_req(g.pos_x, g.pos_y) - 1
-				add_message(app, fmt.tprintf("+%d XP, +%d Gold", qc.ZONE_XP_REWARD[tier], qc.ZONE_GOLD_REWARD[tier]), TEXT_GOLD)
-				if g.level > old_level {
-					add_message(app, fmt.tprintf("LEVEL UP! Now level %d!", g.level), {255, 255, 100, 255})
-				}
+				handle_enemy_defeated(app, old_level)
 			} else {
-				dmg_taken := old_hp - g.hp
-				if dmg_taken > 0 {
-					add_message(app, fmt.tprintf("Enemy hits you for %d!", dmg_taken), BAR_HP_FG)
-				}
-				// Poison applied notification
-				if old_poison == 0 && g.player_poison_dur > 0 {
-					add_message(app, "You've been poisoned!", {100, 220, 50, 255})
-				}
-				app.shake_timer = 0.2
-				app.flash_color = {255, 50, 50, 80}
-				app.flash_timer = 0.15
+				handle_combat_damage(app, old_hp, old_poison, {255, 50, 50, 80})
 			}
 		}
 	}
@@ -192,6 +214,7 @@ handle_combat_input :: proc(app: ^App_State) {
 		old_enemy_hp := g.enemy_hp
 		old_hp := g.hp
 		old_level := g.level
+		old_poison := g.player_poison_dur
 		combo_num := g.combo_count + 1  // what hit this will be
 		if qc.combo_attack(g) {
 			dmg_dealt := old_enemy_hp - g.enemy_hp
@@ -200,21 +223,9 @@ handle_combat_input :: proc(app: ^App_State) {
 			add_message(app, fmt.tprintf("%s! %d damage! (combo %d/3)", name, dmg_dealt, combo_num), {255, 220, 50, 255})
 
 			if g.enemy_hp <= 0 {
-				app.dissolve_timer = 0.5
-				add_message(app, "Enemy defeated!", {100, 255, 100, 255})
-				tier := qc.zone_level_req(g.pos_x, g.pos_y) - 1
-				add_message(app, fmt.tprintf("+%d XP, +%d Gold", qc.ZONE_XP_REWARD[tier], qc.ZONE_GOLD_REWARD[tier]), TEXT_GOLD)
-				if g.level > old_level {
-					add_message(app, fmt.tprintf("LEVEL UP! Now level %d!", g.level), {255, 255, 100, 255})
-				}
+				handle_enemy_defeated(app, old_level)
 			} else {
-				dmg_taken := old_hp - g.hp
-				if dmg_taken > 0 {
-					add_message(app, fmt.tprintf("Enemy hits you for %d!", dmg_taken), BAR_HP_FG)
-				}
-				app.shake_timer = 0.15
-				app.flash_color = {255, 220, 50, 80}
-				app.flash_timer = 0.1
+				handle_combat_damage(app, old_hp, old_poison, {255, 220, 50, 80})
 			}
 		}
 	}

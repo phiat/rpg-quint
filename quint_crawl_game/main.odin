@@ -21,6 +21,19 @@ Message :: struct {
 	timer: f32,
 }
 
+// --- Victory rewards snapshot ---
+Victory_Rewards :: struct {
+	xp_gained:    int,
+	gold_gained:  int,
+	leveled_up:   bool,
+	new_level:    int,
+	hp_gained:    int,     // max_hp increase from level-up
+	atk_gained:   int,     // base_attack increase from level-up
+	// Animated counters (lerp from 0 → target over time)
+	timer:        f32,     // 0 → REWARDS_DURATION
+	dismissed:    bool,    // player pressed enter
+}
+
 // --- Application state ---
 App_State :: struct {
 	game:         qc.Game_State,
@@ -39,6 +52,30 @@ App_State :: struct {
 	transition_timer:  f32,   // >0 = transitioning (fade out then in)
 	transition_target: Screen, // screen to switch to at midpoint
 	transition_phase:  bool,  // false = fading out, true = fading in
+	// Combat victory rewards overlay
+	rewards:       Victory_Rewards,
+	showing_rewards: bool,
+}
+
+begin_victory_rewards :: proc(app: ^App_State, xp_gained, gold_gained: int, leveled_up: bool, new_level, hp_gained, atk_gained: int) {
+	app.showing_rewards = true
+	app.rewards = Victory_Rewards{
+		xp_gained   = xp_gained,
+		gold_gained = gold_gained,
+		leveled_up  = leveled_up,
+		new_level   = new_level,
+		hp_gained   = hp_gained,
+		atk_gained  = atk_gained,
+		timer       = 0,
+		dismissed   = false,
+	}
+	app.dissolve_timer = 0.5
+}
+
+dismiss_victory_rewards :: proc(app: ^App_State) {
+	app.showing_rewards = false
+	// Now let check_screen_transitions handle the fade to map
+	check_screen_transitions(app)
 }
 
 add_message :: proc(app: ^App_State, text: string, color: rl.Color) {
@@ -72,7 +109,7 @@ check_screen_transitions :: proc(app: ^App_State) {
 		start_transition(app, .Game_Over)
 	} else if g.in_combat && app.screen != .Combat {
 		start_transition(app, .Combat)
-	} else if !g.in_combat && app.screen == .Combat {
+	} else if !g.in_combat && app.screen == .Combat && !app.showing_rewards {
 		start_transition(app, .Map)
 	}
 }
@@ -84,11 +121,12 @@ update :: proc(app: ^App_State) {
 	app.pulse_timer += dt * 3.0
 	if app.pulse_timer > 6.28 do app.pulse_timer -= 6.28
 
-	// Tick shake/flash/bloom/dissolve
+	// Tick shake/flash/bloom/dissolve/rewards
 	if app.shake_timer > 0 do app.shake_timer -= dt
 	if app.flash_timer > 0 do app.flash_timer -= dt
 	if app.bloom_timer > 0 do app.bloom_timer -= dt
 	if app.dissolve_timer > 0 do app.dissolve_timer -= dt
+	if app.showing_rewards do app.rewards.timer += dt
 
 	// Tick screen transition
 	if app.transition_timer > 0 {

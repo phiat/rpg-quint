@@ -101,6 +101,16 @@ Displayed in combat screen when active. Should be clearly readable on dark comba
 | `icon_status_def_buff.png` | DEF Buff | Blue shield, enemy damage -3 |
 | `icon_status_enemy_poison.png` | Enemy Poison | Green droplet on red target, enemy taking 3 DoT/turn |
 
+## Combo Icons (24x24)
+
+Displayed in the combat screen combo indicator. Show the current/next hit in the chain.
+
+| File | Hit | Description |
+|------|-----|-------------|
+| `icon_combo_slash.png` | Slash (1x) | Diagonal blade slash, white/silver |
+| `icon_combo_thrust.png` | Thrust (1.5x) | Forward stab, blue accent glow |
+| `icon_combo_finisher.png` | Finisher (2x) | Explosive double slash, gold/yellow glow |
+
 ## Weather Tile Overlays (240x240, semi-transparent)
 
 Applied on top of tile backgrounds when weather is active. Should be subtle (alpha 40-80).
@@ -123,6 +133,9 @@ Applied on top of tile backgrounds when weather is active. Should be subtle (alp
 | `frame_combat.png` | 720x720 | Combat screen background |
 | `icon_lock.png` | 32x32 | Lock icon for level-gated zones |
 | `icon_star.png` | 32x32 | Level-up celebration icon |
+| `icon_save.png` | 24x24 | Floppy disk / bookmark for save indicator |
+| `icon_load.png` | 24x24 | Circular arrow / reload for load indicator |
+| `frame_rewards.png` | 400x300 | Victory rewards panel background (9-slice or fixed) |
 
 ## Asset Summary
 
@@ -136,7 +149,8 @@ Applied on top of tile backgrounds when weather is active. Should be subtle (alp
 | Item icons | 5 | 32x32 |
 | Weather icons | 4 | 32x32 |
 | Status effect icons | 4 | 24x24 |
-| **Total** | **26** | |
+| Combo icons | 3 | 24x24 |
+| **Total** | **29** | |
 
 ### Optional (polish)
 
@@ -145,9 +159,9 @@ Applied on top of tile backgrounds when weather is active. Should be subtle (alp
 | Player variants | 2 | 64x64 |
 | Enemy variants | 6 | 128x128 |
 | Weather tile overlays | 3 | 240x240 |
-| UI elements | 7 | various |
+| UI elements | 10 | various |
 | Gold icon | 1 | 32x32 |
-| **Total** | **19** | |
+| **Total** | **22** | |
 
 ## Integration Notes
 

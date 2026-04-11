@@ -61,3 +61,9 @@ DAY_CYCLE_SPEED :: f32(0.03)  // full cycle in ~33 seconds for testing
 
 // Screen transitions
 TRANSITION_DURATION :: f32(0.3)  // total transition time (fade out + fade in)
+
+// Victory rewards overlay
+REWARDS_DURATION :: f32(2.0)     // time for counters to animate in
+REWARDS_XP_DELAY :: f32(0.3)     // delay before XP counter starts
+REWARDS_GOLD_DELAY :: f32(0.6)   // delay before gold counter starts
+REWARDS_LEVEL_DELAY :: f32(1.0)  // delay before level-up appears
