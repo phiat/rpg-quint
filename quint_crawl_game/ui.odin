@@ -75,7 +75,8 @@ draw_hud :: proc(app: ^App_State) {
 	// --- Inventory ---
 	rl.DrawLine(x, y, x + w, y, TILE_BORDER)
 	y += 6
-	rl.DrawText("Inventory", x, y, 16, TEXT_DIM)
+	items := qc.total_items(g)
+	rl.DrawText(fmt.ctprintf("Inventory (%d/%d)", items, qc.MAX_INVENTORY), x, y, 16, TEXT_DIM)
 	y += 22
 
 	rl.DrawText(fmt.ctprintf("Potions: %d", g.qty_potion), x + 8, y, 14, TEXT_BRIGHT)
@@ -166,12 +167,18 @@ draw_hud :: proc(app: ^App_State) {
 		if qc.zone_has_services(g.pos_x, g.pos_y) {
 			draw_action(x, &y, "[R]", "Rest", g.hp < g.max_hp || g.stamina < g.max_stamina)
 			draw_action(x, &y, "[B]", fmt.ctprintf("Buy Potion (%dg)", qc.POTION_COST), g.gold >= qc.POTION_COST)
-			draw_action(x, &y, "[C]", "Craft Sword", g.qty_wood >= qc.CRAFT_WOOD_COST && g.qty_iron >= qc.CRAFT_IRON_COST)
+			draw_action(x, &y, "[C]", fmt.ctprintf("Craft Sword (Lv%d)", qc.CRAFT_LEVEL_REQ), g.level >= qc.CRAFT_LEVEL_REQ && g.qty_wood >= qc.CRAFT_WOOD_COST && g.qty_iron >= qc.CRAFT_IRON_COST)
 			if g.has_sword && g.sword_dur < g.sword_max_dur {
 				draw_action(x, &y, "[T]", fmt.ctprintf("Repair Sword (%dg)", qc.REPAIR_COST), g.gold >= qc.REPAIR_COST)
 			}
 			draw_action(x, &y, "[O]", fmt.ctprintf("Craft Venom (%di)", qc.CRAFT_VENOM_IRON_COST), g.qty_iron >= qc.CRAFT_VENOM_IRON_COST)
 			draw_action(x, &y, "[U]", fmt.ctprintf("Respec (%dg)", qc.RESPEC_COST), g.gold >= qc.RESPEC_COST)
+			if g.qty_sword >= 1 {
+				draw_action(x, &y, "[\\]", fmt.ctprintf("Salvage (Lv%d)", g.salvage_level), true)
+			}
+			if g.salvage_level < qc.MAX_SALVAGE_LEVEL {
+				draw_action(x, &y, "[=]", fmt.ctprintf("Upgrade Salvage (%dg)", qc.UPGRADE_SALVAGE_COST), g.gold >= qc.UPGRADE_SALVAGE_COST)
+			}
 			if g.has_sword {
 				draw_action(x, &y, "[8]", fmt.ctprintf("Enchant S1 (%dg)", qc.ENCHANT_COST), g.gold >= qc.ENCHANT_COST)
 				draw_action(x, &y, "[9]", fmt.ctprintf("Enchant S2 (%dg)", qc.ENCHANT_COST), g.gold >= qc.ENCHANT_COST)

@@ -76,6 +76,9 @@ module quint_crawl {
   var enchant_slot_2: int     // weapon enchant slot 2
   var enchant_slot_3: int     // weapon enchant slot 3
 
+  // === Salvage ===
+  var salvage_level: int    // 1-3, determines material recovery from salvage
+
   // === Save/Load ===
   var saved_exists: bool  // whether a save slot is occupied
 
@@ -121,6 +124,12 @@ module quint_crawl {
   val FORTIFY_DURATION = 6        // DEF buff duration from fortify (double STATUS_DURATION)
   val CRAFT_VENOM_IRON_COST = 2   // iron cost to craft venom sac
   val ENCHANT_COST = 10             // gold cost per enchantment
+  val MAX_INVENTORY = 30            // max total items (potions + wood + iron + swords + venom sacs)
+  val CRAFT_LEVEL_REQ = 2           // minimum level to craft swords
+  val SALVAGE_WOOD_BASE = 0         // wood recovered at salvage level 1
+  val SALVAGE_IRON_BASE = 1         // iron recovered at salvage level 1
+  val UPGRADE_SALVAGE_COST = 15     // gold cost to upgrade salvage level
+  val MAX_SALVAGE_LEVEL = 3         // max salvage level
 
   // --- World scaling constants ---
   val WORLD_SIZE = 9        // grid dimension (NxN)
@@ -234,6 +243,13 @@ module quint_crawl {
   val attack_power = base_attack + (if (has_sword and sword_dur > 0) SWORD_ATK_BONUS else 0) + (if (player_atk_buff_dur > 0) ATK_BUFF_BONUS else 0) + enchant_atk_bonus
   val player_elem_mult = damage_multiplier(player_element, enemy_element)
 
+  // --- Inventory helpers ---
+  val total_items = qty_potion + qty_wood + qty_iron + qty_sword + qty_venom_sac
+
+  // Salvage recovery: salvage_level 1 -> base, 2 -> base+1, 3 -> base+2
+  pure def salvage_wood_yield(slvl: int): int = SALVAGE_WOOD_BASE + (slvl - 1)
+  pure def salvage_iron_yield(slvl: int): int = SALVAGE_IRON_BASE + (slvl - 1)
+
   // --- Helpers ---
   pure def clamp_hp(v: int, mx: int): int =
     if (v > mx) mx else if (v < 0) 0 else v
@@ -286,6 +302,7 @@ module quint_crawl {
     enchant_slot_1' = 0,
     enchant_slot_2' = 0,
     enchant_slot_3' = 0,
+    salvage_level' = 1,
   }
 
   // === Movement (only when not in combat) ===
@@ -318,6 +335,7 @@ module quint_crawl {
       skill_counter_attack' = skill_counter_attack, skill_battle_cry' = skill_battle_cry,
       skill_fortify' = skill_fortify, qty_venom_sac' = qty_venom_sac, cd_fortify' = cd_fortify,
       enemy_element' = enemy_element, enchant_slot_1' = enchant_slot_1, enchant_slot_2' = enchant_slot_2, enchant_slot_3' = enchant_slot_3,
+      salvage_level' = salvage_level,
     }
   }
 
@@ -349,6 +367,7 @@ module quint_crawl {
       skill_counter_attack' = skill_counter_attack, skill_battle_cry' = skill_battle_cry,
       skill_fortify' = skill_fortify, qty_venom_sac' = qty_venom_sac, cd_fortify' = cd_fortify,
       enemy_element' = enemy_element, enchant_slot_1' = enchant_slot_1, enchant_slot_2' = enchant_slot_2, enchant_slot_3' = enchant_slot_3,
+      salvage_level' = salvage_level,
     }
   }
 
@@ -380,6 +399,7 @@ module quint_crawl {
       skill_counter_attack' = skill_counter_attack, skill_battle_cry' = skill_battle_cry,
       skill_fortify' = skill_fortify, qty_venom_sac' = qty_venom_sac, cd_fortify' = cd_fortify,
       enemy_element' = enemy_element, enchant_slot_1' = enchant_slot_1, enchant_slot_2' = enchant_slot_2, enchant_slot_3' = enchant_slot_3,
+      salvage_level' = salvage_level,
     }
   }
 
@@ -411,6 +431,7 @@ module quint_crawl {
       skill_counter_attack' = skill_counter_attack, skill_battle_cry' = skill_battle_cry,
       skill_fortify' = skill_fortify, qty_venom_sac' = qty_venom_sac, cd_fortify' = cd_fortify,
       enemy_element' = enemy_element, enchant_slot_1' = enchant_slot_1, enchant_slot_2' = enchant_slot_2, enchant_slot_3' = enchant_slot_3,
+      salvage_level' = salvage_level,
     }
   }
 
@@ -446,6 +467,7 @@ module quint_crawl {
       skill_fortify' = skill_fortify, qty_venom_sac' = qty_venom_sac, cd_fortify' = 0,
       enemy_element' = zone_element(pos_x, pos_y),
       enchant_slot_1' = enchant_slot_1, enchant_slot_2' = enchant_slot_2, enchant_slot_3' = enchant_slot_3,
+      salvage_level' = salvage_level,
     }
   }
 
@@ -481,7 +503,7 @@ module quint_crawl {
     // Loot drop on enemy defeat (deterministic pity system)
     val enemy_defeated_alive = (new_enemy_hp <= 0 and new_hp > 0)
     val drop_trigger = (pity_counter >= PITY_THRESHOLD or (turn_count % LOOT_DROP_MODULO == 0))
-    val should_drop = enemy_defeated_alive and drop_trigger
+    val should_drop = enemy_defeated_alive and drop_trigger and total_items < MAX_INVENTORY
     val new_pity = if (should_drop) 0
                    else if (enemy_defeated_alive) pity_counter + 1
                    else pity_counter
@@ -526,6 +548,7 @@ module quint_crawl {
       cd_fortify' = if (combat_ends) 0 else (if (cd_fortify > 0) cd_fortify - 1 else 0),
       enemy_element' = if (combat_ends) 0 else enemy_element,
       enchant_slot_1' = enchant_slot_1, enchant_slot_2' = enchant_slot_2, enchant_slot_3' = enchant_slot_3,
+      salvage_level' = salvage_level,
     }
   }
 
@@ -555,6 +578,7 @@ module quint_crawl {
     skill_counter_attack' = skill_counter_attack, skill_battle_cry' = skill_battle_cry,
     skill_fortify' = skill_fortify, qty_venom_sac' = qty_venom_sac, cd_fortify' = cd_fortify,
       enemy_element' = enemy_element, enchant_slot_1' = enchant_slot_1, enchant_slot_2' = enchant_slot_2, enchant_slot_3' = enchant_slot_3,
+      salvage_level' = salvage_level,
   }
 
   // === Flee combat ===
@@ -586,6 +610,7 @@ module quint_crawl {
       skill_fortify' = skill_fortify, qty_venom_sac' = qty_venom_sac, cd_fortify' = 0,
       enemy_element' = 0,
       enchant_slot_1' = enchant_slot_1, enchant_slot_2' = enchant_slot_2, enchant_slot_3' = enchant_slot_3,
+      salvage_level' = salvage_level,
     }
   }
 
@@ -616,6 +641,7 @@ module quint_crawl {
     skill_counter_attack' = skill_counter_attack, skill_battle_cry' = skill_battle_cry,
     skill_fortify' = skill_fortify, qty_venom_sac' = qty_venom_sac, cd_fortify' = cd_fortify,
       enemy_element' = enemy_element, enchant_slot_1' = enchant_slot_1, enchant_slot_2' = enchant_slot_2, enchant_slot_3' = enchant_slot_3,
+      salvage_level' = salvage_level,
   }
 
   // === Buy potion (at town, costs 10 gold) ===
@@ -623,6 +649,7 @@ module quint_crawl {
     not(in_combat), not(game_won), hp > 0,
     zone_has_services(pos_x, pos_y),
     gold >= POTION_COST,
+    total_items < MAX_INVENTORY,
     gold' = gold - POTION_COST, qty_potion' = qty_potion + 1,
     hp' = hp, max_hp' = max_hp, base_attack' = base_attack,
     xp' = xp, level' = level,
@@ -645,6 +672,7 @@ module quint_crawl {
     skill_counter_attack' = skill_counter_attack, skill_battle_cry' = skill_battle_cry,
     skill_fortify' = skill_fortify, qty_venom_sac' = qty_venom_sac, cd_fortify' = cd_fortify,
       enemy_element' = enemy_element, enchant_slot_1' = enchant_slot_1, enchant_slot_2' = enchant_slot_2, enchant_slot_3' = enchant_slot_3,
+      salvage_level' = salvage_level,
   }
 
   // === Repair sword (at town, costs gold) ===
@@ -677,6 +705,7 @@ module quint_crawl {
     skill_counter_attack' = skill_counter_attack, skill_battle_cry' = skill_battle_cry,
     skill_fortify' = skill_fortify, qty_venom_sac' = qty_venom_sac, cd_fortify' = cd_fortify,
       enemy_element' = enemy_element, enchant_slot_1' = enchant_slot_1, enchant_slot_2' = enchant_slot_2, enchant_slot_3' = enchant_slot_3,
+      salvage_level' = salvage_level,
   }
 
   // === Gather wood (in forest zone) ===
@@ -686,6 +715,7 @@ module quint_crawl {
     zone_has_wood(pos_x, pos_y),
     val rain_bonus = if (zone_weather(pos_x, pos_y, turn_count + 1) == 1) RAIN_GATHER_BONUS else 0
     all {
+      total_items + 1 + rain_bonus <= MAX_INVENTORY,
       qty_wood' = qty_wood + 1 + rain_bonus,
       hp' = hp, max_hp' = max_hp, base_attack' = base_attack,
       xp' = xp, level' = level, gold' = gold,
@@ -708,6 +738,7 @@ module quint_crawl {
       skill_counter_attack' = skill_counter_attack, skill_battle_cry' = skill_battle_cry,
       skill_fortify' = skill_fortify, qty_venom_sac' = qty_venom_sac, cd_fortify' = cd_fortify,
       enemy_element' = enemy_element, enchant_slot_1' = enchant_slot_1, enchant_slot_2' = enchant_slot_2, enchant_slot_3' = enchant_slot_3,
+      salvage_level' = salvage_level,
     }
   }
 
@@ -718,6 +749,7 @@ module quint_crawl {
     zone_has_iron(pos_x, pos_y),
     val rain_bonus = if (zone_weather(pos_x, pos_y, turn_count + 1) == 1) RAIN_GATHER_BONUS else 0
     all {
+      total_items + 1 + rain_bonus <= MAX_INVENTORY,
       qty_iron' = qty_iron + 1 + rain_bonus,
       hp' = hp, max_hp' = max_hp, base_attack' = base_attack,
       xp' = xp, level' = level, gold' = gold,
@@ -740,6 +772,7 @@ module quint_crawl {
       skill_counter_attack' = skill_counter_attack, skill_battle_cry' = skill_battle_cry,
       skill_fortify' = skill_fortify, qty_venom_sac' = qty_venom_sac, cd_fortify' = cd_fortify,
       enemy_element' = enemy_element, enchant_slot_1' = enchant_slot_1, enchant_slot_2' = enchant_slot_2, enchant_slot_3' = enchant_slot_3,
+      salvage_level' = salvage_level,
     }
   }
 
@@ -747,6 +780,7 @@ module quint_crawl {
   action craft_sword = all {
     not(in_combat), not(game_won), hp > 0,
     zone_has_services(pos_x, pos_y),
+    level >= CRAFT_LEVEL_REQ,
     qty_wood >= CRAFT_WOOD_COST, qty_iron >= CRAFT_IRON_COST,
     qty_wood' = qty_wood - CRAFT_WOOD_COST, qty_iron' = qty_iron - CRAFT_IRON_COST,
     qty_sword' = qty_sword + 1,
@@ -770,6 +804,7 @@ module quint_crawl {
     skill_counter_attack' = skill_counter_attack, skill_battle_cry' = skill_battle_cry,
     skill_fortify' = skill_fortify, qty_venom_sac' = qty_venom_sac, cd_fortify' = cd_fortify,
       enemy_element' = enemy_element, enchant_slot_1' = enchant_slot_1, enchant_slot_2' = enchant_slot_2, enchant_slot_3' = enchant_slot_3,
+      salvage_level' = salvage_level,
   }
 
   // === Equip sword (sets durability to max) ===
@@ -799,6 +834,7 @@ module quint_crawl {
     skill_counter_attack' = skill_counter_attack, skill_battle_cry' = skill_battle_cry,
     skill_fortify' = skill_fortify, qty_venom_sac' = qty_venom_sac, cd_fortify' = cd_fortify,
       enemy_element' = enemy_element,
+      salvage_level' = salvage_level,
   }
 
   // === Use antidote (quick action — costs 1 potion, clears player poison, no CD tick) ===
@@ -829,6 +865,7 @@ module quint_crawl {
     skill_counter_attack' = skill_counter_attack, skill_battle_cry' = skill_battle_cry,
     skill_fortify' = skill_fortify, qty_venom_sac' = qty_venom_sac, cd_fortify' = cd_fortify,
       enemy_element' = enemy_element, enchant_slot_1' = enchant_slot_1, enchant_slot_2' = enchant_slot_2, enchant_slot_3' = enchant_slot_3,
+      salvage_level' = salvage_level,
   }
 
   // === Poison strike (apply poison to enemy, enemy hits back) ===
@@ -872,6 +909,7 @@ module quint_crawl {
       cd_fortify' = if (combat_ends) 0 else (if (cd_fortify > 0) cd_fortify - 1 else 0),
       enemy_element' = if (combat_ends) 0 else enemy_element,
       enchant_slot_1' = enchant_slot_1, enchant_slot_2' = enchant_slot_2, enchant_slot_3' = enchant_slot_3,
+      salvage_level' = salvage_level,
     }
   }
 
@@ -916,7 +954,7 @@ module quint_crawl {
     // Loot drop on enemy defeat
     val enemy_defeated_alive = (new_enemy_hp <= 0 and new_hp > 0)
     val drop_trigger = (pity_counter >= PITY_THRESHOLD or (turn_count % LOOT_DROP_MODULO == 0))
-    val should_drop = enemy_defeated_alive and drop_trigger
+    val should_drop = enemy_defeated_alive and drop_trigger and total_items < MAX_INVENTORY
     val new_pity = if (should_drop) 0
                    else if (enemy_defeated_alive) pity_counter + 1
                    else pity_counter
@@ -960,6 +998,7 @@ module quint_crawl {
       cd_fortify' = if (combat_ends) 0 else (if (cd_fortify > 0) cd_fortify - 1 else 0),
       enemy_element' = if (combat_ends) 0 else enemy_element,
       enchant_slot_1' = enchant_slot_1, enchant_slot_2' = enchant_slot_2, enchant_slot_3' = enchant_slot_3,
+      salvage_level' = salvage_level,
     }
   }
 
@@ -996,7 +1035,7 @@ module quint_crawl {
     // Loot drop on enemy defeat
     val enemy_defeated_alive = (new_enemy_hp <= 0 and new_hp > 0)
     val drop_trigger = (pity_counter >= PITY_THRESHOLD or (turn_count % LOOT_DROP_MODULO == 0))
-    val should_drop = enemy_defeated_alive and drop_trigger
+    val should_drop = enemy_defeated_alive and drop_trigger and total_items < MAX_INVENTORY
     val new_pity = if (should_drop) 0
                    else if (enemy_defeated_alive) pity_counter + 1
                    else pity_counter
@@ -1040,6 +1079,7 @@ module quint_crawl {
       cd_fortify' = if (combat_ends) 0 else (if (cd_fortify > 0) cd_fortify - 1 else 0),
       enemy_element' = if (combat_ends) 0 else enemy_element,
       enchant_slot_1' = enchant_slot_1, enchant_slot_2' = enchant_slot_2, enchant_slot_3' = enchant_slot_3,
+      salvage_level' = salvage_level,
     }
   }
 
@@ -1096,6 +1136,7 @@ module quint_crawl {
       cd_fortify' = if (combat_ends) 0 else (if (cd_fortify > 0) cd_fortify - 1 else 0),
       enemy_element' = if (combat_ends) 0 else enemy_element,
       enchant_slot_1' = enchant_slot_1, enchant_slot_2' = enchant_slot_2, enchant_slot_3' = enchant_slot_3,
+      salvage_level' = salvage_level,
     }
   }
 
@@ -1150,6 +1191,7 @@ module quint_crawl {
       cd_fortify' = if (combat_ends) 0 else (if (cd_fortify > 0) cd_fortify - 1 else 0),
       enemy_element' = if (combat_ends) 0 else enemy_element,
       enchant_slot_1' = enchant_slot_1, enchant_slot_2' = enchant_slot_2, enchant_slot_3' = enchant_slot_3,
+      salvage_level' = salvage_level,
     }
   }
 
@@ -1179,6 +1221,7 @@ module quint_crawl {
     skill_counter_attack' = skill_counter_attack, skill_battle_cry' = skill_battle_cry,
     skill_fortify' = skill_fortify, qty_venom_sac' = qty_venom_sac, cd_fortify' = cd_fortify,
       enemy_element' = enemy_element, enchant_slot_1' = enchant_slot_1, enchant_slot_2' = enchant_slot_2, enchant_slot_3' = enchant_slot_3,
+      salvage_level' = salvage_level,
   }
 
   // === Skill unlock: Poison Strike (tier 1 utility, no prereq) ===
@@ -1207,6 +1250,7 @@ module quint_crawl {
     skill_counter_attack' = skill_counter_attack, skill_battle_cry' = skill_battle_cry,
     skill_fortify' = skill_fortify, qty_venom_sac' = qty_venom_sac, cd_fortify' = cd_fortify,
       enemy_element' = enemy_element, enchant_slot_1' = enchant_slot_1, enchant_slot_2' = enchant_slot_2, enchant_slot_3' = enchant_slot_3,
+      salvage_level' = salvage_level,
   }
 
   // === Skill unlock: Shield Block (tier 1 defense, no prereq) ===
@@ -1235,6 +1279,7 @@ module quint_crawl {
     skill_counter_attack' = skill_counter_attack, skill_battle_cry' = skill_battle_cry,
     skill_fortify' = skill_fortify, qty_venom_sac' = qty_venom_sac, cd_fortify' = cd_fortify,
       enemy_element' = enemy_element, enchant_slot_1' = enchant_slot_1, enchant_slot_2' = enchant_slot_2, enchant_slot_3' = enchant_slot_3,
+      salvage_level' = salvage_level,
   }
 
   // === Skill unlock: Heavy Strike (tier 2 offense, requires Combo) ===
@@ -1263,6 +1308,7 @@ module quint_crawl {
     skill_counter_attack' = skill_counter_attack, skill_battle_cry' = skill_battle_cry,
     skill_fortify' = skill_fortify, qty_venom_sac' = qty_venom_sac, cd_fortify' = cd_fortify,
       enemy_element' = enemy_element, enchant_slot_1' = enchant_slot_1, enchant_slot_2' = enchant_slot_2, enchant_slot_3' = enchant_slot_3,
+      salvage_level' = salvage_level,
   }
 
   // === Skill unlock: Counter-Attack (tier 2 defense, requires Shield Block) ===
@@ -1291,6 +1337,7 @@ module quint_crawl {
     skill_battle_cry' = skill_battle_cry,
     skill_fortify' = skill_fortify, qty_venom_sac' = qty_venom_sac, cd_fortify' = cd_fortify,
       enemy_element' = enemy_element, enchant_slot_1' = enchant_slot_1, enchant_slot_2' = enchant_slot_2, enchant_slot_3' = enchant_slot_3,
+      salvage_level' = salvage_level,
   }
 
   // === Skill unlock: Battle Cry (tier 3 offense, requires Heavy Strike, costs 2pt) ===
@@ -1319,6 +1366,7 @@ module quint_crawl {
     skill_counter_attack' = skill_counter_attack,
     skill_fortify' = skill_fortify, qty_venom_sac' = qty_venom_sac, cd_fortify' = cd_fortify,
       enemy_element' = enemy_element, enchant_slot_1' = enchant_slot_1, enchant_slot_2' = enchant_slot_2, enchant_slot_3' = enchant_slot_3,
+      salvage_level' = salvage_level,
   }
 
   // === Skill unlock: Fortify (tier 3 defense, requires Counter-Attack, costs 2pt) ===
@@ -1347,6 +1395,7 @@ module quint_crawl {
     skill_counter_attack' = skill_counter_attack, skill_battle_cry' = skill_battle_cry,
     qty_venom_sac' = qty_venom_sac, cd_fortify' = cd_fortify,
       enemy_element' = enemy_element, enchant_slot_1' = enchant_slot_1, enchant_slot_2' = enchant_slot_2, enchant_slot_3' = enchant_slot_3,
+      salvage_level' = salvage_level,
   }
 
   // === Respec skills (at village, costs gold) ===
@@ -1384,6 +1433,7 @@ module quint_crawl {
       pity_counter' = pity_counter, last_drop' = last_drop,
       qty_venom_sac' = qty_venom_sac, cd_fortify' = cd_fortify,
       enemy_element' = enemy_element, enchant_slot_1' = enchant_slot_1, enchant_slot_2' = enchant_slot_2, enchant_slot_3' = enchant_slot_3,
+      salvage_level' = salvage_level,
     }
   }
 
@@ -1421,7 +1471,7 @@ module quint_crawl {
     // Loot drop on enemy defeat
     val enemy_defeated_alive = (final_enemy_hp <= 0 and new_hp > 0)
     val drop_trigger = (pity_counter >= PITY_THRESHOLD or (turn_count % LOOT_DROP_MODULO == 0))
-    val should_drop = enemy_defeated_alive and drop_trigger
+    val should_drop = enemy_defeated_alive and drop_trigger and total_items < MAX_INVENTORY
     val new_pity = if (should_drop) 0
                    else if (enemy_defeated_alive) pity_counter + 1
                    else pity_counter
@@ -1465,6 +1515,7 @@ module quint_crawl {
       cd_fortify' = if (combat_ends) 0 else (if (cd_fortify > 0) cd_fortify - 1 else 0),
       enemy_element' = if (combat_ends) 0 else enemy_element,
       enchant_slot_1' = enchant_slot_1, enchant_slot_2' = enchant_slot_2, enchant_slot_3' = enchant_slot_3,
+      salvage_level' = salvage_level,
     }
   }
 
@@ -1520,6 +1571,7 @@ module quint_crawl {
       cd_fortify' = if (combat_ends) 0 else FORTIFY_CD,
       enemy_element' = if (combat_ends) 0 else enemy_element,
       enchant_slot_1' = enchant_slot_1, enchant_slot_2' = enchant_slot_2, enchant_slot_3' = enchant_slot_3,
+      salvage_level' = salvage_level,
     }
   }
 
@@ -1551,6 +1603,7 @@ module quint_crawl {
     skill_counter_attack' = skill_counter_attack, skill_battle_cry' = skill_battle_cry,
     skill_fortify' = skill_fortify, cd_fortify' = cd_fortify,
     enemy_element' = enemy_element, enchant_slot_1' = enchant_slot_1, enchant_slot_2' = enchant_slot_2, enchant_slot_3' = enchant_slot_3,
+    salvage_level' = salvage_level,
   }
 
   // === Apply enchantment to slot 1 (at village, costs gold, requires sword) ===
@@ -1567,6 +1620,7 @@ module quint_crawl {
       enchant_slot_2' = enchant_slot_2,
       enchant_slot_3' = enchant_slot_3,
       gold' = gold - ENCHANT_COST,
+      salvage_level' = salvage_level,
       hp' = hp, max_hp' = max_hp, base_attack' = base_attack,
       xp' = xp, level' = level,
       pos_x' = pos_x, pos_y' = pos_y,
@@ -1605,6 +1659,7 @@ module quint_crawl {
       enchant_slot_2' = etype,
       enchant_slot_3' = enchant_slot_3,
       gold' = gold - ENCHANT_COST,
+      salvage_level' = salvage_level,
       hp' = hp, max_hp' = max_hp, base_attack' = base_attack,
       xp' = xp, level' = level,
       pos_x' = pos_x, pos_y' = pos_y,
@@ -1643,6 +1698,7 @@ module quint_crawl {
       enchant_slot_2' = enchant_slot_2,
       enchant_slot_3' = etype,
       gold' = gold - ENCHANT_COST,
+      salvage_level' = salvage_level,
       hp' = hp, max_hp' = max_hp, base_attack' = base_attack,
       xp' = xp, level' = level,
       pos_x' = pos_x, pos_y' = pos_y,
@@ -1677,6 +1733,7 @@ module quint_crawl {
     enchant_slot_2' = enchant_slot_2,
     enchant_slot_3' = enchant_slot_3,
     gold' = gold,
+    salvage_level' = salvage_level,
     hp' = hp, max_hp' = max_hp, base_attack' = base_attack,
     xp' = xp, level' = level,
     pos_x' = pos_x, pos_y' = pos_y,
@@ -1710,6 +1767,7 @@ module quint_crawl {
     enchant_slot_2' = 0,
     enchant_slot_3' = enchant_slot_3,
     gold' = gold,
+    salvage_level' = salvage_level,
     hp' = hp, max_hp' = max_hp, base_attack' = base_attack,
     xp' = xp, level' = level,
     pos_x' = pos_x, pos_y' = pos_y,
@@ -1764,6 +1822,69 @@ module quint_crawl {
     skill_counter_attack' = skill_counter_attack, skill_battle_cry' = skill_battle_cry,
     skill_fortify' = skill_fortify, qty_venom_sac' = qty_venom_sac, cd_fortify' = cd_fortify,
     enemy_element' = enemy_element,
+    salvage_level' = salvage_level,
+  }
+
+  // === Salvage sword (at village — destroy 1 unequipped sword, recover materials) ===
+  action salvage_sword = all {
+    not(in_combat), not(game_won), hp > 0,
+    zone_has_services(pos_x, pos_y),
+    qty_sword >= 1,
+    qty_wood' = qty_wood + salvage_wood_yield(salvage_level),
+    qty_iron' = qty_iron + salvage_iron_yield(salvage_level),
+    qty_sword' = qty_sword - 1,
+    hp' = hp, max_hp' = max_hp, base_attack' = base_attack,
+    xp' = xp, level' = level, gold' = gold,
+    pos_x' = pos_x, pos_y' = pos_y,
+    qty_potion' = qty_potion, has_sword' = has_sword,
+    in_combat' = false, enemy_hp' = 0, enemy_attack' = 0,
+    game_won' = game_won,
+    sword_dur' = sword_dur, sword_max_dur' = sword_max_dur,
+    player_poison_dur' = 0, player_atk_buff_dur' = 0,
+    player_def_buff_dur' = 0, enemy_poison_dur' = 0,
+    combo_count' = 0,
+    saved_exists' = saved_exists,
+    turn_count' = turn_count + 1,
+    stamina' = stamina, max_stamina' = max_stamina,
+    cd_heavy_strike' = 0, cd_battle_cry' = 0,
+    pity_counter' = pity_counter, last_drop' = last_drop,
+    skill_points' = skill_points, skill_combo' = skill_combo, skill_poison' = skill_poison,
+    skill_shield_block' = skill_shield_block, skill_heavy_strike' = skill_heavy_strike,
+    skill_counter_attack' = skill_counter_attack, skill_battle_cry' = skill_battle_cry,
+    skill_fortify' = skill_fortify, qty_venom_sac' = qty_venom_sac, cd_fortify' = cd_fortify,
+    enemy_element' = enemy_element, enchant_slot_1' = enchant_slot_1, enchant_slot_2' = enchant_slot_2, enchant_slot_3' = enchant_slot_3,
+    salvage_level' = salvage_level,
+  }
+
+  // === Upgrade salvage (at village — spend gold to improve material recovery) ===
+  action upgrade_salvage = all {
+    not(in_combat), not(game_won), hp > 0,
+    zone_has_services(pos_x, pos_y),
+    salvage_level < MAX_SALVAGE_LEVEL,
+    gold >= UPGRADE_SALVAGE_COST,
+    salvage_level' = salvage_level + 1,
+    gold' = gold - UPGRADE_SALVAGE_COST,
+    hp' = hp, max_hp' = max_hp, base_attack' = base_attack,
+    xp' = xp, level' = level,
+    pos_x' = pos_x, pos_y' = pos_y,
+    qty_potion' = qty_potion, qty_wood' = qty_wood, qty_iron' = qty_iron,
+    qty_sword' = qty_sword, has_sword' = has_sword,
+    in_combat' = false, enemy_hp' = 0, enemy_attack' = 0,
+    game_won' = game_won,
+    sword_dur' = sword_dur, sword_max_dur' = sword_max_dur,
+    player_poison_dur' = 0, player_atk_buff_dur' = 0,
+    player_def_buff_dur' = 0, enemy_poison_dur' = 0,
+    combo_count' = 0,
+    saved_exists' = saved_exists,
+    turn_count' = turn_count + 1,
+    stamina' = stamina, max_stamina' = max_stamina,
+    cd_heavy_strike' = 0, cd_battle_cry' = 0,
+    pity_counter' = pity_counter, last_drop' = last_drop,
+    skill_points' = skill_points, skill_combo' = skill_combo, skill_poison' = skill_poison,
+    skill_shield_block' = skill_shield_block, skill_heavy_strike' = skill_heavy_strike,
+    skill_counter_attack' = skill_counter_attack, skill_battle_cry' = skill_battle_cry,
+    skill_fortify' = skill_fortify, qty_venom_sac' = qty_venom_sac, cd_fortify' = cd_fortify,
+    enemy_element' = enemy_element, enchant_slot_1' = enchant_slot_1, enchant_slot_2' = enchant_slot_2, enchant_slot_3' = enchant_slot_3,
   }
 
   // === Save game (only outside combat, alive, not won) ===
@@ -1790,6 +1911,7 @@ module quint_crawl {
     skill_counter_attack' = skill_counter_attack, skill_battle_cry' = skill_battle_cry,
     skill_fortify' = skill_fortify, qty_venom_sac' = qty_venom_sac, cd_fortify' = cd_fortify,
       enemy_element' = enemy_element, enchant_slot_1' = enchant_slot_1, enchant_slot_2' = enchant_slot_2, enchant_slot_3' = enchant_slot_3,
+      salvage_level' = salvage_level,
   }
 
   // === Load game (requires a save to exist) ===
@@ -1818,6 +1940,7 @@ module quint_crawl {
     skill_counter_attack' = skill_counter_attack, skill_battle_cry' = skill_battle_cry,
     skill_fortify' = skill_fortify, qty_venom_sac' = qty_venom_sac, cd_fortify' = cd_fortify,
       enemy_element' = enemy_element, enchant_slot_1' = enchant_slot_1, enchant_slot_2' = enchant_slot_2, enchant_slot_3' = enchant_slot_3,
+      salvage_level' = salvage_level,
   }
 
   // === Claim Victory ===
@@ -1848,6 +1971,7 @@ module quint_crawl {
     skill_counter_attack' = skill_counter_attack, skill_battle_cry' = skill_battle_cry,
     skill_fortify' = skill_fortify, qty_venom_sac' = qty_venom_sac, cd_fortify' = cd_fortify,
       enemy_element' = enemy_element, enchant_slot_1' = enchant_slot_1, enchant_slot_2' = enchant_slot_2, enchant_slot_3' = enchant_slot_3,
+      salvage_level' = salvage_level,
   }
 
   // === Step ===
@@ -1863,6 +1987,7 @@ module quint_crawl {
     unlock_heavy_strike, unlock_counter_attack,
     unlock_battle_cry, unlock_fortify,
     respec, craft_venom_sac,
+    salvage_sword, upgrade_salvage,
     apply_enchant_1, apply_enchant_2, apply_enchant_3,
     remove_enchant_1, remove_enchant_2, remove_enchant_3,
     save_game, load_game, claim_victory,
@@ -2006,6 +2131,13 @@ module quint_crawl {
 
   /// Enemy element is only set during combat
   val enemy_element_only_in_combat = not(in_combat).implies(enemy_element == 0)
+
+  /// Inventory capacity bounded
+  val inventory_bounded = total_items <= MAX_INVENTORY
+
+  /// Salvage level bounded [1, MAX_SALVAGE_LEVEL]
+  val salvage_level_bounded = salvage_level >= 1 and salvage_level <= MAX_SALVAGE_LEVEL
+
 }
 
 module quint_crawl_run {

@@ -61,6 +61,12 @@ FORTIFY_CD :: 5
 FORTIFY_DURATION :: 6
 CRAFT_VENOM_IRON_COST :: 2
 ENCHANT_COST :: 10
+MAX_INVENTORY :: 30
+CRAFT_LEVEL_REQ :: 2
+SALVAGE_WOOD_BASE :: 0
+SALVAGE_IRON_BASE :: 1
+UPGRADE_SALVAGE_COST :: 15
+MAX_SALVAGE_LEVEL :: 3
 
 // Common guard checks
 can_act_map :: proc(g: ^Game_State) -> bool {
@@ -104,6 +110,7 @@ Save_Data :: struct {
 	enchant_slot_1: int,
 	enchant_slot_2: int,
 	enchant_slot_3: int,
+	salvage_level: int,
 }
 
 Game_State :: struct {
@@ -165,6 +172,8 @@ Game_State :: struct {
 	enchant_slot_1:      int,  // 0=empty, 1=fire, 2=ice, 3=vampiric, 4=lightning
 	enchant_slot_2:      int,
 	enchant_slot_3:      int,
+	// Salvage
+	salvage_level:       int,  // 1-3, determines material recovery
 	// Save/Load
 	saved_exists:        bool,
 	save_data:           Save_Data,
@@ -281,6 +290,18 @@ attack_power :: proc(g: ^Game_State) -> int {
 	return g.base_attack + sword_bonus + atk_buff + enchant_atk_bonus(g)
 }
 
+total_items :: proc(g: ^Game_State) -> int {
+	return g.qty_potion + g.qty_wood + g.qty_iron + g.qty_sword + g.qty_venom_sac
+}
+
+salvage_wood_yield :: proc(slvl: int) -> int {
+	return SALVAGE_WOOD_BASE + (slvl - 1)
+}
+
+salvage_iron_yield :: proc(slvl: int) -> int {
+	return SALVAGE_IRON_BASE + (slvl - 1)
+}
+
 init_game :: proc(g: ^Game_State) {
 	g.hp = INITIAL_HP
 	g.max_hp = INITIAL_HP
@@ -329,6 +350,7 @@ init_game :: proc(g: ^Game_State) {
 	g.enchant_slot_1 = 0
 	g.enchant_slot_2 = 0
 	g.enchant_slot_3 = 0
+	g.salvage_level = 1
 	// Fog of war: clear all, mark starting zone + neighbors as revealed
 	for x in 0 ..< WORLD_SIZE {
 		for y in 0 ..< WORLD_SIZE {
@@ -429,7 +451,7 @@ reset_cooldowns :: proc(g: ^Game_State) {
 resolve_loot :: proc(g: ^Game_State) {
 	// turn_count was already incremented before resolve_combat_hit, so use -1 to match spec
 	pre_turn := g.turn_count - 1
-	should_drop := g.pity_counter >= PITY_THRESHOLD || (pre_turn % LOOT_DROP_MODULO == 0)
+	should_drop := (g.pity_counter >= PITY_THRESHOLD || (pre_turn % LOOT_DROP_MODULO == 0)) && total_items(g) < MAX_INVENTORY
 	if should_drop {
 		zlvl := zone_level(g.pos_x, g.pos_y)
 		if zlvl >= POISON_APPLY_TIER {
@@ -582,6 +604,7 @@ buy_potion :: proc(g: ^Game_State) -> bool {
 	if !can_act_map(g) do return false
 	if !zone_has_services(g.pos_x, g.pos_y) do return false
 	if g.gold < POTION_COST do return false
+	if total_items(g) >= MAX_INVENTORY do return false
 	g.turn_count += 1
 	g.gold -= POTION_COST
 	g.qty_potion += 1
@@ -591,8 +614,9 @@ buy_potion :: proc(g: ^Game_State) -> bool {
 gather_wood :: proc(g: ^Game_State) -> bool {
 	if !can_act_map(g) do return false
 	if !zone_has_wood(g.pos_x, g.pos_y) do return false
+	rain_bonus := RAIN_GATHER_BONUS if zone_weather(g.pos_x, g.pos_y, g.turn_count + 1) == 1 else 0
+	if total_items(g) + 1 + rain_bonus > MAX_INVENTORY do return false
 	g.turn_count += 1
-	rain_bonus := RAIN_GATHER_BONUS if zone_weather(g.pos_x, g.pos_y, g.turn_count) == 1 else 0
 	g.qty_wood += 1 + rain_bonus
 	return true
 }
@@ -600,8 +624,9 @@ gather_wood :: proc(g: ^Game_State) -> bool {
 mine_iron :: proc(g: ^Game_State) -> bool {
 	if !can_act_map(g) do return false
 	if !zone_has_iron(g.pos_x, g.pos_y) do return false
+	rain_bonus := RAIN_GATHER_BONUS if zone_weather(g.pos_x, g.pos_y, g.turn_count + 1) == 1 else 0
+	if total_items(g) + 1 + rain_bonus > MAX_INVENTORY do return false
 	g.turn_count += 1
-	rain_bonus := RAIN_GATHER_BONUS if zone_weather(g.pos_x, g.pos_y, g.turn_count) == 1 else 0
 	g.qty_iron += 1 + rain_bonus
 	return true
 }
@@ -609,6 +634,7 @@ mine_iron :: proc(g: ^Game_State) -> bool {
 craft_sword :: proc(g: ^Game_State) -> bool {
 	if !can_act_map(g) do return false
 	if !zone_has_services(g.pos_x, g.pos_y) do return false
+	if g.level < CRAFT_LEVEL_REQ do return false
 	if g.qty_wood < CRAFT_WOOD_COST || g.qty_iron < CRAFT_IRON_COST do return false
 	g.turn_count += 1
 	g.qty_wood -= CRAFT_WOOD_COST
@@ -1075,6 +1101,30 @@ craft_venom_sac :: proc(g: ^Game_State) -> bool {
 	return true
 }
 
+// --- Salvage procs ---
+
+salvage_sword :: proc(g: ^Game_State) -> bool {
+	if !can_act_map(g) do return false
+	if !zone_has_services(g.pos_x, g.pos_y) do return false
+	if g.qty_sword < 1 do return false
+	g.turn_count += 1
+	g.qty_sword -= 1
+	g.qty_wood += salvage_wood_yield(g.salvage_level)
+	g.qty_iron += salvage_iron_yield(g.salvage_level)
+	return true
+}
+
+upgrade_salvage :: proc(g: ^Game_State) -> bool {
+	if !can_act_map(g) do return false
+	if !zone_has_services(g.pos_x, g.pos_y) do return false
+	if g.salvage_level >= MAX_SALVAGE_LEVEL do return false
+	if g.gold < UPGRADE_SALVAGE_COST do return false
+	g.turn_count += 1
+	g.salvage_level += 1
+	g.gold -= UPGRADE_SALVAGE_COST
+	return true
+}
+
 // --- Enchantment procs ---
 
 apply_enchant :: proc(g: ^Game_State, slot: int, etype: int) -> bool {
@@ -1152,6 +1202,7 @@ save_game :: proc(g: ^Game_State) -> bool {
 		enchant_slot_1 = g.enchant_slot_1,
 		enchant_slot_2 = g.enchant_slot_2,
 		enchant_slot_3 = g.enchant_slot_3,
+		salvage_level = g.salvage_level,
 	}
 	return true
 }
@@ -1191,6 +1242,7 @@ load_game :: proc(g: ^Game_State) -> bool {
 	g.enchant_slot_1 = s.enchant_slot_1
 	g.enchant_slot_2 = s.enchant_slot_2
 	g.enchant_slot_3 = s.enchant_slot_3
+	g.salvage_level = s.salvage_level
 	// Clear combat/status state (save is only outside combat)
 	g.in_combat = false
 	g.enemy_hp = 0

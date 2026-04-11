@@ -132,6 +132,12 @@ crawl_step :: proc(driver: rawptr, action: string, picks: map[string]mbt.ITF_Val
 	case "remove_enchant_3":
 		qc.remove_enchant(g, 3)
 		return true
+	case "salvage_sword":
+		qc.salvage_sword(g)
+		return true
+	case "upgrade_salvage":
+		qc.upgrade_salvage(g)
+		return true
 	case "save_game":
 		qc.save_game(g)
 		return true
@@ -193,6 +199,7 @@ crawl_state :: proc(driver: rawptr) -> map[string]mbt.ITF_Value {
 	state["enchant_slot_1"] = mbt.ITF_Int{g.enchant_slot_1}
 	state["enchant_slot_2"] = mbt.ITF_Int{g.enchant_slot_2}
 	state["enchant_slot_3"] = mbt.ITF_Int{g.enchant_slot_3}
+	state["salvage_level"] = mbt.ITF_Int{g.salvage_level}
 	return state
 }
 

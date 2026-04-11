@@ -144,6 +144,22 @@ handle_map_input :: proc(app: ^App_State) {
 		}
 	}
 
+	// Salvage sword (at village)
+	if rl.IsKeyPressed(.BACKSLASH) {
+		if qc.salvage_sword(g) {
+			wood := qc.salvage_wood_yield(g.salvage_level)
+			iron := qc.salvage_iron_yield(g.salvage_level)
+			add_message(app, fmt.tprintf("Salvaged sword! +%d wood, +%d iron", wood, iron), {180, 140, 100, 255})
+		}
+	}
+
+	// Upgrade salvage (at village)
+	if rl.IsKeyPressed(.EQUAL) {
+		if qc.upgrade_salvage(g) {
+			add_message(app, fmt.tprintf("Salvage upgraded to Lv%d! (%dg)", g.salvage_level, qc.UPGRADE_SALVAGE_COST), TEXT_GOLD)
+		}
+	}
+
 	// Craft venom sac (at village)
 	if rl.IsKeyPressed(.O) {
 		if qc.craft_venom_sac(g) {
