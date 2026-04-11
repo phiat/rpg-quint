@@ -296,6 +296,18 @@ handle_combat_input :: proc(app: ^App_State) {
 		}
 	}
 
+	// Shield block
+	if rl.IsKeyPressed(.Z) {
+		old_hp := g.hp
+		old_poison := g.player_poison_dur
+		if qc.shield_block(g) {
+			add_message(app, "SHIELD BLOCK! DEF boosted!", {100, 180, 255, 255})
+			if g.hp < old_hp {
+				handle_combat_damage(app, old_hp, old_poison, {100, 180, 255, 60})
+			}
+		}
+	}
+
 	check_screen_transitions(app)
 }
 

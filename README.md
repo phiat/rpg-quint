@@ -17,7 +17,7 @@ Inspired by: [Model-Based Testing for D&D](https://www.loskutoff.com/blog/model-
 just play             # build and run the game
 ```
 
-Controls: WASD to move, E to fight, A to attack, K for combo, H for heavy strike, Y for battle cry, P for potions, V to poison, X for antidote, F to flee, R to rest, B to buy potions, G to gather wood, M to mine iron, C to craft, Q to equip, T to repair, J to fast travel, L to claim victory (at Level 5 Castle), F5 to save, F9 to load. See the HUD sidebar for zone-specific actions.
+Controls: WASD to move, E to fight, A to attack, K for combo, H for heavy strike, Y for battle cry, Z for shield block, P for potions, V to poison, X for antidote, F to flee, R to rest, B to buy potions, G to gather wood, M to mine iron, C to craft, Q to equip, T to repair, J to fast travel, L to claim victory (at Level 5 Castle), F5 to save, F9 to load. See the HUD sidebar for zone-specific actions.
 
 Features:
 - 9x9 world grid with 5 difficulty levels and biome tiling (3x3 pattern repeats across regions)
@@ -35,7 +35,6 @@ Features:
 - Fog of war — unexplored tiles hidden, revealed by adjacency, visited tiles fully visible
 - Fast travel — village waypoints unlocked on visit, teleport between them
 - Save/load snapshot with full state round-trip
-- Day/night cycle driven by turn count (rest and combat advance the clock)
 - Post-processing effects: zone tint, chromatic aberration, low-HP pulse, level-up bloom, poison overlay
 
 The game logic in `quint_crawl/` is the single source of truth — shared by both the raylib game and the MBT test harness. Every state transition is formally specified and verified.

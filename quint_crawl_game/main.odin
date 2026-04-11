@@ -44,7 +44,6 @@ App_State :: struct {
 	flash_color:  rl.Color,  // combat flash overlay
 	flash_timer:  f32,
 	pipeline:      Shader_Pipeline,
-	day_time:      f32,
 	bloom_timer:   f32,       // level-up bloom flash
 	dissolve_timer: f32,      // enemy death dissolve (0 = no dissolve, >0 = dissolving)
 	prev_level:    int,       // track level-ups
@@ -155,9 +154,6 @@ update :: proc(app: ^App_State) {
 		}
 	}
 
-	// Day/night cycle driven by turn count
-	app.day_time = f32(app.game.turn_count) / TURNS_PER_DAY
-	app.day_time -= f32(int(app.day_time))  // wrap to [0, 1)
 }
 
 main :: proc() {

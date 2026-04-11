@@ -369,7 +369,12 @@ resolve_combat_hit :: proc(g: ^Game_State, dmg: int) -> bool {
 		tick_cooldowns(g)
 	}
 
-	// Player died — end combat
+	// Enemy defeated — gold is granted even on mutual kill (matches spec)
+	if new_enemy_hp <= 0 {
+		g.gold += zone_gold_reward(g.pos_x, g.pos_y)
+	}
+
+	// Player died — end combat (no XP, no loot, no level-up)
 	if g.hp <= 0 {
 		g.in_combat = false
 		g.enemy_hp = 0
@@ -378,12 +383,10 @@ resolve_combat_hit :: proc(g: ^Game_State, dmg: int) -> bool {
 	}
 
 	if new_enemy_hp <= 0 {
-		// Enemy defeated — rewards
+		// Enemy defeated, player alive — XP, loot, level-up
 		g.xp += zone_xp_reward(g.pos_x, g.pos_y)
-		g.gold += zone_gold_reward(g.pos_x, g.pos_y)
 		g.in_combat = false
 		g.enemy_attack = 0
-		// Loot drop
 		resolve_loot(g)
 		if g.level < MAX_LEVEL && g.xp >= XP_THRESHOLDS[g.level + 1] {
 			g.level += 1
@@ -655,6 +658,48 @@ battle_cry :: proc(g: ^Game_State) -> bool {
 		// Tick CDs, then set battle_cry CD
 		tick_cooldowns(g)
 		g.cd_battle_cry = BATTLE_CRY_CD
+	}
+	g.combo_count = 0
+
+	return true
+}
+
+shield_block :: proc(g: ^Game_State) -> bool {
+	if !can_act_combat(g) do return false
+	if g.stamina < BATTLE_CRY_STAMINA do return false
+	g.turn_count += 1
+	g.stamina -= BATTLE_CRY_STAMINA
+
+	// Enemy hits back
+	enemy_dmg := g.enemy_attack - (DEF_BUFF_REDUCTION if g.player_def_buff_dur > 0 else 0)
+	if enemy_dmg < 1 do enemy_dmg = 1
+	poison_dmg := POISON_DMG if g.player_poison_dur > 0 else 0
+	g.hp = max(g.hp - enemy_dmg - poison_dmg, 0)
+
+	combat_ends := (g.hp <= 0)
+
+	if combat_ends {
+		g.in_combat = false
+		g.enemy_hp = 0
+		g.enemy_attack = 0
+		g.player_poison_dur = 0
+		g.player_atk_buff_dur = 0
+		g.player_def_buff_dur = 0
+		g.enemy_poison_dur = 0
+		reset_cooldowns(g)
+	} else {
+		// Grant DEF buff
+		g.player_def_buff_dur = STATUS_DURATION
+		// Tick statuses
+		zone_tier := zone_level(g.pos_x, g.pos_y)
+		if zone_tier >= POISON_APPLY_TIER && g.player_poison_dur == 0 {
+			g.player_poison_dur = STATUS_DURATION
+		} else if g.player_poison_dur > 0 {
+			g.player_poison_dur -= 1
+		}
+		if g.player_atk_buff_dur > 0 do g.player_atk_buff_dur -= 1
+		if g.enemy_poison_dur > 0 do g.enemy_poison_dur -= 1
+		tick_cooldowns(g)
 	}
 	g.combo_count = 0
 

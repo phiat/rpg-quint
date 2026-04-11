@@ -72,6 +72,9 @@ crawl_step :: proc(driver: rawptr, action: string, picks: map[string]mbt.ITF_Val
 	case "battle_cry":
 		qc.battle_cry(g)
 		return true
+	case "shield_block":
+		qc.shield_block(g)
+		return true
 	case "claim_victory":
 		qc.claim_victory(g)
 		return true

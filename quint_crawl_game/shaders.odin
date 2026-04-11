@@ -7,11 +7,7 @@ import "core:math"
 
 Shader_Pipeline :: struct {
 	rt:               [2]rl.RenderTexture2D,
-	daynight_shader:  rl.Shader,
 	effects_shader:   rl.Shader,
-	// daynight uniforms
-	loc_time_of_day:  i32,
-	// effects uniforms
 	loc_zone_tint:    i32,
 	loc_aberration:   i32,
 	loc_danger:       i32,
@@ -25,18 +21,15 @@ init_shaders :: proc(pipeline: ^Shader_Pipeline) {
 	pipeline.rt[0] = rl.LoadRenderTexture(WINDOW_W, WINDOW_H)
 	pipeline.rt[1] = rl.LoadRenderTexture(WINDOW_W, WINDOW_H)
 
-	pipeline.daynight_shader = rl.LoadShader(nil, "quint_crawl_game/assets/daynight.fs")
 	pipeline.effects_shader = rl.LoadShader(nil, "quint_crawl_game/assets/effects.fs")
 
-	if pipeline.daynight_shader.id == 0 || pipeline.effects_shader.id == 0 {
+	if pipeline.effects_shader.id == 0 {
 		fmt.println("[shaders] WARNING: Failed to load shaders, pipeline disabled")
 		pipeline.pipeline_enabled = false
 		return
 	}
 
 	// Cache uniform locations
-	pipeline.loc_time_of_day = rl.GetShaderLocation(pipeline.daynight_shader, "u_time_of_day")
-
 	pipeline.loc_zone_tint   = rl.GetShaderLocation(pipeline.effects_shader, "u_zone_tint")
 	pipeline.loc_aberration  = rl.GetShaderLocation(pipeline.effects_shader, "u_aberration")
 	pipeline.loc_danger      = rl.GetShaderLocation(pipeline.effects_shader, "u_danger")
@@ -45,12 +38,11 @@ init_shaders :: proc(pipeline: ^Shader_Pipeline) {
 	pipeline.loc_poison      = rl.GetShaderLocation(pipeline.effects_shader, "u_poison")
 
 	pipeline.pipeline_enabled = true
-	fmt.println("[shaders] Pipeline initialized (daynight + effects)")
+	fmt.println("[shaders] Pipeline initialized (effects)")
 }
 
 destroy_shaders :: proc(pipeline: ^Shader_Pipeline) {
-	if pipeline.daynight_shader.id != 0 do rl.UnloadShader(pipeline.daynight_shader)
-	if pipeline.effects_shader.id != 0  do rl.UnloadShader(pipeline.effects_shader)
+	if pipeline.effects_shader.id != 0 do rl.UnloadShader(pipeline.effects_shader)
 	rl.UnloadRenderTexture(pipeline.rt[0])
 	rl.UnloadRenderTexture(pipeline.rt[1])
 }
@@ -85,18 +77,7 @@ end_pipeline :: proc(pipeline: ^Shader_Pipeline, app: ^App_State) {
 	g := &app.game
 	flip_rect := rl.Rectangle{0, 0, f32(WINDOW_W), -f32(WINDOW_H)}
 
-	// --- Pass 1: Day/night color grading ---
-	time_val := app.day_time
-	rl.SetShaderValue(pipeline.daynight_shader, pipeline.loc_time_of_day, &time_val, .FLOAT)
-
-	rl.BeginTextureMode(pipeline.rt[1])
-	rl.ClearBackground(BG_COLOR)
-	rl.BeginShaderMode(pipeline.daynight_shader)
-	rl.DrawTextureRec(pipeline.rt[0].texture, flip_rect, {0, 0}, rl.WHITE)
-	rl.EndShaderMode()
-	rl.EndTextureMode()
-
-	// --- Pass 2: Effects (zone tint, aberration, danger, bloom, poison) ---
+	// --- Effects pass (zone tint, aberration, danger, bloom, poison) ---
 
 	// Zone tint
 	tint := zone_tint(g.pos_x, g.pos_y)
@@ -128,15 +109,15 @@ end_pipeline :: proc(pipeline: ^Shader_Pipeline, app: ^App_State) {
 	poison: f32 = f32(g.player_poison_dur) / f32(qc.STATUS_DURATION)
 	rl.SetShaderValue(pipeline.effects_shader, pipeline.loc_poison, &poison, .FLOAT)
 
-	rl.BeginTextureMode(pipeline.rt[0])
+	rl.BeginTextureMode(pipeline.rt[1])
 	rl.ClearBackground(BG_COLOR)
 	rl.BeginShaderMode(pipeline.effects_shader)
-	rl.DrawTextureRec(pipeline.rt[1].texture, flip_rect, {0, 0}, rl.WHITE)
+	rl.DrawTextureRec(pipeline.rt[0].texture, flip_rect, {0, 0}, rl.WHITE)
 	rl.EndShaderMode()
 	rl.EndTextureMode()
 
 	// --- Final output to screen ---
-	rl.DrawTextureRec(pipeline.rt[0].texture, flip_rect, {0, 0}, rl.WHITE)
+	rl.DrawTextureRec(pipeline.rt[1].texture, flip_rect, {0, 0}, rl.WHITE)
 }
 
 clamp :: proc(v, lo, hi: f32) -> f32 {

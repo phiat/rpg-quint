@@ -41,11 +41,11 @@ KEY_HIGHLIGHT  :: rl.Color{255, 200, 60, 255}
 COMBAT_BG      :: rl.Color{25, 15, 20, 255}
 
 // Base zone tile colors [bx][by] — tiled across the grid via x%3, y%3
+// bx=0: Village/Plains/Ruins, bx=1: Forest/Cave/Shrine, bx=2: Swamp/Mountain/Castle
 BASE_ZONE_COLORS := [3][3]rl.Color{
-	// bx=0             bx=1               bx=2
-	{{139, 119, 101, 255}, {85, 140, 85, 255},  {90, 75, 100, 255}},   // by=0: Village, Forest, Swamp
-	{{140, 160, 100, 255}, {75, 75, 90, 255},   {120, 120, 140, 255}}, // by=1: Plains, Cave, Mountain
-	{{110, 90, 75, 255},   {170, 150, 80, 255}, {130, 50, 50, 255}},   // by=2: Ruins, Shrine, Castle
+	{{139, 119, 101, 255}, {140, 160, 100, 255}, {110, 90, 75, 255}},   // bx=0: Village, Plains, Ruins
+	{{85, 140, 85, 255},   {75, 75, 90, 255},    {170, 150, 80, 255}},  // bx=1: Forest, Cave, Shrine
+	{{90, 75, 100, 255},   {120, 120, 140, 255}, {130, 50, 50, 255}},   // bx=2: Swamp, Mountain, Castle
 }
 
 // Enemy colors by tier (zone level 1-5)
@@ -58,9 +58,6 @@ ENEMY_COLORS := [qc.MAX_LEVEL]rl.Color{
 }
 
 ENEMY_NAMES := [qc.MAX_LEVEL]string{"Slime", "Skeleton", "Wolf", "Wraith", "Dragon"}
-
-// Day/night cycle — driven by turn count
-TURNS_PER_DAY :: f32(40.0)   // full day/night cycle every 40 turns
 
 // Screen transitions
 TRANSITION_DURATION :: f32(0.3)  // total transition time (fade out + fade in)

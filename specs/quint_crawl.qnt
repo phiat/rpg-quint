@@ -876,6 +876,52 @@ module quint_crawl {
     }
   }
 
+  // === Shield block (grants DEF buff, takes enemy hit) ===
+  action shield_block = all {
+    in_combat, not(game_won), hp > 0, enemy_hp > 0,
+    stamina >= BATTLE_CRY_STAMINA,
+    // Enemy hits player
+    val enemy_dmg = if (player_def_buff_dur > 0) enemy_attack - DEF_BUFF_REDUCTION else enemy_attack
+    val effective_enemy_dmg = if (enemy_dmg < 1) 1 else enemy_dmg
+    val poison_dmg = if (player_poison_dur > 0) POISON_DMG else 0
+    val new_hp = hp - effective_enemy_dmg - poison_dmg
+    val combat_ends = (new_hp <= 0)
+    // Status ticking
+    val zone_tier = zone_level(pos_x, pos_y)
+    val apply_poison = (zone_tier >= POISON_APPLY_TIER and player_poison_dur == 0)
+    val next_player_poison = if (apply_poison) STATUS_DURATION
+                             else if (player_poison_dur > 0) player_poison_dur - 1
+                             else 0
+    val next_atk_buff = if (player_atk_buff_dur > 0) player_atk_buff_dur - 1 else 0
+    val next_enemy_poison = if (enemy_poison_dur > 0) enemy_poison_dur - 1 else 0
+    all {
+      hp' = if (new_hp < 0) 0 else new_hp,
+      in_combat' = if (combat_ends) false else true,
+      enemy_hp' = if (combat_ends) 0 else enemy_hp,
+      enemy_attack' = if (combat_ends) 0 else enemy_attack,
+      // Grant DEF buff (fresh STATUS_DURATION)
+      player_def_buff_dur' = if (combat_ends) 0 else STATUS_DURATION,
+      player_poison_dur' = if (combat_ends) 0 else next_player_poison,
+      player_atk_buff_dur' = if (combat_ends) 0 else next_atk_buff,
+      enemy_poison_dur' = if (combat_ends) 0 else next_enemy_poison,
+      max_hp' = max_hp, base_attack' = base_attack,
+      xp' = xp, level' = level, gold' = gold,
+      pos_x' = pos_x, pos_y' = pos_y,
+      qty_potion' = qty_potion, qty_wood' = qty_wood, qty_iron' = qty_iron,
+      qty_sword' = qty_sword, has_sword' = has_sword,
+      game_won' = game_won,
+      sword_dur' = sword_dur, sword_max_dur' = sword_max_dur,
+      combo_count' = 0,  // shield block breaks combo
+      saved_exists' = saved_exists,
+      turn_count' = turn_count + 1,
+      stamina' = stamina - BATTLE_CRY_STAMINA,
+      max_stamina' = max_stamina,
+      cd_heavy_strike' = if (combat_ends) 0 else (if (cd_heavy_strike > 0) cd_heavy_strike - 1 else 0),
+      cd_battle_cry' = if (combat_ends) 0 else (if (cd_battle_cry > 0) cd_battle_cry - 1 else 0),
+      pity_counter' = pity_counter, last_drop' = last_drop,
+    }
+  }
+
   // === Save game (only outside combat, alive, not won) ===
   action save_game = all {
     not(in_combat), not(game_won), hp > 0,
@@ -952,7 +998,7 @@ module quint_crawl {
     rest_at_village, buy_potion, repair_sword,
     gather_wood, mine_iron, craft_sword, equip_sword,
     use_antidote, poison_strike, combo_attack,
-    heavy_strike, battle_cry,
+    heavy_strike, battle_cry, shield_block,
     save_game, load_game, claim_victory,
   }
 

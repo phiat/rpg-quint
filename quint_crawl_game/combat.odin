@@ -179,6 +179,12 @@ draw_combat :: proc(app: ^App_State) {
 		rl.DrawText("Warcry", 270, action_y3, 20, bc_color)
 	}
 
+	// Shield block
+	sb_ok := g.stamina >= qc.BATTLE_CRY_STAMINA && g.enemy_hp > 0
+	sb_color := rl.Color{100, 180, 255, 255} if sb_ok else rl.Color{60, 60, 70, 255}
+	rl.DrawText("[Z]", 420, action_y3, 20, sb_color)
+	rl.DrawText("Block", 460, action_y3, 20, sb_color)
+
 	// Flash overlay for hit feedback
 	if app.flash_timer > 0 {
 		alpha := u8(f32(app.flash_color.a) * (app.flash_timer / 0.15))
