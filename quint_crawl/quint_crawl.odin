@@ -1017,6 +1017,7 @@ counter_attack :: proc(g: ^Game_State) -> bool {
 			reset_cooldowns(g)
 		} else {
 			// Enemy defeated, player alive
+			g.last_kill_turn = g.turn_count
 			g.xp += zone_xp_reward(g.pos_x, g.pos_y)
 			g.in_combat = false
 			g.enemy_attack = 0

@@ -55,10 +55,8 @@ draw_combat :: proc(app: ^App_State) {
 	}
 
 	// Enemy element
-	elem_names := [5]cstring{"None", "Fire", "Ice", "Lightning", "Earth"}
-	elem_colors := [5]rl.Color{{60, 60, 70, 255}, {255, 100, 50, 255}, {100, 180, 255, 255}, {255, 255, 100, 255}, {139, 119, 101, 255}}
 	if g.enemy_element > 0 && g.enemy_element <= 4 {
-		rl.DrawText(fmt.ctprintf("Element: %s", elem_names[g.enemy_element]), i32(enemy_cx) - 40, 92, 16, elem_colors[g.enemy_element])
+		rl.DrawText(fmt.ctprintf("Element: %s", ELEM_NAMES[g.enemy_element]), i32(enemy_cx) - 40, 92, 16, ELEM_COLORS[g.enemy_element])
 	}
 
 	// Enemy HP bar
@@ -107,18 +105,18 @@ draw_combat :: proc(app: ^App_State) {
 		mult := qc.damage_multiplier(p_elem, g.enemy_element)
 		mult_label: cstring
 		mult_color: rl.Color
-		if mult > 100 { mult_label = "STRONG!"; mult_color = {100, 255, 100, 255} }
-		else if mult < 100 { mult_label = "WEAK"; mult_color = {255, 100, 100, 255} }
+		if mult > 100 { mult_label = "STRONG!"; mult_color = COLOR_STRONG }
+		else if mult < 100 { mult_label = "WEAK"; mult_color = COLOR_WEAK }
 		else { mult_label = "Neutral"; mult_color = TEXT_DIM }
-		rl.DrawText(fmt.ctprintf("Element: %s (%s)", elem_names[p_elem], mult_label), 200, player_cy + 68, 14, mult_color)
+		rl.DrawText(fmt.ctprintf("Element: %s (%s)", ELEM_NAMES[p_elem], mult_label), 200, player_cy + 68, 14, mult_color)
 	}
 
 	// Stamina bar in combat
 	sta_bar_x := i32(200)
 	sta_bar_y := player_cy + 84
 	rl.DrawText("STA", sta_bar_x, sta_bar_y - 2, 12, TEXT_DIM)
-	draw_bar(sta_bar_x + 30, sta_bar_y, 120, 12, g.stamina, g.max_stamina, {50, 200, 120, 255}, {20, 60, 40, 255})
-	rl.DrawText(fmt.ctprintf("%d/%d", g.stamina, g.max_stamina), sta_bar_x + 155, sta_bar_y - 1, 12, {50, 200, 120, 255})
+	draw_bar(sta_bar_x + 30, sta_bar_y, 120, 12, g.stamina, g.max_stamina, BAR_STAMINA_FG, BAR_STAMINA_BG)
+	rl.DrawText(fmt.ctprintf("%d/%d", g.stamina, g.max_stamina), sta_bar_x + 155, sta_bar_y - 1, 12, BAR_STAMINA_FG)
 
 	// --- Status effects ---
 	status_y := i32(500)

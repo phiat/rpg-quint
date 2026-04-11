@@ -47,7 +47,7 @@ draw_hud :: proc(app: ^App_State) {
 	// Stamina bar
 	rl.DrawText("STA", x, y, 14, TEXT_DIM)
 	y += 16
-	draw_bar(x, y, w, 16, g.stamina, g.max_stamina, {50, 200, 120, 255}, {20, 60, 40, 255})
+	draw_bar(x, y, w, 16, g.stamina, g.max_stamina, BAR_STAMINA_FG, BAR_STAMINA_BG)
 	sta_str := fmt.ctprintf("%d/%d", g.stamina, g.max_stamina)
 	sta_w := rl.MeasureText(sta_str, 12)
 	rl.DrawText(sta_str, x + (w - sta_w) / 2, y + 2, 12, TEXT_BRIGHT)
@@ -97,14 +97,12 @@ draw_hud :: proc(app: ^App_State) {
 		rl.DrawText(fmt.ctprintf("Sword: %d/%d dur", g.sword_dur, g.sword_max_dur), x + 8, y, 14, dur_color)
 		y += 18
 		// Enchantment slots
-		ench_names := [5]cstring{"Empty", "Fire", "Ice", "Vampiric", "Lightning"}
-		ench_colors := [5]rl.Color{{60, 60, 70, 255}, {255, 100, 50, 255}, {100, 180, 255, 255}, {200, 50, 200, 255}, {255, 255, 100, 255}}
 		slots := [3]int{g.enchant_slot_1, g.enchant_slot_2, g.enchant_slot_3}
 		has_any_enchant := g.enchant_slot_1 > 0 || g.enchant_slot_2 > 0 || g.enchant_slot_3 > 0
 		if has_any_enchant {
 			for i in 0..<3 {
 				if slots[i] > 0 {
-					rl.DrawText(fmt.ctprintf("  E%d: %s", i + 1, ench_names[slots[i]]), x + 8, y, 12, ench_colors[slots[i]])
+					rl.DrawText(fmt.ctprintf("  E%d: %s", i + 1, ENCH_NAMES[slots[i]]), x + 8, y, 12, ENCH_COLORS[slots[i]])
 					y += 15
 				}
 			}

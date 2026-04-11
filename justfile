@@ -65,6 +65,8 @@ traces:
         economy/auction:auction_run \
         social/faction:faction_run \
         social/dialogue:dialogue_run \
+        social/bounty:bounty_run \
+        social/permadeath:permadeath_run \
         world/fast_travel:fast_travel_run \
         world/fog_of_war:fog_of_war_run \
         quint_crawl:quint_crawl_run; \
@@ -121,7 +123,7 @@ test:
         mbt/economy/shop_mbt mbt/economy/dynamic_shop_mbt mbt/economy/trade_mbt mbt/economy/loot_mbt \
         mbt/world/world_grid_mbt mbt/world/trap_mbt mbt/world/respawn_mbt mbt/world/companion_mbt mbt/world/fog_of_war_mbt \
         mbt/social/party_mbt mbt/social/quest_mbt mbt/social/skill_tree_mbt mbt/social/reputation_mbt mbt/social/summoning_mbt \
-        mbt/economy/auction_mbt mbt/social/faction_mbt mbt/social/dialogue_mbt mbt/world/fast_travel_mbt \
+        mbt/economy/auction_mbt mbt/social/faction_mbt mbt/social/dialogue_mbt mbt/social/bounty_mbt mbt/social/permadeath_mbt mbt/world/fast_travel_mbt \
         quint_crawl_mbt; \
     do \
         name=$(basename "$d"); \

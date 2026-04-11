@@ -246,10 +246,7 @@ module quint_crawl {
       w' = { ...w, pos_y: w.pos_y - 1, turn_count: w.turn_count + 1 },
       ch' = { ...ch, hp: if (ch.hp - storm_dmg < 1) 1 else ch.hp - storm_dmg },
       inv' = inv, eqp' = eqp,
-      cb' = { in_combat: false, enemy_hp: 0, enemy_attack: 0, enemy_element: cb.enemy_element,
-              combo_count: 0, player_poison_dur: 0, player_atk_buff_dur: 0,
-              player_def_buff_dur: 0, enemy_poison_dur: 0,
-              cd_heavy_strike: 0, cd_battle_cry: 0, cd_fortify: cb.cd_fortify },
+      cb' = cb,
       meta' = meta,
     }
   }
@@ -263,10 +260,7 @@ module quint_crawl {
       w' = { ...w, pos_y: w.pos_y + 1, turn_count: w.turn_count + 1 },
       ch' = { ...ch, hp: if (ch.hp - storm_dmg < 1) 1 else ch.hp - storm_dmg },
       inv' = inv, eqp' = eqp,
-      cb' = { in_combat: false, enemy_hp: 0, enemy_attack: 0, enemy_element: cb.enemy_element,
-              combo_count: 0, player_poison_dur: 0, player_atk_buff_dur: 0,
-              player_def_buff_dur: 0, enemy_poison_dur: 0,
-              cd_heavy_strike: 0, cd_battle_cry: 0, cd_fortify: cb.cd_fortify },
+      cb' = cb,
       meta' = meta,
     }
   }
@@ -280,10 +274,7 @@ module quint_crawl {
       w' = { ...w, pos_x: w.pos_x - 1, turn_count: w.turn_count + 1 },
       ch' = { ...ch, hp: if (ch.hp - storm_dmg < 1) 1 else ch.hp - storm_dmg },
       inv' = inv, eqp' = eqp,
-      cb' = { in_combat: false, enemy_hp: 0, enemy_attack: 0, enemy_element: cb.enemy_element,
-              combo_count: 0, player_poison_dur: 0, player_atk_buff_dur: 0,
-              player_def_buff_dur: 0, enemy_poison_dur: 0,
-              cd_heavy_strike: 0, cd_battle_cry: 0, cd_fortify: cb.cd_fortify },
+      cb' = cb,
       meta' = meta,
     }
   }
@@ -297,10 +288,7 @@ module quint_crawl {
       w' = { ...w, pos_x: w.pos_x + 1, turn_count: w.turn_count + 1 },
       ch' = { ...ch, hp: if (ch.hp - storm_dmg < 1) 1 else ch.hp - storm_dmg },
       inv' = inv, eqp' = eqp,
-      cb' = { in_combat: false, enemy_hp: 0, enemy_attack: 0, enemy_element: cb.enemy_element,
-              combo_count: 0, player_poison_dur: 0, player_atk_buff_dur: 0,
-              player_def_buff_dur: 0, enemy_poison_dur: 0,
-              cd_heavy_strike: 0, cd_battle_cry: 0, cd_fortify: cb.cd_fortify },
+      cb' = cb,
       meta' = meta,
     }
   }
@@ -433,10 +421,7 @@ module quint_crawl {
     ch.hp < ch.max_hp or ch.stamina < ch.max_stamina,
     ch' = { ...ch, hp: ch.max_hp, stamina: ch.max_stamina },
     inv' = inv, eqp' = eqp,
-    cb' = { in_combat: false, enemy_hp: 0, enemy_attack: 0, enemy_element: cb.enemy_element,
-            combo_count: 0, player_poison_dur: 0, player_atk_buff_dur: 0,
-            player_def_buff_dur: 0, enemy_poison_dur: 0,
-            cd_heavy_strike: 0, cd_battle_cry: 0, cd_fortify: cb.cd_fortify },
+    cb' = cb,
     w' = { ...w, turn_count: w.turn_count + 1 },
     meta' = meta,
   }
@@ -450,10 +435,7 @@ module quint_crawl {
     ch' = { ...ch, gold: ch.gold - POTION_COST },
     inv' = { ...inv, qty_potion: inv.qty_potion + 1 },
     eqp' = eqp,
-    cb' = { in_combat: false, enemy_hp: 0, enemy_attack: 0, enemy_element: cb.enemy_element,
-            combo_count: 0, player_poison_dur: 0, player_atk_buff_dur: 0,
-            player_def_buff_dur: 0, enemy_poison_dur: 0,
-            cd_heavy_strike: 0, cd_battle_cry: 0, cd_fortify: cb.cd_fortify },
+    cb' = cb,
     w' = { ...w, turn_count: w.turn_count + 1 },
     meta' = meta,
   }
@@ -468,10 +450,7 @@ module quint_crawl {
     ch' = { ...ch, gold: ch.gold - REPAIR_COST },
     eqp' = { ...eqp, sword_dur: eqp.sword_max_dur },
     inv' = inv,
-    cb' = { in_combat: false, enemy_hp: 0, enemy_attack: 0, enemy_element: cb.enemy_element,
-            combo_count: 0, player_poison_dur: 0, player_atk_buff_dur: 0,
-            player_def_buff_dur: 0, enemy_poison_dur: 0,
-            cd_heavy_strike: 0, cd_battle_cry: 0, cd_fortify: cb.cd_fortify },
+    cb' = cb,
     w' = { ...w, turn_count: w.turn_count + 1 },
     meta' = meta,
   }
@@ -486,10 +465,7 @@ module quint_crawl {
       total_items + 1 + rain_bonus <= MAX_INVENTORY,
       inv' = { ...inv, qty_wood: inv.qty_wood + 1 + rain_bonus },
       ch' = ch, eqp' = eqp,
-      cb' = { in_combat: false, enemy_hp: 0, enemy_attack: 0, enemy_element: cb.enemy_element,
-              combo_count: 0, player_poison_dur: 0, player_atk_buff_dur: 0,
-              player_def_buff_dur: 0, enemy_poison_dur: 0,
-              cd_heavy_strike: 0, cd_battle_cry: 0, cd_fortify: cb.cd_fortify },
+      cb' = cb,
       w' = { ...w, turn_count: w.turn_count + 1 },
       meta' = meta,
     }
@@ -505,10 +481,7 @@ module quint_crawl {
       total_items + 1 + rain_bonus <= MAX_INVENTORY,
       inv' = { ...inv, qty_iron: inv.qty_iron + 1 + rain_bonus },
       ch' = ch, eqp' = eqp,
-      cb' = { in_combat: false, enemy_hp: 0, enemy_attack: 0, enemy_element: cb.enemy_element,
-              combo_count: 0, player_poison_dur: 0, player_atk_buff_dur: 0,
-              player_def_buff_dur: 0, enemy_poison_dur: 0,
-              cd_heavy_strike: 0, cd_battle_cry: 0, cd_fortify: cb.cd_fortify },
+      cb' = cb,
       w' = { ...w, turn_count: w.turn_count + 1 },
       meta' = meta,
     }
@@ -522,10 +495,7 @@ module quint_crawl {
     inv.qty_wood >= CRAFT_WOOD_COST, inv.qty_iron >= CRAFT_IRON_COST,
     inv' = { ...inv, qty_wood: inv.qty_wood - CRAFT_WOOD_COST, qty_iron: inv.qty_iron - CRAFT_IRON_COST, qty_sword: inv.qty_sword + 1 },
     ch' = ch, eqp' = eqp,
-    cb' = { in_combat: false, enemy_hp: 0, enemy_attack: 0, enemy_element: cb.enemy_element,
-            combo_count: 0, player_poison_dur: 0, player_atk_buff_dur: 0,
-            player_def_buff_dur: 0, enemy_poison_dur: 0,
-            cd_heavy_strike: 0, cd_battle_cry: 0, cd_fortify: cb.cd_fortify },
+    cb' = cb,
     w' = { ...w, turn_count: w.turn_count + 1 },
     meta' = meta,
   }
@@ -537,10 +507,7 @@ module quint_crawl {
     inv' = { ...inv, has_sword: true, qty_sword: inv.qty_sword - 1 },
     eqp' = { ...eqp, sword_dur: SWORD_MAX_DUR, enchant_slot_1: 0, enchant_slot_2: 0, enchant_slot_3: 0 },
     ch' = ch,
-    cb' = { in_combat: false, enemy_hp: 0, enemy_attack: 0, enemy_element: cb.enemy_element,
-            combo_count: 0, player_poison_dur: 0, player_atk_buff_dur: 0,
-            player_def_buff_dur: 0, enemy_poison_dur: 0,
-            cd_heavy_strike: 0, cd_battle_cry: 0, cd_fortify: cb.cd_fortify },
+    cb' = cb,
     w' = { ...w, turn_count: w.turn_count + 1 },
     meta' = meta,
   }
@@ -911,8 +878,8 @@ module quint_crawl {
     val new_hp = ch.hp - effective_enemy_dmg - poison_dmg
     val combat_ends = (new_hp <= 0 or final_enemy_hp <= 0)
     val zone_tier = zone_level(w.pos_x, w.pos_y)
-    val xp_reward = if (final_enemy_hp <= 0 and new_hp > 0) BASE_XP * zone_tier else 0
-    val gold_reward = if (final_enemy_hp <= 0 and new_hp > 0) BASE_GOLD + GOLD_PER_LEVEL * zone_tier else 0
+    val xp_reward = if (final_enemy_hp <= 0 and new_hp > 0) zone_xp_reward(w.pos_x, w.pos_y) else 0
+    val gold_reward = if (final_enemy_hp <= 0 and new_hp > 0) zone_gold_reward(w.pos_x, w.pos_y) else 0
     val new_xp = ch.xp + xp_reward
     val new_level = if (ch.level < MAX_LEVEL and new_xp >= xp_threshold(ch.level + 1)) ch.level + 1 else ch.level
     val apply_poison = (zone_tier >= POISON_APPLY_TIER and cb.player_poison_dur == 0)
@@ -1102,10 +1069,7 @@ module quint_crawl {
              qty_sword: inv.qty_sword - 1,
     },
     ch' = ch, eqp' = eqp,
-    cb' = { in_combat: false, enemy_hp: 0, enemy_attack: 0, enemy_element: cb.enemy_element,
-            combo_count: 0, player_poison_dur: 0, player_atk_buff_dur: 0,
-            player_def_buff_dur: 0, enemy_poison_dur: 0,
-            cd_heavy_strike: 0, cd_battle_cry: 0, cd_fortify: cb.cd_fortify },
+    cb' = cb,
     w' = { ...w, turn_count: w.turn_count + 1 },
     meta' = meta,
   }
@@ -1119,10 +1083,7 @@ module quint_crawl {
     ch' = { ...ch, gold: ch.gold - UPGRADE_SALVAGE_COST },
     inv' = { ...inv, salvage_level: inv.salvage_level + 1 },
     eqp' = eqp,
-    cb' = { in_combat: false, enemy_hp: 0, enemy_attack: 0, enemy_element: cb.enemy_element,
-            combo_count: 0, player_poison_dur: 0, player_atk_buff_dur: 0,
-            player_def_buff_dur: 0, enemy_poison_dur: 0,
-            cd_heavy_strike: 0, cd_battle_cry: 0, cd_fortify: cb.cd_fortify },
+    cb' = cb,
     w' = { ...w, turn_count: w.turn_count + 1 },
     meta' = meta,
   }
@@ -1148,10 +1109,7 @@ module quint_crawl {
     zone_level(w.pos_x, w.pos_y) >= MAX_LEVEL,
     meta' = { ...meta, game_won: true },
     ch' = ch, inv' = inv, eqp' = eqp,
-    cb' = { in_combat: false, enemy_hp: 0, enemy_attack: 0, enemy_element: cb.enemy_element,
-            combo_count: 0, player_poison_dur: 0, player_atk_buff_dur: 0,
-            player_def_buff_dur: 0, enemy_poison_dur: 0,
-            cd_heavy_strike: 0, cd_battle_cry: 0, cd_fortify: cb.cd_fortify },
+    cb' = cb,
     w' = w,
   }
 
@@ -1218,7 +1176,7 @@ module quint_crawl {
   val dur_max_constant = eqp.sword_max_dur == SWORD_MAX_DUR
 
   /// Broken sword gives no attack bonus (ignoring ATK buff)
-  val broken_no_bonus = (inv.has_sword and eqp.sword_dur == 0 and cb.player_atk_buff_dur == 0).implies(attack_power == ch.base_attack)
+  val broken_no_bonus = (inv.has_sword and eqp.sword_dur == 0 and cb.player_atk_buff_dur == 0).implies(attack_power == ch.base_attack + enchant_atk_bonus)
 
   /// Status durations are non-negative and bounded
   val status_dur_bounded = and {

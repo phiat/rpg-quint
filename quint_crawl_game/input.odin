@@ -171,33 +171,24 @@ handle_map_input :: proc(app: ^App_State) {
 	}
 
 	// Enchant sword (at village, cycles through enchant types on slot)
-	if rl.IsKeyPressed(.EIGHT) && g.has_sword && qc.zone_has_services(g.pos_x, g.pos_y) {
-		// Cycle enchant type on slot 1: fire(1)→ice(2)→vampiric(3)→lightning(4)
-		for etype in 1..=4 {
-			if qc.apply_enchant(g, 1, etype) {
-				ench_names := [5]string{"", "Fire", "Ice", "Vampiric", "Lightning"}
-				add_message(app, fmt.tprintf("Enchanted slot 1: %s! (%dg)", ench_names[etype], qc.ENCHANT_COST), {255, 150, 50, 255})
+	// Starts from current+1 so repeated presses cycle: fire→ice→vampiric→lightning→fire
+	cycle_enchant :: proc(app: ^App_State, g: ^qc.Game_State, slot: int, current: int) {
+		for i in 1..=4 {
+			etype := (current + i - 1) % 4 + 1  // wraps 1→2→3→4→1
+			if qc.apply_enchant(g, slot, etype) {
+				add_message(app, fmt.tprintf("Enchanted slot %d: %s! (%dg)", slot, ENCH_NAMES[etype], qc.ENCHANT_COST), {255, 150, 50, 255})
 				break
 			}
 		}
+	}
+	if rl.IsKeyPressed(.EIGHT) && g.has_sword && qc.zone_has_services(g.pos_x, g.pos_y) {
+		cycle_enchant(app, g, 1, g.enchant_slot_1)
 	}
 	if rl.IsKeyPressed(.NINE) && g.has_sword && qc.zone_has_services(g.pos_x, g.pos_y) {
-		for etype in 1..=4 {
-			if qc.apply_enchant(g, 2, etype) {
-				ench_names := [5]string{"", "Fire", "Ice", "Vampiric", "Lightning"}
-				add_message(app, fmt.tprintf("Enchanted slot 2: %s! (%dg)", ench_names[etype], qc.ENCHANT_COST), {255, 150, 50, 255})
-				break
-			}
-		}
+		cycle_enchant(app, g, 2, g.enchant_slot_2)
 	}
 	if rl.IsKeyPressed(.ZERO) && g.has_sword && qc.zone_has_services(g.pos_x, g.pos_y) {
-		for etype in 1..=4 {
-			if qc.apply_enchant(g, 3, etype) {
-				ench_names := [5]string{"", "Fire", "Ice", "Vampiric", "Lightning"}
-				add_message(app, fmt.tprintf("Enchanted slot 3: %s! (%dg)", ench_names[etype], qc.ENCHANT_COST), {255, 150, 50, 255})
-				break
-			}
-		}
+		cycle_enchant(app, g, 3, g.enchant_slot_3)
 	}
 
 	// Skill unlocks (when skill points available)

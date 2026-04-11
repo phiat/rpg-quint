@@ -59,7 +59,7 @@ replay_trace :: proc(
 					step     = state.index,
 					var_name = var_name,
 					expected = format_value(expected_val),
-					actual   = "<missing>",
+					actual   = strings.clone("<missing>"),
 				})
 				step_ok = false
 				continue

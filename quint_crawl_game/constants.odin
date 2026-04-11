@@ -59,6 +59,37 @@ ENEMY_COLORS := [qc.MAX_LEVEL]rl.Color{
 
 ENEMY_NAMES := [qc.MAX_LEVEL]string{"Slime", "Skeleton", "Wolf", "Wraith", "Dragon"}
 
+// Enchantment names/colors (0=empty, 1=fire, 2=ice, 3=vampiric, 4=lightning)
+ENCH_NAMES := [5]string{"Empty", "Fire", "Ice", "Vampiric", "Lightning"}
+ENCH_COLORS := [5]rl.Color{
+	TEXT_DIM,                    // empty
+	{255, 100, 50, 255},        // fire
+	{100, 180, 255, 255},       // ice
+	{200, 50, 200, 255},        // vampiric
+	{255, 255, 100, 255},       // lightning
+}
+
+// Element names/colors (0=none, 1=fire, 2=ice, 3=lightning, 4=earth)
+ELEM_NAMES := [5]string{"None", "Fire", "Ice", "Lightning", "Earth"}
+ELEM_COLORS := [5]rl.Color{
+	TEXT_DIM,                    // none
+	{255, 100, 50, 255},        // fire
+	{100, 180, 255, 255},       // ice
+	{255, 255, 100, 255},       // lightning
+	{100, 200, 100, 255},       // earth
+}
+
+// Stamina bar
+BAR_STAMINA_FG :: rl.Color{50, 200, 120, 255}
+BAR_STAMINA_BG :: rl.Color{20, 60, 40, 255}
+
+// Status effect colors
+COLOR_POISON   :: rl.Color{100, 255, 100, 255}
+COLOR_ATK_BUFF :: rl.Color{255, 100, 100, 255}
+COLOR_DEF_BUFF :: rl.Color{100, 150, 255, 255}
+COLOR_STRONG   :: rl.Color{100, 255, 100, 255}
+COLOR_WEAK     :: rl.Color{255, 100, 100, 255}
+
 // Screen transitions
 TRANSITION_DURATION :: f32(0.3)  // total transition time (fade out + fade in)
 
