@@ -31,7 +31,12 @@ handle_map_input :: proc(app: ^App_State) {
 
 	if moved {
 		zone := qc.zone_name(g.pos_x, g.pos_y)
-		add_message(app, fmt.tprintf("Entered %s", zone), TEXT_BRIGHT)
+		weather := qc.zone_weather(g.pos_x, g.pos_y, g.turn_count)
+		if weather == 3 {
+			add_message(app, fmt.tprintf("Entered %s — Storm! Took %d damage.", zone, qc.STORM_MOVE_DMG), {255, 150, 50, 255})
+		} else {
+			add_message(app, fmt.tprintf("Entered %s", zone), TEXT_BRIGHT)
+		}
 	}
 
 	// Enter combat
@@ -39,7 +44,6 @@ handle_map_input :: proc(app: ^App_State) {
 		if qc.enter_combat(g) {
 			tier := qc.zone_level_req(g.pos_x, g.pos_y) - 1
 			add_message(app, fmt.tprintf("A %s appears!", ENEMY_NAMES[tier]), BAR_HP_FG)
-			app.screen = .Combat
 		}
 	}
 
@@ -92,6 +96,20 @@ handle_map_input :: proc(app: ^App_State) {
 		}
 	}
 
+	// Save game
+	if rl.IsKeyPressed(.F5) {
+		if qc.save_game(g) {
+			add_message(app, "Game saved!", {100, 220, 255, 255})
+		}
+	}
+
+	// Load game
+	if rl.IsKeyPressed(.F9) {
+		if qc.load_game(g) {
+			add_message(app, "Game loaded!", {100, 220, 255, 255})
+		}
+	}
+
 	check_screen_transitions(app)
 }
 
@@ -103,6 +121,7 @@ handle_combat_input :: proc(app: ^App_State) {
 		old_enemy_hp := g.enemy_hp
 		old_hp := g.hp
 		old_level := g.level
+		old_poison := g.player_poison_dur
 		if qc.combat_attack(g) {
 			dmg_dealt := old_enemy_hp - g.enemy_hp
 			add_message(app, fmt.tprintf("You deal %d damage!", dmg_dealt), {255, 200, 100, 255})
@@ -119,6 +138,10 @@ handle_combat_input :: proc(app: ^App_State) {
 				dmg_taken := old_hp - g.hp
 				if dmg_taken > 0 {
 					add_message(app, fmt.tprintf("Enemy hits you for %d!", dmg_taken), BAR_HP_FG)
+				}
+				// Poison applied notification
+				if old_poison == 0 && g.player_poison_dur > 0 {
+					add_message(app, "You've been poisoned!", {100, 220, 50, 255})
 				}
 				app.shake_timer = 0.2
 				app.flash_color = {255, 50, 50, 80}
@@ -146,6 +169,60 @@ handle_combat_input :: proc(app: ^App_State) {
 			} else {
 				add_message(app, "Fled from battle!", {255, 180, 100, 255})
 			}
+		}
+	}
+
+	// Poison strike
+	if rl.IsKeyPressed(.V) {
+		old_hp := g.hp
+		if qc.poison_strike(g) {
+			dmg := old_hp - g.hp
+			add_message(app, fmt.tprintf("Poison strike! Enemy poisoned for %d turns.", qc.STATUS_DURATION), {100, 220, 50, 255})
+			if dmg > 0 {
+				add_message(app, fmt.tprintf("Enemy hits you for %d!", dmg), BAR_HP_FG)
+				app.shake_timer = 0.15
+				app.flash_color = {255, 50, 50, 60}
+				app.flash_timer = 0.1
+			}
+		}
+	}
+
+	// Combo attack
+	if rl.IsKeyPressed(.K) {
+		old_enemy_hp := g.enemy_hp
+		old_hp := g.hp
+		old_level := g.level
+		combo_num := g.combo_count + 1  // what hit this will be
+		if qc.combo_attack(g) {
+			dmg_dealt := old_enemy_hp - g.enemy_hp
+			combo_names := [3]string{"Slash", "Thrust", "Finisher"}
+			name := combo_names[min(combo_num, 3) - 1]
+			add_message(app, fmt.tprintf("%s! %d damage! (combo %d/3)", name, dmg_dealt, combo_num), {255, 220, 50, 255})
+
+			if g.enemy_hp <= 0 {
+				app.dissolve_timer = 0.5
+				add_message(app, "Enemy defeated!", {100, 255, 100, 255})
+				tier := qc.zone_level_req(g.pos_x, g.pos_y) - 1
+				add_message(app, fmt.tprintf("+%d XP, +%d Gold", qc.ZONE_XP_REWARD[tier], qc.ZONE_GOLD_REWARD[tier]), TEXT_GOLD)
+				if g.level > old_level {
+					add_message(app, fmt.tprintf("LEVEL UP! Now level %d!", g.level), {255, 255, 100, 255})
+				}
+			} else {
+				dmg_taken := old_hp - g.hp
+				if dmg_taken > 0 {
+					add_message(app, fmt.tprintf("Enemy hits you for %d!", dmg_taken), BAR_HP_FG)
+				}
+				app.shake_timer = 0.15
+				app.flash_color = {255, 220, 50, 80}
+				app.flash_timer = 0.1
+			}
+		}
+	}
+
+	// Use antidote
+	if rl.IsKeyPressed(.X) {
+		if qc.use_antidote(g) {
+			add_message(app, "Used antidote! Poison cured.", {100, 220, 50, 255})
 		}
 	}
 

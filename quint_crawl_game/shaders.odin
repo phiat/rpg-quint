@@ -123,8 +123,8 @@ end_pipeline :: proc(pipeline: ^Shader_Pipeline, app: ^App_State) {
 	bloom := clamp(app.bloom_timer * 2.0, 0.0, 1.0)
 	rl.SetShaderValue(pipeline.effects_shader, pipeline.loc_bloom, &bloom, .FLOAT)
 
-	// Poison (placeholder — will be driven by status effect system)
-	poison: f32 = 0
+	// Poison (driven by player_poison_dur)
+	poison: f32 = f32(g.player_poison_dur) / f32(qc.STATUS_DURATION)
 	rl.SetShaderValue(pipeline.effects_shader, pipeline.loc_poison, &poison, .FLOAT)
 
 	rl.BeginTextureMode(pipeline.rt[0])

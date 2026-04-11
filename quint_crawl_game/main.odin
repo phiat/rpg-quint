@@ -35,6 +35,10 @@ App_State :: struct {
 	bloom_timer:   f32,       // level-up bloom flash
 	dissolve_timer: f32,      // enemy death dissolve (0 = no dissolve, >0 = dissolving)
 	prev_level:    int,       // track level-ups
+	// Screen transitions
+	transition_timer:  f32,   // >0 = transitioning (fade out then in)
+	transition_target: Screen, // screen to switch to at midpoint
+	transition_phase:  bool,  // false = fading out, true = fading in
 }
 
 add_message :: proc(app: ^App_State, text: string, color: rl.Color) {
@@ -52,16 +56,24 @@ clear_messages :: proc(app: ^App_State) {
 	clear(&app.messages)
 }
 
+start_transition :: proc(app: ^App_State, target: Screen) {
+	if app.transition_timer <= 0 && app.screen != target {
+		app.transition_timer = TRANSITION_DURATION
+		app.transition_target = target
+		app.transition_phase = false  // start with fade-out
+	}
+}
+
 check_screen_transitions :: proc(app: ^App_State) {
 	g := &app.game
-	if g.game_won {
-		app.screen = .Victory
-	} else if g.hp <= 0 && !g.in_combat {
-		app.screen = .Game_Over
+	if g.game_won && app.screen != .Victory {
+		start_transition(app, .Victory)
+	} else if g.hp <= 0 && !g.in_combat && app.screen != .Game_Over {
+		start_transition(app, .Game_Over)
 	} else if g.in_combat && app.screen != .Combat {
-		app.screen = .Combat
+		start_transition(app, .Combat)
 	} else if !g.in_combat && app.screen == .Combat {
-		app.screen = .Map
+		start_transition(app, .Map)
 	}
 }
 
@@ -77,6 +89,18 @@ update :: proc(app: ^App_State) {
 	if app.flash_timer > 0 do app.flash_timer -= dt
 	if app.bloom_timer > 0 do app.bloom_timer -= dt
 	if app.dissolve_timer > 0 do app.dissolve_timer -= dt
+
+	// Tick screen transition
+	if app.transition_timer > 0 {
+		app.transition_timer -= dt
+		half := TRANSITION_DURATION / 2
+		if !app.transition_phase && app.transition_timer <= half {
+			// Midpoint: switch screen
+			app.screen = app.transition_target
+			app.transition_phase = true
+		}
+		if app.transition_timer < 0 do app.transition_timer = 0
+	}
 
 	// Detect level-up
 	if app.game.level > app.prev_level {
@@ -143,6 +167,22 @@ main :: proc() {
 		}
 
 		end_pipeline(&app.pipeline, &app)
+
+		// Screen transition overlay (drawn after shaders)
+		if app.transition_timer > 0 {
+			half := TRANSITION_DURATION / 2
+			progress: f32
+			if !app.transition_phase {
+				// Fading out: 0 → 1 alpha
+				progress = 1.0 - (app.transition_timer - half) / half
+			} else {
+				// Fading in: 1 → 0 alpha
+				progress = app.transition_timer / half
+			}
+			alpha := u8(clamp(progress * 255, 0, 255))
+			rl.DrawRectangle(0, 0, WINDOW_W, WINDOW_H, {0, 0, 0, alpha})
+		}
+
 		rl.EndDrawing()
 	}
 }

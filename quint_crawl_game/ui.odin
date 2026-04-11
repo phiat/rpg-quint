@@ -86,7 +86,25 @@ draw_hud :: proc(app: ^App_State) {
 	zone := qc.zone_name(g.pos_x, g.pos_y)
 	zlvl := qc.zone_level_req(g.pos_x, g.pos_y)
 	rl.DrawText(fmt.ctprintf("%s (Lv.%d)", zone, zlvl), x, y, 16, TEXT_BRIGHT)
-	y += 26
+	y += 20
+
+	// Turn count
+	rl.DrawText(fmt.ctprintf("Turn: %d", g.turn_count), x + 8, y, 13, TEXT_DIM)
+	y += 16
+
+	// Weather
+	weather := qc.zone_weather(g.pos_x, g.pos_y, g.turn_count)
+	weather_name: cstring
+	weather_color: rl.Color
+	switch weather {
+	case 0: weather_name = "Clear"; weather_color = {200, 200, 100, 255}
+	case 1: weather_name = "Rain (+gather)"; weather_color = {100, 150, 255, 255}
+	case 2: weather_name = "Fog (-enemy atk)"; weather_color = {180, 180, 200, 255}
+	case 3: weather_name = "Storm (move dmg)"; weather_color = {255, 150, 50, 255}
+	case: weather_name = "Clear"; weather_color = TEXT_DIM
+	}
+	rl.DrawText(weather_name, x + 8, y, 13, weather_color)
+	y += 22
 
 	// --- Available actions ---
 	if !g.in_combat && !g.game_won && g.hp > 0 {
@@ -126,6 +144,10 @@ draw_hud :: proc(app: ^App_State) {
 		if g.qty_sword >= 1 && !g.has_sword {
 			draw_action(x, &y, "[Q]", "Equip Sword", true)
 		}
+
+		// Save/Load
+		draw_action(x, &y, "[F5]", "Save", true)
+		draw_action(x, &y, "[F9]", "Load", g.saved_exists)
 
 		y += 4
 	}

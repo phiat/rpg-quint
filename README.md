@@ -17,15 +17,19 @@ Inspired by: [Model-Based Testing for D&D](https://www.loskutoff.com/blog/model-
 just play             # build and run the game
 ```
 
-Controls: WASD to move, E to fight, A to attack, P for potions, F to flee, T to repair. See the HUD sidebar for zone-specific actions.
+Controls: WASD to move, E to fight, A to attack, K for combo, P for potions, V to poison, X for antidote, F to flee, T to repair, F5 to save, F9 to load. See the HUD sidebar for zone-specific actions.
 
 Features:
 - 3x3 world grid with level-gated zones (Village → Castle)
 - Turn-based combat against tiered enemies (Slime, Skeleton, Dragon)
+- Combo system — 3-hit chain (Slash → Thrust → Finisher) with damage multipliers
+- Status effects — poison, ATK/DEF buffs with turn-based ticking
+- Per-zone weather (Clear/Rain/Fog/Storm) affecting combat, gathering, and movement
 - Resource gathering (wood, iron), crafting, and equipment
 - Sword durability — degrades per attack, repair at village
+- Save/load snapshot with full state round-trip
 - Day/night shader cycle with atmospheric color grading
-- Post-processing shader pipeline (extensible for weather, zone effects)
+- Post-processing effects: zone tint, chromatic aberration, low-HP pulse, level-up bloom, poison overlay
 
 The game logic in `quint_crawl/` is the single source of truth — shared by both the raylib game and the MBT test harness. Every state transition is formally specified and verified.
 
@@ -46,15 +50,29 @@ specs/*.qnt  ──[quint run --mbt]──▶  traces/*.itf.json  ──[odin te
 ## Project structure
 
 ```
-quint_crawl/        Shared game logic (Game_State, all action procs, constants)
-quint_crawl_game/   Raylib game executable (rendering, input, UI, shaders)
-  assets/           GLSL shaders (daynight.fs, etc.)
-specs/              Quint formal specifications (.qnt)
-traces/             Generated ITF trace files (.itf.json)
-quint_mbt/          Shared Odin library: ITF parser + trace replayer
-*_mbt/              Per-module Odin MBT test harnesses
-docs/               Design documents (asset specs, etc.)
-justfile            Task runner for common workflows
+quint_crawl/           Shared game logic (Game_State, all action procs, constants)
+quint_crawl_game/      Raylib game executable (rendering, input, UI, shaders)
+  assets/              GLSL shaders (daynight.fs, etc.)
+quint_mbt/             Shared Odin library: ITF parser + trace replayer
+quint_crawl_mbt/       MBT harness for the integrated game spec
+specs/                 Quint formal specifications
+  core/                Character fundamentals (rpg, healing, leveling, stamina)
+  combat/              Combat systems (combat, combat_full, status, cooldown, elemental)
+  items/               Equipment & crafting (equip, durability, enchantment, crafting, salvage, ...)
+  economy/             Trade & loot (shop, dynamic_shop, trade, loot)
+  world/               Exploration (world_grid, trap, respawn, companion)
+  social/              Progression & social (party, quest, skill_tree, reputation, summoning)
+  quint_crawl.qnt      Integrated game spec
+mbt/                   Per-module Odin MBT test harnesses (mirroring specs/ layout)
+  core/                ...
+  combat/              ...
+  items/               ...
+  economy/             ...
+  world/               ...
+  social/              ...
+traces/                Generated ITF trace files (.itf.json)
+docs/                  Design documents (asset specs, etc.)
+justfile               Task runner for common workflows
 ```
 
 ## Modules
@@ -86,7 +104,12 @@ justfile            Task runner for common workflows
 | **reputation** | Faction reputation with rivalries | Standings bounded [-100, 100] |
 | **summoning** | Timed summon slots (3 max) | Count consistent, inactive zeroed, durations non-negative |
 | **world_grid** | 3x3 level-gated zone grid | Position bounded, zone matches, level gates respected |
-| **quint_crawl** | Full RPG game state machine | HP bounded, gold non-negative, level gates, durability bounded, win condition correct |
+| **elemental** | 4-element damage affinity (Fire/Ice/Lightning/Earth) | Elements bounded, multiplier matrix consistent, damage symmetric |
+| **enchantment** | 3-slot weapon enchantments (fire/ice/vampiric/lightning) | Mutual exclusion, slot count bounded, enchantment validity |
+| **trap** | Trap/hazard system on 2x2 grid with perception | Triggered implies present, HP bounded, perception bounded |
+| **companion** | Companion/pet system (wolf/hawk/turtle) with loyalty | Loyalty bounded, passives match type, one active companion |
+| **salvage** | Salvage/disenchant inverse crafting | Level-based output, material conservation, non-negative quantities |
+| **quint_crawl** | Full RPG game state machine | HP bounded, gold non-negative, level gates, durability bounded, combo bounded, status effects bounded, weather deterministic, win condition correct |
 
 ## Quick start
 
@@ -112,4 +135,4 @@ just trace rpg rpg_run      # regenerate one trace
 
 ## Docs
 
-- [Asset Design Guide](docs/asset-design.md) — sprite specs for V2 visual upgrade (17 PNGs)
+- [Asset Design Guide](docs/assets-design.md) — sprite specs for V2 visual upgrade (26 required assets)

@@ -57,6 +57,21 @@ crawl_step :: proc(driver: rawptr, action: string, picks: map[string]mbt.ITF_Val
 	case "repair_sword":
 		qc.repair_sword(g)
 		return true
+	case "use_antidote":
+		qc.use_antidote(g)
+		return true
+	case "poison_strike":
+		qc.poison_strike(g)
+		return true
+	case "combo_attack":
+		qc.combo_attack(g)
+		return true
+	case "save_game":
+		qc.save_game(g)
+		return true
+	case "load_game":
+		// Spec models load as identity; real restore tested separately
+		return g.saved_exists
 	case:
 		return false
 	}
@@ -84,6 +99,14 @@ crawl_state :: proc(driver: rawptr) -> map[string]mbt.ITF_Value {
 	state["game_won"] = mbt.ITF_Bool{g.game_won}
 	state["sword_dur"] = mbt.ITF_Int{g.sword_dur}
 	state["sword_max_dur"] = mbt.ITF_Int{g.sword_max_dur}
+	state["player_poison_dur"] = mbt.ITF_Int{g.player_poison_dur}
+	state["player_atk_buff_dur"] = mbt.ITF_Int{g.player_atk_buff_dur}
+	state["player_def_buff_dur"] = mbt.ITF_Int{g.player_def_buff_dur}
+	state["enemy_poison_dur"] = mbt.ITF_Int{g.enemy_poison_dur}
+	state["combo_count"] = mbt.ITF_Int{g.combo_count}
+	state["combo_timer"] = mbt.ITF_Int{g.combo_timer}
+	state["turn_count"] = mbt.ITF_Int{g.turn_count}
+	state["saved_exists"] = mbt.ITF_Bool{g.saved_exists}
 	return state
 }
 

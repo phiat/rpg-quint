@@ -77,9 +77,36 @@ draw_combat :: proc(app: ^App_State) {
 	player_hp_w := rl.MeasureText(player_hp, 14)
 	rl.DrawText(player_hp, 200 + (200 - player_hp_w) / 2, player_cy + 21, 14, TEXT_BRIGHT)
 
-	// Player ATK
+	// Player ATK + sword durability
 	atk := qc.attack_power(g)
-	rl.DrawText(fmt.ctprintf("ATK: %d", atk), 200, player_cy + 48, 16, TEXT_BRIGHT)
+	if g.has_sword {
+		dur_color := TEXT_BRIGHT if g.sword_dur > 3 else BAR_HP_FG
+		rl.DrawText(fmt.ctprintf("ATK: %d  Sword: %d/%d", atk, g.sword_dur, g.sword_max_dur), 200, player_cy + 48, 16, dur_color)
+	} else {
+		rl.DrawText(fmt.ctprintf("ATK: %d", atk), 200, player_cy + 48, 16, TEXT_BRIGHT)
+	}
+
+	// --- Status effects ---
+	status_y := i32(500)
+	if g.player_poison_dur > 0 {
+		rl.DrawText(fmt.ctprintf("POISONED (%d)", g.player_poison_dur), 60, status_y, 16, {100, 220, 50, 255})
+	}
+	if g.player_atk_buff_dur > 0 {
+		rl.DrawText(fmt.ctprintf("ATK+ (%d)", g.player_atk_buff_dur), 220, status_y, 16, {255, 200, 100, 255})
+	}
+	if g.player_def_buff_dur > 0 {
+		rl.DrawText(fmt.ctprintf("DEF+ (%d)", g.player_def_buff_dur), 340, status_y, 16, {100, 180, 255, 255})
+	}
+	if g.enemy_poison_dur > 0 {
+		rl.DrawText(fmt.ctprintf("Enemy POISONED (%d)", g.enemy_poison_dur), 60, status_y - 20, 14, {100, 220, 50, 255})
+	}
+	// Combo indicator
+	if g.combo_count > 0 {
+		combo_names := [3]string{"Slash", "Thrust", "Finisher"}
+		next := min(g.combo_count + 1, 3)
+		rl.DrawText(fmt.ctprintf("COMBO %d/3 → %s (timer: %d)", g.combo_count, combo_names[next - 1], g.combo_timer),
+			60, status_y + 20, 16, {255, 220, 50, 255})
+	}
 
 	// --- Combat actions ---
 	action_y := i32(560)
@@ -95,9 +122,26 @@ draw_combat :: proc(app: ^App_State) {
 	rl.DrawText("[P]", 230, action_y, 20, pot_color)
 	rl.DrawText(fmt.ctprintf("Potion (%d)", g.qty_potion), 270, action_y, 20, pot_text_color)
 
+	// Combo
+	combo_ok := g.combo_count < 3 && g.enemy_hp > 0
+	combo_color := rl.Color{255, 220, 50, 255} if combo_ok else rl.Color{60, 60, 70, 255}
+	rl.DrawText("[K]", 420, action_y, 20, combo_color)
+	rl.DrawText("Combo", 460, action_y, 20, combo_color)
+
 	// Flee
-	rl.DrawText("[F]", 470, action_y, 20, {255, 180, 100, 255})
-	rl.DrawText("Flee", 510, action_y, 20, {255, 180, 100, 255})
+	rl.DrawText("[F]", 560, action_y, 20, {255, 180, 100, 255})
+	rl.DrawText("Flee", 600, action_y, 20, {255, 180, 100, 255})
+
+	// Row 2: Poison strike / Antidote
+	action_y2 := action_y + 28
+	ps_color := rl.Color{100, 220, 50, 255} if g.enemy_poison_dur == 0 else rl.Color{60, 60, 70, 255}
+	rl.DrawText("[V]", 60, action_y2, 20, ps_color)
+	rl.DrawText("Poison", 100, action_y2, 20, ps_color)
+
+	anti_ok := g.qty_potion > 0 && g.player_poison_dur > 0
+	anti_color := rl.Color{100, 220, 50, 255} if anti_ok else rl.Color{60, 60, 70, 255}
+	rl.DrawText("[X]", 230, action_y2, 20, anti_color)
+	rl.DrawText("Antidote", 270, action_y2, 20, anti_color)
 
 	// Flash overlay for hit feedback
 	if app.flash_timer > 0 {
