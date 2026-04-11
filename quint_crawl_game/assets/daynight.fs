@@ -30,11 +30,11 @@ void main() {
     vec3 nightTint = vec3(0.4, 0.4, 0.7);     // deep blue-purple
     vec3 dawnTint  = vec3(1.0, 0.85, 0.75);   // pale pink-gold
 
-    // Brightness multipliers
+    // Brightness multipliers (floor at 0.65 so night is moody but readable)
     float dayBright   = 1.0;
-    float duskBright  = 0.8;
-    float nightBright = 0.45;
-    float dawnBright  = 0.85;
+    float duskBright  = 0.85;
+    float nightBright = 0.65;
+    float dawnBright  = 0.9;
 
     // Blend tint and brightness
     vec3 tint = (dayFactor * dayTint + nightFactor * nightTint + duskFactor * duskTint + dawnFactor * dawnTint) / total;
@@ -42,12 +42,12 @@ void main() {
 
     vec3 color = texColor.rgb * tint * brightness;
 
-    // Vignette - stronger at night
+    // Vignette - subtle, slightly stronger at night
     vec2 uv = fragTexCoord - 0.5;
     float dist = dot(uv, uv);
-    float vignetteStrength = mix(0.15, 0.6, nightFactor / total);
-    float vignette = 1.0 - dist * vignetteStrength * 2.5;
-    vignette = clamp(vignette, 0.0, 1.0);
+    float vignetteStrength = mix(0.08, 0.25, nightFactor / total);
+    float vignette = 1.0 - dist * vignetteStrength * 2.0;
+    vignette = clamp(vignette, 0.5, 1.0);
     color *= vignette;
 
     finalColor = vec4(color, texColor.a);

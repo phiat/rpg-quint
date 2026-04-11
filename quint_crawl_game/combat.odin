@@ -24,9 +24,27 @@ draw_combat :: proc(app: ^App_State) {
 	name := ENEMY_NAMES[tier]
 	rl.DrawText(fmt.ctprintf("%s", name), i32(enemy_cx) - 40, 60, 28, ENEMY_COLORS[tier])
 
-	// Enemy shape with shake
+	// Enemy shape with shake + dissolve on death
 	shake := app.shake_timer * 20 if app.shake_timer > 0 else 0
-	draw_enemy_shape(enemy_cx, enemy_cy, tier, shake)
+	if app.dissolve_timer > 0 {
+		// Dissolve effect: fade + scatter particles
+		progress := 1.0 - (app.dissolve_timer / 0.5) // 0 → 1 as dissolve completes
+		alpha := u8(255.0 * (1.0 - progress))
+		// Draw fading enemy
+		color := ENEMY_COLORS[tier]
+		color.a = alpha
+		draw_enemy_shape_tinted(enemy_cx, enemy_cy, tier, shake + progress * 10, alpha)
+		// Scatter particles rising from enemy position
+		for i in 0..<8 {
+			fi := f32(i)
+			px := enemy_cx + math.sin(fi * 1.7 + progress * 5) * (30 + progress * 60)
+			py := enemy_cy - progress * (40 + fi * 15)
+			p_alpha := u8(f32(alpha) * (1.0 - fi / 8.0))
+			rl.DrawCircle(i32(px), i32(py), 3.0 - progress * 2, {color.r, color.g, color.b, p_alpha})
+		}
+	} else {
+		draw_enemy_shape(enemy_cx, enemy_cy, tier, shake)
+	}
 
 	// Enemy HP bar
 	bar_x := i32(enemy_cx) - 100

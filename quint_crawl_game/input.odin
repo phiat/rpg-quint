@@ -8,6 +8,7 @@ handle_title_input :: proc(app: ^App_State) {
 	if rl.IsKeyPressed(.ENTER) || rl.IsKeyPressed(.SPACE) {
 		qc.init_game(&app.game)
 		clear_messages(app)
+		app.prev_level = app.game.level
 		app.screen = .Map
 		add_message(app, "Welcome to Quint Crawl! Explore the world.", TEXT_BRIGHT)
 	}
@@ -107,6 +108,7 @@ handle_combat_input :: proc(app: ^App_State) {
 			add_message(app, fmt.tprintf("You deal %d damage!", dmg_dealt), {255, 200, 100, 255})
 
 			if g.enemy_hp <= 0 {
+				app.dissolve_timer = 0.5
 				add_message(app, "Enemy defeated!", {100, 255, 100, 255})
 				tier := qc.zone_level_req(g.pos_x, g.pos_y) - 1
 				add_message(app, fmt.tprintf("+%d XP, +%d Gold", qc.ZONE_XP_REWARD[tier], qc.ZONE_GOLD_REWARD[tier]), TEXT_GOLD)
@@ -154,6 +156,7 @@ handle_endscreen_input :: proc(app: ^App_State) {
 	if rl.IsKeyPressed(.ENTER) || rl.IsKeyPressed(.SPACE) {
 		qc.init_game(&app.game)
 		clear_messages(app)
+		app.prev_level = app.game.level
 		app.screen = .Map
 		add_message(app, "A new adventure begins...", TEXT_BRIGHT)
 	}

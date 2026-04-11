@@ -30,8 +30,11 @@ App_State :: struct {
 	shake_timer:  f32,       // combat hit shake
 	flash_color:  rl.Color,  // combat flash overlay
 	flash_timer:  f32,
-	pipeline:     Shader_Pipeline,
-	day_time:     f32,
+	pipeline:      Shader_Pipeline,
+	day_time:      f32,
+	bloom_timer:   f32,       // level-up bloom flash
+	dissolve_timer: f32,      // enemy death dissolve (0 = no dissolve, >0 = dissolving)
+	prev_level:    int,       // track level-ups
 }
 
 add_message :: proc(app: ^App_State, text: string, color: rl.Color) {
@@ -69,9 +72,17 @@ update :: proc(app: ^App_State) {
 	app.pulse_timer += dt * 3.0
 	if app.pulse_timer > 6.28 do app.pulse_timer -= 6.28
 
-	// Tick shake/flash
+	// Tick shake/flash/bloom/dissolve
 	if app.shake_timer > 0 do app.shake_timer -= dt
 	if app.flash_timer > 0 do app.flash_timer -= dt
+	if app.bloom_timer > 0 do app.bloom_timer -= dt
+	if app.dissolve_timer > 0 do app.dissolve_timer -= dt
+
+	// Detect level-up
+	if app.game.level > app.prev_level {
+		app.bloom_timer = 0.6
+		app.prev_level = app.game.level
+	}
 
 	// Tick messages
 	for i := len(app.messages) - 1; i >= 0; i -= 1 {
@@ -95,6 +106,7 @@ main :: proc() {
 	app: App_State
 	app.screen = .Title
 	qc.init_game(&app.game)
+	app.prev_level = app.game.level
 	init_shaders(&app.pipeline)
 	defer destroy_shaders(&app.pipeline)
 

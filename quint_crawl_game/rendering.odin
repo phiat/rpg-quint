@@ -123,6 +123,39 @@ draw_player_marker :: proc(app: ^App_State) {
 }
 
 // --- Enemy drawing (combat) ---
+draw_enemy_shape_tinted :: proc(cx, cy: f32, tier: int, shake: f32, alpha: u8) {
+	ox := shake * math.sin(shake * 30)
+	base := ENEMY_COLORS[tier]
+	color := rl.Color{base.r, base.g, base.b, alpha}
+	eye_white := rl.Color{255, 255, 255, alpha}
+	eye_black := rl.Color{0, 0, 0, alpha}
+
+	switch tier {
+	case 0: // Slime
+		rl.DrawCircle(i32(cx + ox), i32(cy), 50, color)
+		rl.DrawCircle(i32(cx + ox), i32(cy + 20), 55, color)
+		rl.DrawCircle(i32(cx + ox - 15), i32(cy - 10), 8, eye_white)
+		rl.DrawCircle(i32(cx + ox + 15), i32(cy - 10), 8, eye_white)
+		rl.DrawCircle(i32(cx + ox - 15), i32(cy - 10), 4, eye_black)
+		rl.DrawCircle(i32(cx + ox + 15), i32(cy - 10), 4, eye_black)
+	case 1: // Skeleton
+		rl.DrawRectangle(i32(cx + ox) - 20, i32(cy) - 40, 40, 70, color)
+		rl.DrawCircle(i32(cx + ox), i32(cy) - 55, 22, color)
+		rl.DrawRectangle(i32(cx + ox) - 12, i32(cy) - 62, 8, 8, eye_black)
+		rl.DrawRectangle(i32(cx + ox) + 4, i32(cy) - 62, 8, 8, eye_black)
+		rl.DrawLine(i32(cx + ox) - 20, i32(cy) - 30, i32(cx + ox) - 45, i32(cy), color)
+		rl.DrawLine(i32(cx + ox) + 20, i32(cy) - 30, i32(cx + ox) + 45, i32(cy), color)
+	case 2: // Dragon
+		rl.DrawTriangle({cx + ox, cy - 60}, {cx + ox - 50, cy + 30}, {cx + ox + 50, cy + 30}, color)
+		wing := rl.Color{color.r - 30 if color.r >= 30 else 0, color.g, color.b, alpha}
+		rl.DrawTriangle({cx + ox - 30, cy - 20}, {cx + ox - 80, cy - 40}, {cx + ox - 30, cy + 10}, wing)
+		rl.DrawTriangle({cx + ox + 30, cy - 20}, {cx + ox + 80, cy - 40}, {cx + ox + 30, cy + 10}, wing)
+		eye_yellow := rl.Color{255, 255, 0, alpha}
+		rl.DrawCircle(i32(cx + ox) - 12, i32(cy) - 30, 6, eye_yellow)
+		rl.DrawCircle(i32(cx + ox) + 12, i32(cy) - 30, 6, eye_yellow)
+	}
+}
+
 draw_enemy_shape :: proc(cx, cy: f32, tier: int, shake: f32) {
 	ox := shake * math.sin(shake * 30)
 	color := ENEMY_COLORS[tier]
