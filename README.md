@@ -1,8 +1,20 @@
-# Quint Model-Based Testing with Odin
+# Quint Crawl — Formally Verified RPG
 
-Formal specifications in [Quint](https://quint-lang.org/) driving automated tests for Odin implementations via Model-Based Testing (MBT).
+A raylib RPG game built on formally verified game logic. Every game rule is specified in [Quint](https://quint-lang.org/), tested via Model-Based Testing (MBT), and implemented in [Odin](https://odin-lang.org/).
 
-## How it works
+## The Game
+
+**Quint Crawl** is a turn-based RPG rendered with raylib. Explore a 3x3 world grid, fight enemies, gather resources, craft gear, and level up to conquer the Castle.
+
+```bash
+just play             # build and run the game
+```
+
+Controls: WASD to move, E to fight, A to attack, P for potions, F to flee. See the HUD sidebar for zone-specific actions.
+
+The game logic in `quint_crawl/` is the single source of truth — shared by both the raylib game and the MBT test harness. Every state transition is formally specified and verified.
+
+## How MBT works
 
 ```
 specs/*.qnt  ──[quint run --mbt]──▶  traces/*.itf.json  ──[odin test]──▶  pass/fail
@@ -19,10 +31,13 @@ specs/*.qnt  ──[quint run --mbt]──▶  traces/*.itf.json  ──[odin te
 ## Project structure
 
 ```
+quint_crawl_game/   Raylib game executable (rendering, input, UI)
+quint_crawl/        Shared game logic (Game_State, actions, constants)
 specs/              Quint specifications (.qnt)
 traces/             Generated ITF trace files (.itf.json)
 quint_mbt/          Shared Odin library: ITF parser + trace replayer
 *_mbt/              Per-module Odin implementation + MBT test harness
+docs/               Design documents (asset specs, etc.)
 justfile            Task runner for common workflows
 ```
 
@@ -50,10 +65,18 @@ justfile            Task runner for common workflows
 | **combat_full** | Combat + equipment + status effects | Effects consistent, poison-between-turns death |
 | **capacity_craft** | Crafting with inventory capacity limits | Capacity bounded, atomic craft-or-reject |
 | **gated_craft** | Level-gated crafting recipes + combat XP | Recipe access matches level, XP monotonic |
+| **stamina** | Action stamina with regen | Stamina bounded, non-negative, constants stable |
+| **skill_tree** | Prerequisite-based skill unlocks | Prerequisites respected, points conserved |
+| **reputation** | Faction reputation with rivalries | Standings bounded [-100, 100] |
+| **summoning** | Timed summon slots (3 max) | Count consistent, inactive zeroed, durations non-negative |
+| **world_grid** | 3x3 level-gated zone grid | Position bounded, zone matches, level gates respected |
+| **quint_crawl** | Full RPG game state machine | HP bounded, gold non-negative, level gates, win condition correct |
 
 ## Quick start
 
 ```bash
+just play        # build and run the game
+
 just check       # typecheck all specs
 just traces      # generate MBT traces
 just test        # run all Odin MBT tests
@@ -66,6 +89,11 @@ just trace rpg rpg_run      # regenerate one trace
 
 ## Prerequisites
 
+- [Odin](https://odin-lang.org/) (with vendor:raylib)
 - [Quint](https://quint-lang.org/) (tested with 0.32.0)
-- [Odin](https://odin-lang.org/)
 - [just](https://github.com/casey/just) (task runner)
+- X server or WSLg (if running on WSL)
+
+## Docs
+
+- [Asset Design Guide](docs/asset-design.md) — sprite specs for V2 visual upgrade (17 PNGs)

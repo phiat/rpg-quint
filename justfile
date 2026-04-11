@@ -48,7 +48,13 @@ traces:
         dynamic_shop:dynamic_shop_run \
         combat_full:combat_full_run \
         capacity_craft:capacity_craft_run \
-        gated_craft:gated_craft_run; \
+        gated_craft:gated_craft_run \
+        stamina:stamina_run \
+        skill_tree:skill_tree_run \
+        reputation:reputation_run \
+        summoning:summoning_run \
+        world_grid:world_grid_run \
+        quint_crawl:quint_crawl_run; \
     do \
         name="${spec%%:*}"; \
         main="${spec##*:}"; \
@@ -76,7 +82,9 @@ test:
     for d in rpg_mbt trade_mbt equip_mbt healing_mbt stacking_mbt \
              shop_mbt combat_mbt status_mbt crafting_mbt party_mbt leveling_mbt \
              cooldown_mbt quest_mbt durability_mbt loot_mbt respawn_mbt \
-             dynamic_shop_mbt combat_full_mbt capacity_craft_mbt gated_craft_mbt; do \
+             dynamic_shop_mbt combat_full_mbt capacity_craft_mbt gated_craft_mbt \
+             stamina_mbt skill_tree_mbt reputation_mbt summoning_mbt world_grid_mbt \
+             quint_crawl_mbt; do \
         printf "%-20s" "$d"; \
         if odin test "$d/" 2>&1 | grep -q "was successful"; then \
             echo "pass"; \
@@ -99,6 +107,16 @@ test-one name:
 verify name main invariant:
     quint run --main={{main}} --max-steps=20 --max-samples=10000 \
         --invariant="{{invariant}}" specs/{{name}}.qnt
+
+# --- Game ---
+
+# Build and run the Quint Crawl game
+play:
+    odin run quint_crawl_game/
+
+# Build the game without running
+build-game:
+    odin build quint_crawl_game/ -out:quint_crawl_game/quint_crawl
 
 # --- Full pipeline ---
 
