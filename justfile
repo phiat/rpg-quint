@@ -39,7 +39,16 @@ traces:
         status:status_run \
         crafting:crafting_run \
         party:party_run \
-        leveling:leveling_run; \
+        leveling:leveling_run \
+        cooldown:cooldown_run \
+        quest:quest_run \
+        durability:durability_run \
+        loot:loot_run \
+        respawn:respawn_run \
+        dynamic_shop:dynamic_shop_run \
+        combat_full:combat_full_run \
+        capacity_craft:capacity_craft_run \
+        gated_craft:gated_craft_run; \
     do \
         name="${spec%%:*}"; \
         main="${spec##*:}"; \
@@ -65,7 +74,9 @@ trace name main:
 test:
     @pass=0; fail=0; \
     for d in rpg_mbt trade_mbt equip_mbt healing_mbt stacking_mbt \
-             shop_mbt combat_mbt status_mbt crafting_mbt party_mbt leveling_mbt; do \
+             shop_mbt combat_mbt status_mbt crafting_mbt party_mbt leveling_mbt \
+             cooldown_mbt quest_mbt durability_mbt loot_mbt respawn_mbt \
+             dynamic_shop_mbt combat_full_mbt capacity_craft_mbt gated_craft_mbt; do \
         printf "%-20s" "$d"; \
         if odin test "$d/" 2>&1 | grep -q "was successful"; then \
             echo "pass"; \

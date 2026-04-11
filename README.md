@@ -41,6 +41,15 @@ justfile            Task runner for common workflows
 | **crafting** | Recipe-based item crafting | Materials non-negative, total mass conserved |
 | **party** | 3-member party + shared stash | Items conserved across all inventories |
 | **leveling** | XP gain and level-up thresholds | XP monotonic, stats match level deterministically |
+| **cooldown** | Ability cooldown timers | Cooldowns non-negative, bounded by max |
+| **quest** | Multi-step quests with prerequisite chains | Prerequisites respected, completion monotonic |
+| **durability** | Weapon/armor degradation and repair | Broken iff durability==0, durability bounded |
+| **loot** | Loot drops with pity/guarantee system | Pity counter bounded, rare drought capped |
+| **respawn** | Enemy respawn with zone capacity | Population conserved, zones bounded |
+| **dynamic_shop** | Shop with supply-based dynamic pricing | Gold conserved despite variable prices |
+| **combat_full** | Combat + equipment + status effects | Effects consistent, poison-between-turns death |
+| **capacity_craft** | Crafting with inventory capacity limits | Capacity bounded, atomic craft-or-reject |
+| **gated_craft** | Level-gated crafting recipes + combat XP | Recipe access matches level, XP monotonic |
 
 ## Quick start
 
