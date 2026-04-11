@@ -1,23 +1,24 @@
 package quint_crawl
 
+// Zone names (cosmetic — will be replaced by biome system in future)
 ZONE_NAMES := [3][3]string{
 	{"Village", "Plains", "Ruins"},
 	{"Forest", "Cave", "Shrine"},
 	{"Swamp", "Mountain", "Castle"},
 }
 
-ZONE_LEVEL_REQ := [3][3]int{
-	{1, 1, 2},
-	{1, 2, 2},
-	{1, 2, 3},
-}
-
-ZONE_ENEMY_HP := [3]int{15, 30, 50}     // indexed by (zone_level - 1)
-ZONE_ENEMY_ATK := [3]int{5, 8, 12}
-ZONE_XP_REWARD := [3]int{5, 8, 15}
-ZONE_GOLD_REWARD := [3]int{10, 15, 25}
-
 XP_THRESHOLDS := [4]int{0, 0, 10, 25}   // index by level: threshold for level 2 = 10, level 3 = 25
+
+// --- World scaling constants ---
+WORLD_SIZE :: 3        // grid dimension (NxN)
+MAX_LEVEL :: 3         // max zone difficulty
+TILES_PER_LEVEL :: 2   // (x+y) distance per level increment
+BASE_ENEMY_HP :: 15    // enemy HP at level 1
+BASE_ENEMY_ATK :: 2    // enemy ATK constant term
+ATK_PER_LEVEL :: 3     // enemy ATK per level
+BASE_XP :: 5           // XP reward per level
+BASE_GOLD :: 5         // gold reward constant term
+GOLD_PER_LEVEL :: 5    // gold reward per level
 
 SWORD_MAX_DUR :: 10
 REPAIR_COST :: 5
@@ -108,9 +109,41 @@ zone_name :: proc(x, y: int) -> string {
 	return ZONE_NAMES[x][y]
 }
 
-zone_level_req :: proc(x, y: int) -> int {
-	if x < 0 || x > 2 || y < 0 || y > 2 do return 99
-	return ZONE_LEVEL_REQ[x][y]
+// Zone difficulty level — distance from origin determines difficulty
+zone_level :: proc(x, y: int) -> int {
+	if x < 0 || x >= WORLD_SIZE || y < 0 || y >= WORLD_SIZE do return 99
+	raw := (x + y) / TILES_PER_LEVEL + 1
+	return min(raw, MAX_LEVEL)
+}
+
+// Enemy stats — linear formulas of zone level
+zone_enemy_hp :: proc(x, y: int) -> int {
+	return BASE_ENEMY_HP * zone_level(x, y)
+}
+
+zone_enemy_atk :: proc(x, y: int) -> int {
+	return BASE_ENEMY_ATK + ATK_PER_LEVEL * zone_level(x, y)
+}
+
+zone_xp_reward :: proc(x, y: int) -> int {
+	return BASE_XP * zone_level(x, y)
+}
+
+zone_gold_reward :: proc(x, y: int) -> int {
+	return BASE_GOLD + GOLD_PER_LEVEL * zone_level(x, y)
+}
+
+// Zone feature predicates — which zones have which facilities
+zone_has_services :: proc(x, y: int) -> bool {
+	return x == 0 && y == 0
+}
+
+zone_has_wood :: proc(x, y: int) -> bool {
+	return x == 1 && y == 0
+}
+
+zone_has_iron :: proc(x, y: int) -> bool {
+	return x == 2 && y == 1
 }
 
 // Weather: 0=Clear, 1=Rain, 2=Fog, 3=Storm
@@ -162,9 +195,9 @@ init_game :: proc(g: ^Game_State) {
 
 move :: proc(g: ^Game_State, dx, dy: int) -> bool {
 	nx, ny := g.pos_x + dx, g.pos_y + dy
-	if nx < 0 || nx > 2 || ny < 0 || ny > 2 do return false
+	if nx < 0 || nx >= WORLD_SIZE || ny < 0 || ny >= WORLD_SIZE do return false
 	if g.in_combat || g.game_won || g.hp <= 0 do return false
-	if zone_level_req(nx, ny) > g.level do return false
+	if zone_level(nx, ny) > g.level do return false
 	g.pos_x = nx
 	g.pos_y = ny
 	g.turn_count += 1
@@ -177,15 +210,13 @@ move :: proc(g: ^Game_State, dx, dy: int) -> bool {
 
 enter_combat :: proc(g: ^Game_State) -> bool {
 	if g.in_combat || g.game_won || g.hp <= 0 do return false
-	zlvl := zone_level_req(g.pos_x, g.pos_y) - 1
-	if zlvl < 0 || zlvl > 2 do return false
 	g.turn_count += 1
 	g.in_combat = true
-	g.enemy_hp = ZONE_ENEMY_HP[zlvl]
+	g.enemy_hp = zone_enemy_hp(g.pos_x, g.pos_y)
 	// Fog reduces enemy attack
 	weather := zone_weather(g.pos_x, g.pos_y, g.turn_count)
 	fog_penalty := FOG_ATK_PENALTY if weather == 2 else 0
-	raw_atk := ZONE_ENEMY_ATK[zlvl] - fog_penalty
+	raw_atk := zone_enemy_atk(g.pos_x, g.pos_y) - fog_penalty
 	g.enemy_attack = max(raw_atk, 1)
 	g.combo_count = 0
 
@@ -254,8 +285,8 @@ resolve_combat_hit :: proc(g: ^Game_State, dmg: int) -> bool {
 		g.enemy_poison_dur = 0
 		reset_cooldowns(g)
 	} else {
-		zone_tier := zone_level_req(g.pos_x, g.pos_y)
-		if zone_tier >= 2 && g.player_poison_dur == 0 {
+		zlvl := zone_level(g.pos_x, g.pos_y)
+		if zlvl >= 2 && g.player_poison_dur == 0 {
 			g.player_poison_dur = STATUS_DURATION
 		} else if g.player_poison_dur > 0 {
 			g.player_poison_dur -= 1
@@ -276,9 +307,8 @@ resolve_combat_hit :: proc(g: ^Game_State, dmg: int) -> bool {
 
 	if new_enemy_hp <= 0 {
 		// Enemy defeated — rewards
-		zlvl := clamp(zone_level_req(g.pos_x, g.pos_y) - 1, 0, 2)
-		g.xp += ZONE_XP_REWARD[zlvl]
-		g.gold += ZONE_GOLD_REWARD[zlvl]
+		g.xp += zone_xp_reward(g.pos_x, g.pos_y)
+		g.gold += zone_gold_reward(g.pos_x, g.pos_y)
 		g.in_combat = false
 		g.enemy_attack = 0
 		// Loot drop
@@ -340,7 +370,7 @@ flee_combat :: proc(g: ^Game_State) -> bool {
 
 rest_at_village :: proc(g: ^Game_State) -> bool {
 	if g.in_combat || g.game_won || g.hp <= 0 do return false
-	if g.pos_x != 0 || g.pos_y != 0 do return false
+	if !zone_has_services(g.pos_x, g.pos_y) do return false
 	if g.hp >= g.max_hp && g.stamina >= g.max_stamina do return false
 	g.turn_count += 1
 	g.hp = g.max_hp
@@ -350,7 +380,7 @@ rest_at_village :: proc(g: ^Game_State) -> bool {
 
 buy_potion :: proc(g: ^Game_State) -> bool {
 	if g.in_combat || g.game_won || g.hp <= 0 do return false
-	if g.pos_x != 0 || g.pos_y != 0 do return false
+	if !zone_has_services(g.pos_x, g.pos_y) do return false
 	if g.gold < 10 do return false
 	g.turn_count += 1
 	g.gold -= 10
@@ -360,7 +390,7 @@ buy_potion :: proc(g: ^Game_State) -> bool {
 
 gather_wood :: proc(g: ^Game_State) -> bool {
 	if g.in_combat || g.game_won || g.hp <= 0 do return false
-	if g.pos_x != 1 || g.pos_y != 0 do return false
+	if !zone_has_wood(g.pos_x, g.pos_y) do return false
 	g.turn_count += 1
 	rain_bonus := RAIN_GATHER_BONUS if zone_weather(g.pos_x, g.pos_y, g.turn_count) == 1 else 0
 	g.qty_wood += 1 + rain_bonus
@@ -369,7 +399,7 @@ gather_wood :: proc(g: ^Game_State) -> bool {
 
 mine_iron :: proc(g: ^Game_State) -> bool {
 	if g.in_combat || g.game_won || g.hp <= 0 do return false
-	if g.pos_x != 2 || g.pos_y != 1 do return false
+	if !zone_has_iron(g.pos_x, g.pos_y) do return false
 	g.turn_count += 1
 	rain_bonus := RAIN_GATHER_BONUS if zone_weather(g.pos_x, g.pos_y, g.turn_count) == 1 else 0
 	g.qty_iron += 1 + rain_bonus
@@ -378,7 +408,7 @@ mine_iron :: proc(g: ^Game_State) -> bool {
 
 craft_sword :: proc(g: ^Game_State) -> bool {
 	if g.in_combat || g.game_won || g.hp <= 0 do return false
-	if g.pos_x != 0 || g.pos_y != 0 do return false
+	if !zone_has_services(g.pos_x, g.pos_y) do return false
 	if g.qty_wood < 1 || g.qty_iron < 2 do return false
 	g.turn_count += 1
 	g.qty_wood -= 1
@@ -399,7 +429,7 @@ equip_sword :: proc(g: ^Game_State) -> bool {
 
 repair_sword :: proc(g: ^Game_State) -> bool {
 	if g.in_combat || g.game_won || g.hp <= 0 do return false
-	if g.pos_x != 0 || g.pos_y != 0 do return false
+	if !zone_has_services(g.pos_x, g.pos_y) do return false
 	if !g.has_sword do return false
 	if g.sword_dur >= g.sword_max_dur do return false
 	if g.gold < REPAIR_COST do return false
@@ -535,7 +565,7 @@ battle_cry :: proc(g: ^Game_State) -> bool {
 		// Grant ATK buff
 		g.player_atk_buff_dur = STATUS_DURATION
 		// Tick statuses
-		zone_tier := zone_level_req(g.pos_x, g.pos_y)
+		zone_tier := zone_level(g.pos_x, g.pos_y)
 		if zone_tier >= 2 && g.player_poison_dur == 0 {
 			g.player_poison_dur = STATUS_DURATION
 		} else if g.player_poison_dur > 0 {

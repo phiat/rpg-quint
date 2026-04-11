@@ -93,7 +93,7 @@ draw_hud :: proc(app: ^App_State) {
 	rl.DrawLine(x, y, x + w, y, TILE_BORDER)
 	y += 6
 	zone := qc.zone_name(g.pos_x, g.pos_y)
-	zlvl := qc.zone_level_req(g.pos_x, g.pos_y)
+	zlvl := qc.zone_level(g.pos_x, g.pos_y)
 	rl.DrawText(fmt.ctprintf("%s (Lv.%d)", zone, zlvl), x, y, 16, TEXT_BRIGHT)
 	y += 20
 
@@ -132,8 +132,8 @@ draw_hud :: proc(app: ^App_State) {
 
 		draw_action(x, &y, "[E]", "Fight", true)
 
-		// Village actions
-		if g.pos_x == 0 && g.pos_y == 0 {
+		// Town actions
+		if qc.zone_has_services(g.pos_x, g.pos_y) {
 			draw_action(x, &y, "[R]", "Rest", g.hp < g.max_hp || g.stamina < g.max_stamina)
 			draw_action(x, &y, "[B]", "Buy Potion (10g)", g.gold >= 10)
 			draw_action(x, &y, "[C]", "Craft Sword", g.qty_wood >= 1 && g.qty_iron >= 2)
@@ -142,11 +142,11 @@ draw_hud :: proc(app: ^App_State) {
 			}
 		}
 		// Forest
-		if g.pos_x == 1 && g.pos_y == 0 {
+		if qc.zone_has_wood(g.pos_x, g.pos_y) {
 			draw_action(x, &y, "[G]", "Gather Wood", true)
 		}
 		// Mountain
-		if g.pos_x == 2 && g.pos_y == 1 {
+		if qc.zone_has_iron(g.pos_x, g.pos_y) {
 			draw_action(x, &y, "[M]", "Mine Iron", true)
 		}
 		// Equip (anywhere)

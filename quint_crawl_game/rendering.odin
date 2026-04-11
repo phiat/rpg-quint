@@ -21,7 +21,7 @@ draw_tile :: proc(x, y: int, g: ^qc.Game_State) {
 	px := i32(TILE_OFFSET + x * (TILE_SIZE + TILE_PAD))
 	py := i32(TILE_OFFSET + y * (TILE_SIZE + TILE_PAD))
 	is_current := x == g.pos_x && y == g.pos_y
-	level_req := qc.zone_level_req(x, y)
+	level_req := qc.zone_level(x, y)
 	locked := level_req > g.level
 	name := qc.zone_name(x, y)
 
@@ -165,8 +165,8 @@ draw_map :: proc(app: ^App_State) {
 	g := &app.game
 
 	// Draw all tiles
-	for y in 0 ..< 3 {
-		for x in 0 ..< 3 {
+	for y in 0 ..< qc.WORLD_SIZE {
+		for x in 0 ..< qc.WORLD_SIZE {
 			draw_tile(x, y, g)
 		}
 	}

@@ -7,7 +7,7 @@ import "core:math"
 
 draw_combat :: proc(app: ^App_State) {
 	g := &app.game
-	tier := qc.zone_level_req(g.pos_x, g.pos_y) - 1
+	tier := qc.zone_level(g.pos_x, g.pos_y) - 1
 
 	// Combat background
 	rl.DrawRectangle(0, 0, HUD_X, WINDOW_H, COMBAT_BG)
@@ -50,7 +50,7 @@ draw_combat :: proc(app: ^App_State) {
 	bar_x := i32(enemy_cx) - 100
 	bar_y := i32(320)
 	rl.DrawText("Enemy HP", bar_x, bar_y - 18, 14, TEXT_DIM)
-	enemy_max_hp := qc.ZONE_ENEMY_HP[tier]
+	enemy_max_hp := qc.zone_enemy_hp(g.pos_x, g.pos_y)
 	draw_bar(bar_x, bar_y, 200, 20, g.enemy_hp, enemy_max_hp, ENEMY_COLORS[tier], BAR_HP_BG)
 	hp_str := fmt.ctprintf("%d/%d", g.enemy_hp, enemy_max_hp)
 	hp_w := rl.MeasureText(hp_str, 14)

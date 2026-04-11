@@ -42,7 +42,7 @@ handle_map_input :: proc(app: ^App_State) {
 	// Enter combat
 	if rl.IsKeyPressed(.E) {
 		if qc.enter_combat(g) {
-			tier := qc.zone_level_req(g.pos_x, g.pos_y) - 1
+			tier := qc.zone_level(g.pos_x, g.pos_y) - 1
 			add_message(app, fmt.tprintf("A %s appears!", ENEMY_NAMES[tier]), BAR_HP_FG)
 		}
 	}
@@ -116,11 +116,10 @@ handle_map_input :: proc(app: ^App_State) {
 // Helper: handle enemy defeat — show rewards overlay
 handle_enemy_defeated :: proc(app: ^App_State, old_level: int) {
 	g := &app.game
-	tier := qc.zone_level_req(g.pos_x, g.pos_y) - 1
 	leveled := g.level > old_level
 	begin_victory_rewards(app,
-		qc.ZONE_XP_REWARD[tier],
-		qc.ZONE_GOLD_REWARD[tier],
+		qc.zone_xp_reward(g.pos_x, g.pos_y),
+		qc.zone_gold_reward(g.pos_x, g.pos_y),
 		leveled,
 		g.level,
 		20 if leveled else 0,
