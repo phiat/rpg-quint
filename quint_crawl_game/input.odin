@@ -151,6 +151,36 @@ handle_map_input :: proc(app: ^App_State) {
 		}
 	}
 
+	// Enchant sword (at village, cycles through enchant types on slot)
+	if rl.IsKeyPressed(.EIGHT) && g.has_sword && qc.zone_has_services(g.pos_x, g.pos_y) {
+		// Cycle enchant type on slot 1: fire(1)→ice(2)→vampiric(3)→lightning(4)
+		for etype in 1..=4 {
+			if qc.apply_enchant(g, 1, etype) {
+				ench_names := [5]string{"", "Fire", "Ice", "Vampiric", "Lightning"}
+				add_message(app, fmt.tprintf("Enchanted slot 1: %s! (%dg)", ench_names[etype], qc.ENCHANT_COST), {255, 150, 50, 255})
+				break
+			}
+		}
+	}
+	if rl.IsKeyPressed(.NINE) && g.has_sword && qc.zone_has_services(g.pos_x, g.pos_y) {
+		for etype in 1..=4 {
+			if qc.apply_enchant(g, 2, etype) {
+				ench_names := [5]string{"", "Fire", "Ice", "Vampiric", "Lightning"}
+				add_message(app, fmt.tprintf("Enchanted slot 2: %s! (%dg)", ench_names[etype], qc.ENCHANT_COST), {255, 150, 50, 255})
+				break
+			}
+		}
+	}
+	if rl.IsKeyPressed(.ZERO) && g.has_sword && qc.zone_has_services(g.pos_x, g.pos_y) {
+		for etype in 1..=4 {
+			if qc.apply_enchant(g, 3, etype) {
+				ench_names := [5]string{"", "Fire", "Ice", "Vampiric", "Lightning"}
+				add_message(app, fmt.tprintf("Enchanted slot 3: %s! (%dg)", ench_names[etype], qc.ENCHANT_COST), {255, 150, 50, 255})
+				break
+			}
+		}
+	}
+
 	// Skill unlocks (when skill points available)
 	if g.skill_points > 0 {
 		if rl.IsKeyPressed(.ONE) {

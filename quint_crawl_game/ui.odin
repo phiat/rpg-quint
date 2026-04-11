@@ -94,6 +94,26 @@ draw_hud :: proc(app: ^App_State) {
 	if g.has_sword {
 		dur_color := TEXT_BRIGHT if g.sword_dur > 3 else BAR_HP_FG
 		rl.DrawText(fmt.ctprintf("Sword: %d/%d dur", g.sword_dur, g.sword_max_dur), x + 8, y, 14, dur_color)
+		y += 18
+		// Enchantment slots
+		ench_names := [5]cstring{"Empty", "Fire", "Ice", "Vampiric", "Lightning"}
+		ench_colors := [5]rl.Color{{60, 60, 70, 255}, {255, 100, 50, 255}, {100, 180, 255, 255}, {200, 50, 200, 255}, {255, 255, 100, 255}}
+		slots := [3]int{g.enchant_slot_1, g.enchant_slot_2, g.enchant_slot_3}
+		has_any_enchant := g.enchant_slot_1 > 0 || g.enchant_slot_2 > 0 || g.enchant_slot_3 > 0
+		if has_any_enchant {
+			for i in 0..<3 {
+				if slots[i] > 0 {
+					rl.DrawText(fmt.ctprintf("  E%d: %s", i + 1, ench_names[slots[i]]), x + 8, y, 12, ench_colors[slots[i]])
+					y += 15
+				}
+			}
+			atk_bonus := qc.enchant_atk_bonus(g)
+			def_bonus := qc.enchant_def_bonus(g)
+			if atk_bonus > 0 || def_bonus > 0 {
+				rl.DrawText(fmt.ctprintf("  Bonus: +%d ATK, +%d DEF", atk_bonus, def_bonus), x + 8, y, 12, {200, 180, 100, 255})
+				y += 15
+			}
+		}
 	} else {
 		rl.DrawText("Equipped: None", x + 8, y, 14, TEXT_DIM)
 	}
@@ -152,6 +172,11 @@ draw_hud :: proc(app: ^App_State) {
 			}
 			draw_action(x, &y, "[O]", fmt.ctprintf("Craft Venom (%di)", qc.CRAFT_VENOM_IRON_COST), g.qty_iron >= qc.CRAFT_VENOM_IRON_COST)
 			draw_action(x, &y, "[U]", fmt.ctprintf("Respec (%dg)", qc.RESPEC_COST), g.gold >= qc.RESPEC_COST)
+			if g.has_sword {
+				draw_action(x, &y, "[8]", fmt.ctprintf("Enchant S1 (%dg)", qc.ENCHANT_COST), g.gold >= qc.ENCHANT_COST)
+				draw_action(x, &y, "[9]", fmt.ctprintf("Enchant S2 (%dg)", qc.ENCHANT_COST), g.gold >= qc.ENCHANT_COST)
+				draw_action(x, &y, "[0]", fmt.ctprintf("Enchant S3 (%dg)", qc.ENCHANT_COST), g.gold >= qc.ENCHANT_COST)
+			}
 		}
 		// Forest
 		if qc.zone_has_wood(g.pos_x, g.pos_y) {

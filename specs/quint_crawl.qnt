@@ -70,6 +70,12 @@ module quint_crawl {
   // === Fortify cooldown ===
   var cd_fortify: int
 
+  // === Elemental & Enchantment ===
+  var enemy_element: int      // 0=none, 1=fire, 2=ice, 3=lightning, 4=earth
+  var enchant_slot_1: int     // weapon enchant slot 1 (0=empty, 1=fire, 2=ice, 3=vampiric, 4=lightning)
+  var enchant_slot_2: int     // weapon enchant slot 2
+  var enchant_slot_3: int     // weapon enchant slot 3
+
   // === Save/Load ===
   var saved_exists: bool  // whether a save slot is occupied
 
@@ -114,6 +120,7 @@ module quint_crawl {
   val FORTIFY_CD = 5              // cooldown turns for fortify
   val FORTIFY_DURATION = 6        // DEF buff duration from fortify (double STATUS_DURATION)
   val CRAFT_VENOM_IRON_COST = 2   // iron cost to craft venom sac
+  val ENCHANT_COST = 10             // gold cost per enchantment
 
   // --- World scaling constants ---
   val WORLD_SIZE = 9        // grid dimension (NxN)
@@ -176,8 +183,56 @@ module quint_crawl {
   pure def zone_has_wood(x: int, y: int): bool = (x % 3 == 1 and y % 3 == 0)
   pure def zone_has_iron(x: int, y: int): bool = (x % 3 == 2 and y % 3 == 1)
 
-  // Total attack power (sword bonus only if equipped AND not broken, plus ATK buff)
-  val attack_power = base_attack + (if (has_sword and sword_dur > 0) SWORD_ATK_BONUS else 0) + (if (player_atk_buff_dur > 0) ATK_BUFF_BONUS else 0)
+  // --- Elemental helpers ---
+  // Fire(1) > Ice(2) > Lightning(3) > Earth(4) > Fire(1)
+  pure def is_strong(a: int, d: int): bool = {
+    if (a == 1 and d == 2) true
+    else if (a == 2 and d == 3) true
+    else if (a == 3 and d == 4) true
+    else if (a == 4 and d == 1) true
+    else false
+  }
+
+  pure def damage_multiplier(attacker_elem: int, defender_elem: int): int = {
+    if (attacker_elem == 0 or defender_elem == 0) 100
+    else if (is_strong(attacker_elem, defender_elem)) 200
+    else if (is_strong(defender_elem, attacker_elem)) 50
+    else 100
+  }
+
+  pure def effective_damage(base_dmg: int, mult: int): int = {
+    val raw = base_dmg * mult / 100
+    if (raw < 1) 1 else raw
+  }
+
+  pure def zone_element(x: int, y: int): int =
+    ((x * 3 + y * 7) % 4) + 1
+
+  // --- Enchantment helpers ---
+  pure def atk_for(slot: int): int = {
+    if (slot == 1) 3       // Fire: +3 atk
+    else if (slot == 4) 1  // Lightning: +1 atk
+    else 0
+  }
+
+  pure def def_for(slot: int): int = {
+    if (slot == 2) 2       // Ice: +2 def
+    else if (slot == 4) 1  // Lightning: +1 def
+    else 0
+  }
+
+  val has_fire_enchant = (enchant_slot_1 == 1 or enchant_slot_2 == 1 or enchant_slot_3 == 1)
+  val has_ice_enchant = (enchant_slot_1 == 2 or enchant_slot_2 == 2 or enchant_slot_3 == 2)
+  val enchant_atk_bonus = atk_for(enchant_slot_1) + atk_for(enchant_slot_2) + atk_for(enchant_slot_3)
+  val enchant_def_bonus = def_for(enchant_slot_1) + def_for(enchant_slot_2) + def_for(enchant_slot_3)
+  val player_element = if (has_fire_enchant) 1
+                       else if (has_ice_enchant) 2
+                       else if (enchant_slot_1 == 4 or enchant_slot_2 == 4 or enchant_slot_3 == 4) 3
+                       else 0
+
+  // Total attack power (sword bonus only if equipped AND not broken, plus ATK buff, plus enchant bonus)
+  val attack_power = base_attack + (if (has_sword and sword_dur > 0) SWORD_ATK_BONUS else 0) + (if (player_atk_buff_dur > 0) ATK_BUFF_BONUS else 0) + enchant_atk_bonus
+  val player_elem_mult = damage_multiplier(player_element, enemy_element)
 
   // --- Helpers ---
   pure def clamp_hp(v: int, mx: int): int =
@@ -227,6 +282,10 @@ module quint_crawl {
     skill_fortify' = false,
     qty_venom_sac' = 0,
     cd_fortify' = 0,
+    enemy_element' = 0,
+    enchant_slot_1' = 0,
+    enchant_slot_2' = 0,
+    enchant_slot_3' = 0,
   }
 
   // === Movement (only when not in combat) ===
@@ -258,6 +317,7 @@ module quint_crawl {
       skill_shield_block' = skill_shield_block, skill_heavy_strike' = skill_heavy_strike,
       skill_counter_attack' = skill_counter_attack, skill_battle_cry' = skill_battle_cry,
       skill_fortify' = skill_fortify, qty_venom_sac' = qty_venom_sac, cd_fortify' = cd_fortify,
+      enemy_element' = enemy_element, enchant_slot_1' = enchant_slot_1, enchant_slot_2' = enchant_slot_2, enchant_slot_3' = enchant_slot_3,
     }
   }
 
@@ -288,6 +348,7 @@ module quint_crawl {
       skill_shield_block' = skill_shield_block, skill_heavy_strike' = skill_heavy_strike,
       skill_counter_attack' = skill_counter_attack, skill_battle_cry' = skill_battle_cry,
       skill_fortify' = skill_fortify, qty_venom_sac' = qty_venom_sac, cd_fortify' = cd_fortify,
+      enemy_element' = enemy_element, enchant_slot_1' = enchant_slot_1, enchant_slot_2' = enchant_slot_2, enchant_slot_3' = enchant_slot_3,
     }
   }
 
@@ -318,6 +379,7 @@ module quint_crawl {
       skill_shield_block' = skill_shield_block, skill_heavy_strike' = skill_heavy_strike,
       skill_counter_attack' = skill_counter_attack, skill_battle_cry' = skill_battle_cry,
       skill_fortify' = skill_fortify, qty_venom_sac' = qty_venom_sac, cd_fortify' = cd_fortify,
+      enemy_element' = enemy_element, enchant_slot_1' = enchant_slot_1, enchant_slot_2' = enchant_slot_2, enchant_slot_3' = enchant_slot_3,
     }
   }
 
@@ -348,6 +410,7 @@ module quint_crawl {
       skill_shield_block' = skill_shield_block, skill_heavy_strike' = skill_heavy_strike,
       skill_counter_attack' = skill_counter_attack, skill_battle_cry' = skill_battle_cry,
       skill_fortify' = skill_fortify, qty_venom_sac' = qty_venom_sac, cd_fortify' = cd_fortify,
+      enemy_element' = enemy_element, enchant_slot_1' = enchant_slot_1, enchant_slot_2' = enchant_slot_2, enchant_slot_3' = enchant_slot_3,
     }
   }
 
@@ -381,6 +444,8 @@ module quint_crawl {
       skill_shield_block' = skill_shield_block, skill_heavy_strike' = skill_heavy_strike,
       skill_counter_attack' = skill_counter_attack, skill_battle_cry' = skill_battle_cry,
       skill_fortify' = skill_fortify, qty_venom_sac' = qty_venom_sac, cd_fortify' = 0,
+      enemy_element' = zone_element(pos_x, pos_y),
+      enchant_slot_1' = enchant_slot_1, enchant_slot_2' = enchant_slot_2, enchant_slot_3' = enchant_slot_3,
     }
   }
 
@@ -390,11 +455,12 @@ module quint_crawl {
     stamina >= ATTACK_STAMINA,
     // Degrade sword on attack (only if equipped and not already broken)
     val new_sword_dur = if (has_sword and sword_dur > 0) sword_dur - 1 else sword_dur
-    // Enemy takes poison damage if poisoned
+    // Enemy takes elemental-modified damage + poison
     val enemy_poison_dmg = if (enemy_poison_dur > 0) POISON_DMG else 0
-    val new_enemy_hp = enemy_hp - attack_power - enemy_poison_dmg
-    // Player takes enemy hit (reduced by DEF buff) + poison damage
-    val enemy_dmg = if (player_def_buff_dur > 0) enemy_attack - DEF_BUFF_REDUCTION else enemy_attack
+    val elem_atk = effective_damage(attack_power, player_elem_mult)
+    val new_enemy_hp = enemy_hp - elem_atk - enemy_poison_dmg
+    // Player takes enemy hit (reduced by DEF buff + enchant DEF) + poison damage
+    val enemy_dmg = enemy_attack - enchant_def_bonus - (if (player_def_buff_dur > 0) DEF_BUFF_REDUCTION else 0)
     val effective_enemy_dmg = if (enemy_dmg < 1) 1 else enemy_dmg
     val poison_dmg = if (player_poison_dur > 0) POISON_DMG else 0
     val new_hp = if (new_enemy_hp > 0) hp - effective_enemy_dmg - poison_dmg else hp - poison_dmg
@@ -458,6 +524,8 @@ module quint_crawl {
       skill_fortify' = skill_fortify,
       qty_venom_sac' = if (drops_venom) qty_venom_sac + 1 else qty_venom_sac,
       cd_fortify' = if (combat_ends) 0 else (if (cd_fortify > 0) cd_fortify - 1 else 0),
+      enemy_element' = if (combat_ends) 0 else enemy_element,
+      enchant_slot_1' = enchant_slot_1, enchant_slot_2' = enchant_slot_2, enchant_slot_3' = enchant_slot_3,
     }
   }
 
@@ -486,12 +554,14 @@ module quint_crawl {
     skill_shield_block' = skill_shield_block, skill_heavy_strike' = skill_heavy_strike,
     skill_counter_attack' = skill_counter_attack, skill_battle_cry' = skill_battle_cry,
     skill_fortify' = skill_fortify, qty_venom_sac' = qty_venom_sac, cd_fortify' = cd_fortify,
+      enemy_element' = enemy_element, enchant_slot_1' = enchant_slot_1, enchant_slot_2' = enchant_slot_2, enchant_slot_3' = enchant_slot_3,
   }
 
   // === Flee combat ===
   action flee_combat = all {
     in_combat, not(game_won), hp > 0,
-    val new_hp = hp - enemy_attack
+    val flee_dmg = if (enemy_attack - enchant_def_bonus < 1) 1 else enemy_attack - enchant_def_bonus
+    val new_hp = hp - flee_dmg
     all {
       hp' = if (new_hp < 0) 0 else new_hp,
       in_combat' = false, enemy_hp' = 0, enemy_attack' = 0,
@@ -514,6 +584,8 @@ module quint_crawl {
       skill_shield_block' = skill_shield_block, skill_heavy_strike' = skill_heavy_strike,
       skill_counter_attack' = skill_counter_attack, skill_battle_cry' = skill_battle_cry,
       skill_fortify' = skill_fortify, qty_venom_sac' = qty_venom_sac, cd_fortify' = 0,
+      enemy_element' = 0,
+      enchant_slot_1' = enchant_slot_1, enchant_slot_2' = enchant_slot_2, enchant_slot_3' = enchant_slot_3,
     }
   }
 
@@ -543,6 +615,7 @@ module quint_crawl {
     skill_shield_block' = skill_shield_block, skill_heavy_strike' = skill_heavy_strike,
     skill_counter_attack' = skill_counter_attack, skill_battle_cry' = skill_battle_cry,
     skill_fortify' = skill_fortify, qty_venom_sac' = qty_venom_sac, cd_fortify' = cd_fortify,
+      enemy_element' = enemy_element, enchant_slot_1' = enchant_slot_1, enchant_slot_2' = enchant_slot_2, enchant_slot_3' = enchant_slot_3,
   }
 
   // === Buy potion (at town, costs 10 gold) ===
@@ -571,6 +644,7 @@ module quint_crawl {
     skill_shield_block' = skill_shield_block, skill_heavy_strike' = skill_heavy_strike,
     skill_counter_attack' = skill_counter_attack, skill_battle_cry' = skill_battle_cry,
     skill_fortify' = skill_fortify, qty_venom_sac' = qty_venom_sac, cd_fortify' = cd_fortify,
+      enemy_element' = enemy_element, enchant_slot_1' = enchant_slot_1, enchant_slot_2' = enchant_slot_2, enchant_slot_3' = enchant_slot_3,
   }
 
   // === Repair sword (at town, costs gold) ===
@@ -602,6 +676,7 @@ module quint_crawl {
     skill_shield_block' = skill_shield_block, skill_heavy_strike' = skill_heavy_strike,
     skill_counter_attack' = skill_counter_attack, skill_battle_cry' = skill_battle_cry,
     skill_fortify' = skill_fortify, qty_venom_sac' = qty_venom_sac, cd_fortify' = cd_fortify,
+      enemy_element' = enemy_element, enchant_slot_1' = enchant_slot_1, enchant_slot_2' = enchant_slot_2, enchant_slot_3' = enchant_slot_3,
   }
 
   // === Gather wood (in forest zone) ===
@@ -632,6 +707,7 @@ module quint_crawl {
       skill_shield_block' = skill_shield_block, skill_heavy_strike' = skill_heavy_strike,
       skill_counter_attack' = skill_counter_attack, skill_battle_cry' = skill_battle_cry,
       skill_fortify' = skill_fortify, qty_venom_sac' = qty_venom_sac, cd_fortify' = cd_fortify,
+      enemy_element' = enemy_element, enchant_slot_1' = enchant_slot_1, enchant_slot_2' = enchant_slot_2, enchant_slot_3' = enchant_slot_3,
     }
   }
 
@@ -663,6 +739,7 @@ module quint_crawl {
       skill_shield_block' = skill_shield_block, skill_heavy_strike' = skill_heavy_strike,
       skill_counter_attack' = skill_counter_attack, skill_battle_cry' = skill_battle_cry,
       skill_fortify' = skill_fortify, qty_venom_sac' = qty_venom_sac, cd_fortify' = cd_fortify,
+      enemy_element' = enemy_element, enchant_slot_1' = enchant_slot_1, enchant_slot_2' = enchant_slot_2, enchant_slot_3' = enchant_slot_3,
     }
   }
 
@@ -692,6 +769,7 @@ module quint_crawl {
     skill_shield_block' = skill_shield_block, skill_heavy_strike' = skill_heavy_strike,
     skill_counter_attack' = skill_counter_attack, skill_battle_cry' = skill_battle_cry,
     skill_fortify' = skill_fortify, qty_venom_sac' = qty_venom_sac, cd_fortify' = cd_fortify,
+      enemy_element' = enemy_element, enchant_slot_1' = enchant_slot_1, enchant_slot_2' = enchant_slot_2, enchant_slot_3' = enchant_slot_3,
   }
 
   // === Equip sword (sets durability to max) ===
@@ -700,6 +778,7 @@ module quint_crawl {
     qty_sword >= 1, not(has_sword),
     has_sword' = true, qty_sword' = qty_sword - 1,
     sword_dur' = SWORD_MAX_DUR,
+    enchant_slot_1' = 0, enchant_slot_2' = 0, enchant_slot_3' = 0,
     hp' = hp, max_hp' = max_hp, base_attack' = base_attack,
     xp' = xp, level' = level, gold' = gold,
     pos_x' = pos_x, pos_y' = pos_y,
@@ -719,6 +798,7 @@ module quint_crawl {
     skill_shield_block' = skill_shield_block, skill_heavy_strike' = skill_heavy_strike,
     skill_counter_attack' = skill_counter_attack, skill_battle_cry' = skill_battle_cry,
     skill_fortify' = skill_fortify, qty_venom_sac' = qty_venom_sac, cd_fortify' = cd_fortify,
+      enemy_element' = enemy_element,
   }
 
   // === Use antidote (quick action — costs 1 potion, clears player poison, no CD tick) ===
@@ -748,6 +828,7 @@ module quint_crawl {
     skill_shield_block' = skill_shield_block, skill_heavy_strike' = skill_heavy_strike,
     skill_counter_attack' = skill_counter_attack, skill_battle_cry' = skill_battle_cry,
     skill_fortify' = skill_fortify, qty_venom_sac' = qty_venom_sac, cd_fortify' = cd_fortify,
+      enemy_element' = enemy_element, enchant_slot_1' = enchant_slot_1, enchant_slot_2' = enchant_slot_2, enchant_slot_3' = enchant_slot_3,
   }
 
   // === Poison strike (apply poison to enemy, enemy hits back) ===
@@ -756,7 +837,7 @@ module quint_crawl {
     skill_poison, qty_venom_sac > 0,
     enemy_poison_dur == 0,  // can't stack poison
     stamina >= ATTACK_STAMINA,
-    val dmg_taken = if (player_def_buff_dur > 0) enemy_attack - DEF_BUFF_REDUCTION else enemy_attack
+    val dmg_taken = enemy_attack - enchant_def_bonus - (if (player_def_buff_dur > 0) DEF_BUFF_REDUCTION else 0)
     val effective_dmg = if (dmg_taken < 1) 1 else dmg_taken
     val new_hp = hp - effective_dmg
     val combat_ends = (new_hp <= 0)
@@ -789,6 +870,8 @@ module quint_crawl {
       skill_counter_attack' = skill_counter_attack, skill_battle_cry' = skill_battle_cry,
       skill_fortify' = skill_fortify, qty_venom_sac' = qty_venom_sac - 1,
       cd_fortify' = if (combat_ends) 0 else (if (cd_fortify > 0) cd_fortify - 1 else 0),
+      enemy_element' = if (combat_ends) 0 else enemy_element,
+      enchant_slot_1' = enchant_slot_1, enchant_slot_2' = enchant_slot_2, enchant_slot_3' = enchant_slot_3,
     }
   }
 
@@ -805,11 +888,12 @@ module quint_crawl {
                     else base_dmg * 2
     // Degrade sword
     val new_sword_dur = if (has_sword and sword_dur > 0) sword_dur - 1 else sword_dur
-    // Enemy takes combo + poison damage
+    // Enemy takes elemental-modified combo + poison damage
     val enemy_poison_dmg = if (enemy_poison_dur > 0) POISON_DMG else 0
-    val new_enemy_hp = enemy_hp - combo_dmg - enemy_poison_dmg
-    // Player takes enemy hit (reduced by DEF buff) + poison
-    val enemy_dmg = if (player_def_buff_dur > 0) enemy_attack - DEF_BUFF_REDUCTION else enemy_attack
+    val elem_combo = effective_damage(combo_dmg, player_elem_mult)
+    val new_enemy_hp = enemy_hp - elem_combo - enemy_poison_dmg
+    // Player takes enemy hit (reduced by DEF buff + enchant DEF) + poison
+    val enemy_dmg = enemy_attack - enchant_def_bonus - (if (player_def_buff_dur > 0) DEF_BUFF_REDUCTION else 0)
     val effective_enemy_dmg = if (enemy_dmg < 1) 1 else enemy_dmg
     val poison_dmg = if (player_poison_dur > 0) POISON_DMG else 0
     val new_hp = if (new_enemy_hp > 0) hp - effective_enemy_dmg - poison_dmg else hp - poison_dmg
@@ -874,6 +958,8 @@ module quint_crawl {
       skill_fortify' = skill_fortify,
       qty_venom_sac' = if (drops_venom) qty_venom_sac + 1 else qty_venom_sac,
       cd_fortify' = if (combat_ends) 0 else (if (cd_fortify > 0) cd_fortify - 1 else 0),
+      enemy_element' = if (combat_ends) 0 else enemy_element,
+      enchant_slot_1' = enchant_slot_1, enchant_slot_2' = enchant_slot_2, enchant_slot_3' = enchant_slot_3,
     }
   }
 
@@ -886,11 +972,12 @@ module quint_crawl {
     val heavy_dmg = attack_power * 2
     // Degrade sword
     val new_sword_dur = if (has_sword and sword_dur > 0) sword_dur - 1 else sword_dur
-    // Enemy takes heavy + poison damage
+    // Enemy takes elemental-modified heavy + poison damage
     val enemy_poison_dmg = if (enemy_poison_dur > 0) POISON_DMG else 0
-    val new_enemy_hp = enemy_hp - heavy_dmg - enemy_poison_dmg
-    // Player takes enemy hit (reduced by DEF buff) + poison
-    val enemy_dmg = if (player_def_buff_dur > 0) enemy_attack - DEF_BUFF_REDUCTION else enemy_attack
+    val elem_heavy = effective_damage(heavy_dmg, player_elem_mult)
+    val new_enemy_hp = enemy_hp - elem_heavy - enemy_poison_dmg
+    // Player takes enemy hit (reduced by DEF buff + enchant DEF) + poison
+    val enemy_dmg = enemy_attack - enchant_def_bonus - (if (player_def_buff_dur > 0) DEF_BUFF_REDUCTION else 0)
     val effective_enemy_dmg = if (enemy_dmg < 1) 1 else enemy_dmg
     val poison_dmg = if (player_poison_dur > 0) POISON_DMG else 0
     val new_hp = if (new_enemy_hp > 0) hp - effective_enemy_dmg - poison_dmg else hp - poison_dmg
@@ -951,6 +1038,8 @@ module quint_crawl {
       skill_fortify' = skill_fortify,
       qty_venom_sac' = if (drops_venom) qty_venom_sac + 1 else qty_venom_sac,
       cd_fortify' = if (combat_ends) 0 else (if (cd_fortify > 0) cd_fortify - 1 else 0),
+      enemy_element' = if (combat_ends) 0 else enemy_element,
+      enchant_slot_1' = enchant_slot_1, enchant_slot_2' = enchant_slot_2, enchant_slot_3' = enchant_slot_3,
     }
   }
 
@@ -961,8 +1050,8 @@ module quint_crawl {
     skill_battle_cry,
     cd_battle_cry == 0,
     stamina >= BATTLE_CRY_STAMINA,
-    // Enemy hits player
-    val enemy_dmg = if (player_def_buff_dur > 0) enemy_attack - DEF_BUFF_REDUCTION else enemy_attack
+    // Enemy hits player (reduced by enchant DEF + DEF buff)
+    val enemy_dmg = enemy_attack - enchant_def_bonus - (if (player_def_buff_dur > 0) DEF_BUFF_REDUCTION else 0)
     val effective_enemy_dmg = if (enemy_dmg < 1) 1 else enemy_dmg
     val poison_dmg = if (player_poison_dur > 0) POISON_DMG else 0
     val new_hp = hp - effective_enemy_dmg - poison_dmg
@@ -1005,6 +1094,8 @@ module quint_crawl {
       skill_counter_attack' = skill_counter_attack, skill_battle_cry' = skill_battle_cry,
       skill_fortify' = skill_fortify, qty_venom_sac' = qty_venom_sac,
       cd_fortify' = if (combat_ends) 0 else (if (cd_fortify > 0) cd_fortify - 1 else 0),
+      enemy_element' = if (combat_ends) 0 else enemy_element,
+      enchant_slot_1' = enchant_slot_1, enchant_slot_2' = enchant_slot_2, enchant_slot_3' = enchant_slot_3,
     }
   }
 
@@ -1013,8 +1104,8 @@ module quint_crawl {
     in_combat, not(game_won), hp > 0, enemy_hp > 0,
     skill_shield_block,
     stamina >= SHIELD_BLOCK_STAMINA,
-    // Enemy hits player
-    val enemy_dmg = if (player_def_buff_dur > 0) enemy_attack - DEF_BUFF_REDUCTION else enemy_attack
+    // Enemy hits player (reduced by enchant DEF + DEF buff)
+    val enemy_dmg = enemy_attack - enchant_def_bonus - (if (player_def_buff_dur > 0) DEF_BUFF_REDUCTION else 0)
     val effective_enemy_dmg = if (enemy_dmg < 1) 1 else enemy_dmg
     val poison_dmg = if (player_poison_dur > 0) POISON_DMG else 0
     val new_hp = hp - effective_enemy_dmg - poison_dmg
@@ -1057,6 +1148,8 @@ module quint_crawl {
       skill_counter_attack' = skill_counter_attack, skill_battle_cry' = skill_battle_cry,
       skill_fortify' = skill_fortify, qty_venom_sac' = qty_venom_sac,
       cd_fortify' = if (combat_ends) 0 else (if (cd_fortify > 0) cd_fortify - 1 else 0),
+      enemy_element' = if (combat_ends) 0 else enemy_element,
+      enchant_slot_1' = enchant_slot_1, enchant_slot_2' = enchant_slot_2, enchant_slot_3' = enchant_slot_3,
     }
   }
 
@@ -1085,6 +1178,7 @@ module quint_crawl {
     skill_shield_block' = skill_shield_block, skill_heavy_strike' = skill_heavy_strike,
     skill_counter_attack' = skill_counter_attack, skill_battle_cry' = skill_battle_cry,
     skill_fortify' = skill_fortify, qty_venom_sac' = qty_venom_sac, cd_fortify' = cd_fortify,
+      enemy_element' = enemy_element, enchant_slot_1' = enchant_slot_1, enchant_slot_2' = enchant_slot_2, enchant_slot_3' = enchant_slot_3,
   }
 
   // === Skill unlock: Poison Strike (tier 1 utility, no prereq) ===
@@ -1112,6 +1206,7 @@ module quint_crawl {
     skill_shield_block' = skill_shield_block, skill_heavy_strike' = skill_heavy_strike,
     skill_counter_attack' = skill_counter_attack, skill_battle_cry' = skill_battle_cry,
     skill_fortify' = skill_fortify, qty_venom_sac' = qty_venom_sac, cd_fortify' = cd_fortify,
+      enemy_element' = enemy_element, enchant_slot_1' = enchant_slot_1, enchant_slot_2' = enchant_slot_2, enchant_slot_3' = enchant_slot_3,
   }
 
   // === Skill unlock: Shield Block (tier 1 defense, no prereq) ===
@@ -1139,6 +1234,7 @@ module quint_crawl {
     skill_heavy_strike' = skill_heavy_strike,
     skill_counter_attack' = skill_counter_attack, skill_battle_cry' = skill_battle_cry,
     skill_fortify' = skill_fortify, qty_venom_sac' = qty_venom_sac, cd_fortify' = cd_fortify,
+      enemy_element' = enemy_element, enchant_slot_1' = enchant_slot_1, enchant_slot_2' = enchant_slot_2, enchant_slot_3' = enchant_slot_3,
   }
 
   // === Skill unlock: Heavy Strike (tier 2 offense, requires Combo) ===
@@ -1166,6 +1262,7 @@ module quint_crawl {
     skill_shield_block' = skill_shield_block,
     skill_counter_attack' = skill_counter_attack, skill_battle_cry' = skill_battle_cry,
     skill_fortify' = skill_fortify, qty_venom_sac' = qty_venom_sac, cd_fortify' = cd_fortify,
+      enemy_element' = enemy_element, enchant_slot_1' = enchant_slot_1, enchant_slot_2' = enchant_slot_2, enchant_slot_3' = enchant_slot_3,
   }
 
   // === Skill unlock: Counter-Attack (tier 2 defense, requires Shield Block) ===
@@ -1193,6 +1290,7 @@ module quint_crawl {
     skill_shield_block' = skill_shield_block, skill_heavy_strike' = skill_heavy_strike,
     skill_battle_cry' = skill_battle_cry,
     skill_fortify' = skill_fortify, qty_venom_sac' = qty_venom_sac, cd_fortify' = cd_fortify,
+      enemy_element' = enemy_element, enchant_slot_1' = enchant_slot_1, enchant_slot_2' = enchant_slot_2, enchant_slot_3' = enchant_slot_3,
   }
 
   // === Skill unlock: Battle Cry (tier 3 offense, requires Heavy Strike, costs 2pt) ===
@@ -1220,6 +1318,7 @@ module quint_crawl {
     skill_shield_block' = skill_shield_block, skill_heavy_strike' = skill_heavy_strike,
     skill_counter_attack' = skill_counter_attack,
     skill_fortify' = skill_fortify, qty_venom_sac' = qty_venom_sac, cd_fortify' = cd_fortify,
+      enemy_element' = enemy_element, enchant_slot_1' = enchant_slot_1, enchant_slot_2' = enchant_slot_2, enchant_slot_3' = enchant_slot_3,
   }
 
   // === Skill unlock: Fortify (tier 3 defense, requires Counter-Attack, costs 2pt) ===
@@ -1247,6 +1346,7 @@ module quint_crawl {
     skill_shield_block' = skill_shield_block, skill_heavy_strike' = skill_heavy_strike,
     skill_counter_attack' = skill_counter_attack, skill_battle_cry' = skill_battle_cry,
     qty_venom_sac' = qty_venom_sac, cd_fortify' = cd_fortify,
+      enemy_element' = enemy_element, enchant_slot_1' = enchant_slot_1, enchant_slot_2' = enchant_slot_2, enchant_slot_3' = enchant_slot_3,
   }
 
   // === Respec skills (at village, costs gold) ===
@@ -1283,6 +1383,7 @@ module quint_crawl {
       cd_heavy_strike' = cd_heavy_strike, cd_battle_cry' = cd_battle_cry,
       pity_counter' = pity_counter, last_drop' = last_drop,
       qty_venom_sac' = qty_venom_sac, cd_fortify' = cd_fortify,
+      enemy_element' = enemy_element, enchant_slot_1' = enchant_slot_1, enchant_slot_2' = enchant_slot_2, enchant_slot_3' = enchant_slot_3,
     }
   }
 
@@ -1291,11 +1392,11 @@ module quint_crawl {
     in_combat, not(game_won), hp > 0, enemy_hp > 0,
     skill_counter_attack,
     stamina >= COUNTER_STAMINA,
-    // Player deals base damage to enemy
-    val player_dmg = attack_power
+    // Player deals elemental-modified damage to enemy
+    val player_dmg = effective_damage(attack_power, player_elem_mult)
     val new_enemy_hp = if (enemy_hp - player_dmg < 0) 0 else enemy_hp - player_dmg
-    // Enemy hits player (with DEF buff reduction)
-    val enemy_dmg = if (player_def_buff_dur > 0) enemy_attack - DEF_BUFF_REDUCTION else enemy_attack
+    // Enemy hits player (reduced by enchant DEF + DEF buff)
+    val enemy_dmg = enemy_attack - enchant_def_bonus - (if (player_def_buff_dur > 0) DEF_BUFF_REDUCTION else 0)
     val effective_enemy_dmg = if (enemy_dmg < 1) 1 else enemy_dmg
     val poison_dmg = if (player_poison_dur > 0) POISON_DMG else 0
     val enemy_poison_dmg = if (enemy_poison_dur > 0) POISON_DMG else 0
@@ -1362,6 +1463,8 @@ module quint_crawl {
       skill_fortify' = skill_fortify,
       qty_venom_sac' = if (drops_venom) qty_venom_sac + 1 else qty_venom_sac,
       cd_fortify' = if (combat_ends) 0 else (if (cd_fortify > 0) cd_fortify - 1 else 0),
+      enemy_element' = if (combat_ends) 0 else enemy_element,
+      enchant_slot_1' = enchant_slot_1, enchant_slot_2' = enchant_slot_2, enchant_slot_3' = enchant_slot_3,
     }
   }
 
@@ -1371,8 +1474,8 @@ module quint_crawl {
     skill_fortify,
     cd_fortify == 0,
     stamina >= FORTIFY_STAMINA,
-    // Enemy hits player
-    val enemy_dmg = if (player_def_buff_dur > 0) enemy_attack - DEF_BUFF_REDUCTION else enemy_attack
+    // Enemy hits player (reduced by enchant DEF + DEF buff)
+    val enemy_dmg = enemy_attack - enchant_def_bonus - (if (player_def_buff_dur > 0) DEF_BUFF_REDUCTION else 0)
     val effective_enemy_dmg = if (enemy_dmg < 1) 1 else enemy_dmg
     val poison_dmg = if (player_poison_dur > 0) POISON_DMG else 0
     val new_hp = hp - effective_enemy_dmg - poison_dmg
@@ -1415,6 +1518,8 @@ module quint_crawl {
       skill_counter_attack' = skill_counter_attack, skill_battle_cry' = skill_battle_cry,
       skill_fortify' = skill_fortify, qty_venom_sac' = qty_venom_sac,
       cd_fortify' = if (combat_ends) 0 else FORTIFY_CD,
+      enemy_element' = if (combat_ends) 0 else enemy_element,
+      enchant_slot_1' = enchant_slot_1, enchant_slot_2' = enchant_slot_2, enchant_slot_3' = enchant_slot_3,
     }
   }
 
@@ -1445,6 +1550,220 @@ module quint_crawl {
     skill_shield_block' = skill_shield_block, skill_heavy_strike' = skill_heavy_strike,
     skill_counter_attack' = skill_counter_attack, skill_battle_cry' = skill_battle_cry,
     skill_fortify' = skill_fortify, cd_fortify' = cd_fortify,
+    enemy_element' = enemy_element, enchant_slot_1' = enchant_slot_1, enchant_slot_2' = enchant_slot_2, enchant_slot_3' = enchant_slot_3,
+  }
+
+  // === Apply enchantment to slot 1 (at village, costs gold, requires sword) ===
+  action apply_enchant_1 = {
+    nondet etype = Set(1, 2, 3, 4).oneOf()
+    all {
+      not(in_combat), not(game_won), hp > 0,
+      zone_has_services(pos_x, pos_y),
+      has_sword,
+      gold >= ENCHANT_COST,
+      not(etype == 1 and has_ice_enchant),
+      not(etype == 2 and has_fire_enchant),
+      enchant_slot_1' = etype,
+      enchant_slot_2' = enchant_slot_2,
+      enchant_slot_3' = enchant_slot_3,
+      gold' = gold - ENCHANT_COST,
+      hp' = hp, max_hp' = max_hp, base_attack' = base_attack,
+      xp' = xp, level' = level,
+      pos_x' = pos_x, pos_y' = pos_y,
+      qty_potion' = qty_potion, qty_wood' = qty_wood,
+      qty_iron' = qty_iron, qty_sword' = qty_sword, has_sword' = has_sword,
+      in_combat' = in_combat, enemy_hp' = enemy_hp, enemy_attack' = enemy_attack,
+      game_won' = game_won,
+      sword_dur' = sword_dur, sword_max_dur' = sword_max_dur,
+      player_poison_dur' = player_poison_dur, player_atk_buff_dur' = player_atk_buff_dur,
+      player_def_buff_dur' = player_def_buff_dur, enemy_poison_dur' = enemy_poison_dur,
+      combo_count' = combo_count,
+      saved_exists' = saved_exists,
+      turn_count' = turn_count,
+      stamina' = stamina, max_stamina' = max_stamina,
+      cd_heavy_strike' = cd_heavy_strike, cd_battle_cry' = cd_battle_cry,
+      pity_counter' = pity_counter, last_drop' = last_drop,
+      skill_points' = skill_points, skill_combo' = skill_combo, skill_poison' = skill_poison,
+      skill_shield_block' = skill_shield_block, skill_heavy_strike' = skill_heavy_strike,
+      skill_counter_attack' = skill_counter_attack, skill_battle_cry' = skill_battle_cry,
+      skill_fortify' = skill_fortify, qty_venom_sac' = qty_venom_sac, cd_fortify' = cd_fortify,
+      enemy_element' = enemy_element,
+    }
+  }
+
+  // === Apply enchantment to slot 2 ===
+  action apply_enchant_2 = {
+    nondet etype = Set(1, 2, 3, 4).oneOf()
+    all {
+      not(in_combat), not(game_won), hp > 0,
+      zone_has_services(pos_x, pos_y),
+      has_sword,
+      gold >= ENCHANT_COST,
+      not(etype == 1 and has_ice_enchant),
+      not(etype == 2 and has_fire_enchant),
+      enchant_slot_1' = enchant_slot_1,
+      enchant_slot_2' = etype,
+      enchant_slot_3' = enchant_slot_3,
+      gold' = gold - ENCHANT_COST,
+      hp' = hp, max_hp' = max_hp, base_attack' = base_attack,
+      xp' = xp, level' = level,
+      pos_x' = pos_x, pos_y' = pos_y,
+      qty_potion' = qty_potion, qty_wood' = qty_wood,
+      qty_iron' = qty_iron, qty_sword' = qty_sword, has_sword' = has_sword,
+      in_combat' = in_combat, enemy_hp' = enemy_hp, enemy_attack' = enemy_attack,
+      game_won' = game_won,
+      sword_dur' = sword_dur, sword_max_dur' = sword_max_dur,
+      player_poison_dur' = player_poison_dur, player_atk_buff_dur' = player_atk_buff_dur,
+      player_def_buff_dur' = player_def_buff_dur, enemy_poison_dur' = enemy_poison_dur,
+      combo_count' = combo_count,
+      saved_exists' = saved_exists,
+      turn_count' = turn_count,
+      stamina' = stamina, max_stamina' = max_stamina,
+      cd_heavy_strike' = cd_heavy_strike, cd_battle_cry' = cd_battle_cry,
+      pity_counter' = pity_counter, last_drop' = last_drop,
+      skill_points' = skill_points, skill_combo' = skill_combo, skill_poison' = skill_poison,
+      skill_shield_block' = skill_shield_block, skill_heavy_strike' = skill_heavy_strike,
+      skill_counter_attack' = skill_counter_attack, skill_battle_cry' = skill_battle_cry,
+      skill_fortify' = skill_fortify, qty_venom_sac' = qty_venom_sac, cd_fortify' = cd_fortify,
+      enemy_element' = enemy_element,
+    }
+  }
+
+  // === Apply enchantment to slot 3 ===
+  action apply_enchant_3 = {
+    nondet etype = Set(1, 2, 3, 4).oneOf()
+    all {
+      not(in_combat), not(game_won), hp > 0,
+      zone_has_services(pos_x, pos_y),
+      has_sword,
+      gold >= ENCHANT_COST,
+      not(etype == 1 and has_ice_enchant),
+      not(etype == 2 and has_fire_enchant),
+      enchant_slot_1' = enchant_slot_1,
+      enchant_slot_2' = enchant_slot_2,
+      enchant_slot_3' = etype,
+      gold' = gold - ENCHANT_COST,
+      hp' = hp, max_hp' = max_hp, base_attack' = base_attack,
+      xp' = xp, level' = level,
+      pos_x' = pos_x, pos_y' = pos_y,
+      qty_potion' = qty_potion, qty_wood' = qty_wood,
+      qty_iron' = qty_iron, qty_sword' = qty_sword, has_sword' = has_sword,
+      in_combat' = in_combat, enemy_hp' = enemy_hp, enemy_attack' = enemy_attack,
+      game_won' = game_won,
+      sword_dur' = sword_dur, sword_max_dur' = sword_max_dur,
+      player_poison_dur' = player_poison_dur, player_atk_buff_dur' = player_atk_buff_dur,
+      player_def_buff_dur' = player_def_buff_dur, enemy_poison_dur' = enemy_poison_dur,
+      combo_count' = combo_count,
+      saved_exists' = saved_exists,
+      turn_count' = turn_count,
+      stamina' = stamina, max_stamina' = max_stamina,
+      cd_heavy_strike' = cd_heavy_strike, cd_battle_cry' = cd_battle_cry,
+      pity_counter' = pity_counter, last_drop' = last_drop,
+      skill_points' = skill_points, skill_combo' = skill_combo, skill_poison' = skill_poison,
+      skill_shield_block' = skill_shield_block, skill_heavy_strike' = skill_heavy_strike,
+      skill_counter_attack' = skill_counter_attack, skill_battle_cry' = skill_battle_cry,
+      skill_fortify' = skill_fortify, qty_venom_sac' = qty_venom_sac, cd_fortify' = cd_fortify,
+      enemy_element' = enemy_element,
+    }
+  }
+
+  // === Remove enchantment from slot 1 (at village, free) ===
+  action remove_enchant_1 = all {
+    not(in_combat), not(game_won), hp > 0,
+    zone_has_services(pos_x, pos_y),
+    has_sword,
+    enchant_slot_1 != 0,
+    enchant_slot_1' = 0,
+    enchant_slot_2' = enchant_slot_2,
+    enchant_slot_3' = enchant_slot_3,
+    gold' = gold,
+    hp' = hp, max_hp' = max_hp, base_attack' = base_attack,
+    xp' = xp, level' = level,
+    pos_x' = pos_x, pos_y' = pos_y,
+    qty_potion' = qty_potion, qty_wood' = qty_wood,
+    qty_iron' = qty_iron, qty_sword' = qty_sword, has_sword' = has_sword,
+    in_combat' = in_combat, enemy_hp' = enemy_hp, enemy_attack' = enemy_attack,
+    game_won' = game_won,
+    sword_dur' = sword_dur, sword_max_dur' = sword_max_dur,
+    player_poison_dur' = player_poison_dur, player_atk_buff_dur' = player_atk_buff_dur,
+    player_def_buff_dur' = player_def_buff_dur, enemy_poison_dur' = enemy_poison_dur,
+    combo_count' = combo_count,
+    saved_exists' = saved_exists,
+    turn_count' = turn_count,
+    stamina' = stamina, max_stamina' = max_stamina,
+    cd_heavy_strike' = cd_heavy_strike, cd_battle_cry' = cd_battle_cry,
+    pity_counter' = pity_counter, last_drop' = last_drop,
+    skill_points' = skill_points, skill_combo' = skill_combo, skill_poison' = skill_poison,
+    skill_shield_block' = skill_shield_block, skill_heavy_strike' = skill_heavy_strike,
+    skill_counter_attack' = skill_counter_attack, skill_battle_cry' = skill_battle_cry,
+    skill_fortify' = skill_fortify, qty_venom_sac' = qty_venom_sac, cd_fortify' = cd_fortify,
+    enemy_element' = enemy_element,
+  }
+
+  // === Remove enchantment from slot 2 ===
+  action remove_enchant_2 = all {
+    not(in_combat), not(game_won), hp > 0,
+    zone_has_services(pos_x, pos_y),
+    has_sword,
+    enchant_slot_2 != 0,
+    enchant_slot_1' = enchant_slot_1,
+    enchant_slot_2' = 0,
+    enchant_slot_3' = enchant_slot_3,
+    gold' = gold,
+    hp' = hp, max_hp' = max_hp, base_attack' = base_attack,
+    xp' = xp, level' = level,
+    pos_x' = pos_x, pos_y' = pos_y,
+    qty_potion' = qty_potion, qty_wood' = qty_wood,
+    qty_iron' = qty_iron, qty_sword' = qty_sword, has_sword' = has_sword,
+    in_combat' = in_combat, enemy_hp' = enemy_hp, enemy_attack' = enemy_attack,
+    game_won' = game_won,
+    sword_dur' = sword_dur, sword_max_dur' = sword_max_dur,
+    player_poison_dur' = player_poison_dur, player_atk_buff_dur' = player_atk_buff_dur,
+    player_def_buff_dur' = player_def_buff_dur, enemy_poison_dur' = enemy_poison_dur,
+    combo_count' = combo_count,
+    saved_exists' = saved_exists,
+    turn_count' = turn_count,
+    stamina' = stamina, max_stamina' = max_stamina,
+    cd_heavy_strike' = cd_heavy_strike, cd_battle_cry' = cd_battle_cry,
+    pity_counter' = pity_counter, last_drop' = last_drop,
+    skill_points' = skill_points, skill_combo' = skill_combo, skill_poison' = skill_poison,
+    skill_shield_block' = skill_shield_block, skill_heavy_strike' = skill_heavy_strike,
+    skill_counter_attack' = skill_counter_attack, skill_battle_cry' = skill_battle_cry,
+    skill_fortify' = skill_fortify, qty_venom_sac' = qty_venom_sac, cd_fortify' = cd_fortify,
+    enemy_element' = enemy_element,
+  }
+
+  // === Remove enchantment from slot 3 ===
+  action remove_enchant_3 = all {
+    not(in_combat), not(game_won), hp > 0,
+    zone_has_services(pos_x, pos_y),
+    has_sword,
+    enchant_slot_3 != 0,
+    enchant_slot_1' = enchant_slot_1,
+    enchant_slot_2' = enchant_slot_2,
+    enchant_slot_3' = 0,
+    gold' = gold,
+    hp' = hp, max_hp' = max_hp, base_attack' = base_attack,
+    xp' = xp, level' = level,
+    pos_x' = pos_x, pos_y' = pos_y,
+    qty_potion' = qty_potion, qty_wood' = qty_wood,
+    qty_iron' = qty_iron, qty_sword' = qty_sword, has_sword' = has_sword,
+    in_combat' = in_combat, enemy_hp' = enemy_hp, enemy_attack' = enemy_attack,
+    game_won' = game_won,
+    sword_dur' = sword_dur, sword_max_dur' = sword_max_dur,
+    player_poison_dur' = player_poison_dur, player_atk_buff_dur' = player_atk_buff_dur,
+    player_def_buff_dur' = player_def_buff_dur, enemy_poison_dur' = enemy_poison_dur,
+    combo_count' = combo_count,
+    saved_exists' = saved_exists,
+    turn_count' = turn_count,
+    stamina' = stamina, max_stamina' = max_stamina,
+    cd_heavy_strike' = cd_heavy_strike, cd_battle_cry' = cd_battle_cry,
+    pity_counter' = pity_counter, last_drop' = last_drop,
+    skill_points' = skill_points, skill_combo' = skill_combo, skill_poison' = skill_poison,
+    skill_shield_block' = skill_shield_block, skill_heavy_strike' = skill_heavy_strike,
+    skill_counter_attack' = skill_counter_attack, skill_battle_cry' = skill_battle_cry,
+    skill_fortify' = skill_fortify, qty_venom_sac' = qty_venom_sac, cd_fortify' = cd_fortify,
+    enemy_element' = enemy_element,
   }
 
   // === Save game (only outside combat, alive, not won) ===
@@ -1470,6 +1789,7 @@ module quint_crawl {
     skill_shield_block' = skill_shield_block, skill_heavy_strike' = skill_heavy_strike,
     skill_counter_attack' = skill_counter_attack, skill_battle_cry' = skill_battle_cry,
     skill_fortify' = skill_fortify, qty_venom_sac' = qty_venom_sac, cd_fortify' = cd_fortify,
+      enemy_element' = enemy_element, enchant_slot_1' = enchant_slot_1, enchant_slot_2' = enchant_slot_2, enchant_slot_3' = enchant_slot_3,
   }
 
   // === Load game (requires a save to exist) ===
@@ -1497,6 +1817,7 @@ module quint_crawl {
     skill_shield_block' = skill_shield_block, skill_heavy_strike' = skill_heavy_strike,
     skill_counter_attack' = skill_counter_attack, skill_battle_cry' = skill_battle_cry,
     skill_fortify' = skill_fortify, qty_venom_sac' = qty_venom_sac, cd_fortify' = cd_fortify,
+      enemy_element' = enemy_element, enchant_slot_1' = enchant_slot_1, enchant_slot_2' = enchant_slot_2, enchant_slot_3' = enchant_slot_3,
   }
 
   // === Claim Victory ===
@@ -1526,6 +1847,7 @@ module quint_crawl {
     skill_shield_block' = skill_shield_block, skill_heavy_strike' = skill_heavy_strike,
     skill_counter_attack' = skill_counter_attack, skill_battle_cry' = skill_battle_cry,
     skill_fortify' = skill_fortify, qty_venom_sac' = qty_venom_sac, cd_fortify' = cd_fortify,
+      enemy_element' = enemy_element, enchant_slot_1' = enchant_slot_1, enchant_slot_2' = enchant_slot_2, enchant_slot_3' = enchant_slot_3,
   }
 
   // === Step ===
@@ -1541,6 +1863,8 @@ module quint_crawl {
     unlock_heavy_strike, unlock_counter_attack,
     unlock_battle_cry, unlock_fortify,
     respec, craft_venom_sac,
+    apply_enchant_1, apply_enchant_2, apply_enchant_3,
+    remove_enchant_1, remove_enchant_2, remove_enchant_3,
     save_game, load_game, claim_victory,
   }
 
@@ -1666,6 +1990,22 @@ module quint_crawl {
 
   /// Venom sac quantity is non-negative
   val qty_venom_sac_non_negative = qty_venom_sac >= 0
+
+  /// Enemy element is bounded [0, 4]
+  val enemy_element_bounded = enemy_element >= 0 and enemy_element <= 4
+
+  /// Enchant slots are bounded [0, 4]
+  val enchant_slots_bounded = and {
+    enchant_slot_1 >= 0, enchant_slot_1 <= 4,
+    enchant_slot_2 >= 0, enchant_slot_2 <= 4,
+    enchant_slot_3 >= 0, enchant_slot_3 <= 4,
+  }
+
+  /// Fire and Ice enchantments cannot coexist
+  val no_fire_ice_incompatible = not(has_fire_enchant and has_ice_enchant)
+
+  /// Enemy element is only set during combat
+  val enemy_element_only_in_combat = not(in_combat).implies(enemy_element == 0)
 }
 
 module quint_crawl_run {
