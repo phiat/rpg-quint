@@ -945,7 +945,7 @@ module quint_crawl {
   /// XP never decreases
   val xp_monotonic = xp >= 0
 
-  /// Game won only at level 3
+  /// Game won only at max level
   val win_condition_correct = game_won.implies(level >= MAX_LEVEL)
 
   /// Enemy HP is non-negative

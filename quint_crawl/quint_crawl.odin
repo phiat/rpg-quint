@@ -1,6 +1,6 @@
 package quint_crawl
 
-// Zone names (cosmetic — will be replaced by biome system in future)
+// Zone names by biome (indexed as [x%3][y%3])
 ZONE_NAMES := [3][3]string{
 	{"Village", "Plains", "Ruins"},
 	{"Forest", "Cave", "Shrine"},
