@@ -1,18 +1,18 @@
 package quint_crawl
 
-// Zone names (cosmetic — will be replaced by biome system in future)
+// Zone names by biome (indexed as [x%3][y%3])
 ZONE_NAMES := [3][3]string{
 	{"Village", "Plains", "Ruins"},
 	{"Forest", "Cave", "Shrine"},
 	{"Swamp", "Mountain", "Castle"},
 }
 
-XP_THRESHOLDS := [4]int{0, 0, 10, 25}   // index by level: threshold for level 2 = 10, level 3 = 25
+XP_THRESHOLDS := [MAX_LEVEL + 1]int{0, 0, 10, 25, 50, 85}   // index by level
 
 // --- World scaling constants ---
-WORLD_SIZE :: 3        // grid dimension (NxN)
-MAX_LEVEL :: 3         // max zone difficulty
-TILES_PER_LEVEL :: 2   // (x+y) distance per level increment
+WORLD_SIZE :: 9        // grid dimension (NxN)
+MAX_LEVEL :: 5         // max zone difficulty
+TILES_PER_LEVEL :: 3   // (x+y) distance per level increment
 BASE_ENEMY_HP :: 15    // enemy HP at level 1
 BASE_ENEMY_ATK :: 2    // enemy ATK constant term
 ATK_PER_LEVEL :: 3     // enemy ATK per level
@@ -105,8 +105,8 @@ Game_State :: struct {
 }
 
 zone_name :: proc(x, y: int) -> string {
-	if x < 0 || x > 2 || y < 0 || y > 2 do return "Unknown"
-	return ZONE_NAMES[x][y]
+	if x < 0 || x >= WORLD_SIZE || y < 0 || y >= WORLD_SIZE do return "Unknown"
+	return ZONE_NAMES[x % 3][y % 3]
 }
 
 // Zone difficulty level — distance from origin determines difficulty
@@ -135,15 +135,15 @@ zone_gold_reward :: proc(x, y: int) -> int {
 
 // Zone feature predicates — which zones have which facilities
 zone_has_services :: proc(x, y: int) -> bool {
-	return x == 0 && y == 0
+	return x % 3 == 0 && y % 3 == 0
 }
 
 zone_has_wood :: proc(x, y: int) -> bool {
-	return x == 1 && y == 0
+	return x % 3 == 1 && y % 3 == 0
 }
 
 zone_has_iron :: proc(x, y: int) -> bool {
-	return x == 2 && y == 1
+	return x % 3 == 2 && y % 3 == 1
 }
 
 // Weather: 0=Clear, 1=Rain, 2=Fog, 3=Storm
@@ -313,13 +313,13 @@ resolve_combat_hit :: proc(g: ^Game_State, dmg: int) -> bool {
 		g.enemy_attack = 0
 		// Loot drop
 		resolve_loot(g)
-		if g.level < 3 && g.xp >= XP_THRESHOLDS[g.level + 1] {
+		if g.level < MAX_LEVEL && g.xp >= XP_THRESHOLDS[g.level + 1] {
 			g.level += 1
 			g.max_hp += 20
 			g.base_attack += 3
 			g.max_stamina += 5
 		}
-		if g.level >= 3 {
+		if g.level >= MAX_LEVEL {
 			g.game_won = true
 		}
 	}

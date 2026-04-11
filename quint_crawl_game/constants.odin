@@ -1,5 +1,6 @@
 package quint_crawl_game
 
+import qc "../quint_crawl"
 import rl "vendor:raylib"
 
 // Window
@@ -10,9 +11,9 @@ WINDOW_H :: 720
 MAP_X :: 0
 MAP_Y :: 0
 MAP_SIZE :: 720
-TILE_SIZE :: 232
-TILE_PAD :: 8
+TILE_PAD :: 4
 TILE_OFFSET :: TILE_PAD  // offset from top-left of map area
+TILE_SIZE :: (MAP_SIZE - TILE_OFFSET - TILE_PAD * (qc.WORLD_SIZE - 1)) / qc.WORLD_SIZE
 
 // HUD (right sidebar)
 HUD_X :: 720
@@ -39,22 +40,24 @@ LOCKED_OVERLAY :: rl.Color{0, 0, 0, 140}
 KEY_HIGHLIGHT  :: rl.Color{255, 200, 60, 255}
 COMBAT_BG      :: rl.Color{25, 15, 20, 255}
 
-// Zone tile colors [x][y]
-ZONE_COLORS := [3][3]rl.Color{
-	// x=0              x=1                x=2
-	{{139, 119, 101, 255}, {85, 140, 85, 255},  {90, 75, 100, 255}},   // y=0: Village, Forest, Swamp
-	{{140, 160, 100, 255}, {75, 75, 90, 255},   {120, 120, 140, 255}}, // y=1: Plains, Cave, Mountain
-	{{110, 90, 75, 255},   {170, 150, 80, 255}, {130, 50, 50, 255}},   // y=2: Ruins, Shrine, Castle
+// Base zone tile colors [bx][by] — tiled across the grid via x%3, y%3
+BASE_ZONE_COLORS := [3][3]rl.Color{
+	// bx=0             bx=1               bx=2
+	{{139, 119, 101, 255}, {85, 140, 85, 255},  {90, 75, 100, 255}},   // by=0: Village, Forest, Swamp
+	{{140, 160, 100, 255}, {75, 75, 90, 255},   {120, 120, 140, 255}}, // by=1: Plains, Cave, Mountain
+	{{110, 90, 75, 255},   {170, 150, 80, 255}, {130, 50, 50, 255}},   // by=2: Ruins, Shrine, Castle
 }
 
-// Enemy colors by tier (zone level 1, 2, 3)
-ENEMY_COLORS := [3]rl.Color{
+// Enemy colors by tier (zone level 1-5)
+ENEMY_COLORS := [qc.MAX_LEVEL]rl.Color{
 	{100, 180, 100, 255},  // tier 1: green (slime)
 	{180, 180, 100, 255},  // tier 2: yellow (skeleton)
-	{200, 80, 80, 255},    // tier 3: red (dragon)
+	{160, 120, 80, 255},   // tier 3: brown (wolf)
+	{140, 100, 180, 255},  // tier 4: purple (wraith)
+	{200, 80, 80, 255},    // tier 5: red (dragon)
 }
 
-ENEMY_NAMES := [3]string{"Slime", "Skeleton", "Dragon"}
+ENEMY_NAMES := [qc.MAX_LEVEL]string{"Slime", "Skeleton", "Wolf", "Wraith", "Dragon"}
 
 // Day/night cycle (temporary - will be driven by game state later)
 DAY_CYCLE_SPEED :: f32(0.03)  // full cycle in ~33 seconds for testing

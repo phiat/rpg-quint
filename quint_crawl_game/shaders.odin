@@ -61,19 +61,20 @@ begin_pipeline :: proc(pipeline: ^Shader_Pipeline) {
 	rl.ClearBackground(BG_COLOR)
 }
 
-// Zone tint colors — subtle palette shift per zone
+// Zone tint colors — subtle palette shift per biome (tiled via x%3, y%3)
 zone_tint :: proc(x, y: int) -> [3]f32 {
+	bx, by := x % 3, y % 3
 	switch {
-	case x == 0 && y == 0: return {1.05, 0.98, 0.90}  // Village: warm
-	case x == 1 && y == 0: return {0.90, 1.08, 0.90}  // Forest: green
-	case x == 2 && y == 0: return {0.90, 0.95, 1.05}  // Swamp: cool purple-green
-	case x == 0 && y == 1: return {1.02, 1.05, 0.95}  // Plains: bright warm
-	case x == 1 && y == 1: return {0.85, 0.88, 1.00}  // Cave: cool blue
-	case x == 2 && y == 1: return {0.95, 0.95, 1.05}  // Mountain: cool gray
-	case x == 0 && y == 2: return {0.95, 0.90, 0.85}  // Ruins: dusty warm
-	case x == 1 && y == 2: return {1.08, 1.02, 0.85}  // Shrine: golden
-	case x == 2 && y == 2: return {1.10, 0.85, 0.85}  // Castle: red
-	case:                  return {1.0, 1.0, 1.0}
+	case bx == 0 && by == 0: return {1.05, 0.98, 0.90}  // Village: warm
+	case bx == 1 && by == 0: return {0.90, 1.08, 0.90}  // Forest: green
+	case bx == 2 && by == 0: return {0.90, 0.95, 1.05}  // Swamp: cool purple-green
+	case bx == 0 && by == 1: return {1.02, 1.05, 0.95}  // Plains: bright warm
+	case bx == 1 && by == 1: return {0.85, 0.88, 1.00}  // Cave: cool blue
+	case bx == 2 && by == 1: return {0.95, 0.95, 1.05}  // Mountain: cool gray
+	case bx == 0 && by == 2: return {0.95, 0.90, 0.85}  // Ruins: dusty warm
+	case bx == 1 && by == 2: return {1.08, 1.02, 0.85}  // Shrine: golden
+	case bx == 2 && by == 2: return {1.10, 0.85, 0.85}  // Castle: red
+	case:                    return {1.0, 1.0, 1.0}
 	}
 }
 

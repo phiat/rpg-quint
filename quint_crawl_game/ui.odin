@@ -35,7 +35,7 @@ draw_hud :: proc(app: ^App_State) {
 	y += 24
 
 	// XP bar
-	xp_target := qc.XP_THRESHOLDS[g.level + 1] if g.level < 3 else g.xp
+	xp_target := qc.XP_THRESHOLDS[g.level + 1] if g.level < qc.MAX_LEVEL else g.xp
 	rl.DrawText("XP", x, y, 14, TEXT_DIM)
 	y += 16
 	draw_bar(x, y, w, 16, g.xp, xp_target, BAR_XP_FG, BAR_XP_BG)
@@ -159,6 +159,44 @@ draw_hud :: proc(app: ^App_State) {
 		draw_action(x, &y, "[F9]", "Load", g.saved_exists)
 
 		y += 4
+	}
+
+	// --- Minimap (biome regions) ---
+	if !g.in_combat {
+		NUM_REGIONS :: qc.WORLD_SIZE / 3
+
+		rl.DrawLine(x, y, x + w, y, TILE_BORDER)
+		y += 6
+		rl.DrawText("Region", x, y, 14, TEXT_DIM)
+		y += 18
+
+		mini_size := i32(20)
+		mini_pad := i32(2)
+		mini_x0 := x + (w - NUM_REGIONS * (mini_size + mini_pad)) / 2
+		region_x := g.pos_x / 3
+		region_y := g.pos_y / 3
+
+		for ry in 0 ..< NUM_REGIONS {
+			for rx in 0 ..< NUM_REGIONS {
+				mx := mini_x0 + i32(rx) * (mini_size + mini_pad)
+				my := y + i32(ry) * (mini_size + mini_pad)
+				// Biome color for this region (tiled from 3x3 palette)
+				base := BASE_ZONE_COLORS[rx % 3][ry % 3]
+				is_here := rx == region_x && ry == region_y
+				if !is_here {
+					base.r = u8(f32(base.r) * 0.5)
+					base.g = u8(f32(base.g) * 0.5)
+					base.b = u8(f32(base.b) * 0.5)
+				}
+				rl.DrawRectangle(mx, my, mini_size, mini_size, base)
+				if is_here {
+					rl.DrawRectangleLinesEx({f32(mx), f32(my), f32(mini_size), f32(mini_size)}, 2, PLAYER_COLOR)
+				} else {
+					rl.DrawRectangleLines(mx, my, mini_size, mini_size, TILE_BORDER)
+				}
+			}
+		}
+		y += NUM_REGIONS * (mini_size + mini_pad) + 6
 	}
 
 	// --- Message log ---

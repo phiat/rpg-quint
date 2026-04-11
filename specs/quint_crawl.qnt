@@ -78,9 +78,9 @@ module quint_crawl {
   val PITY_THRESHOLD = 5    // kills without drop before guaranteed drop
 
   // --- World scaling constants ---
-  val WORLD_SIZE = 3        // grid dimension (NxN)
-  val MAX_LEVEL = 3         // max zone difficulty
-  val TILES_PER_LEVEL = 2   // (x+y) distance per level increment
+  val WORLD_SIZE = 9        // grid dimension (NxN)
+  val MAX_LEVEL = 5         // max zone difficulty
+  val TILES_PER_LEVEL = 3   // (x+y) distance per level increment
   val BASE_ENEMY_HP = 15    // enemy HP at level 1
   val BASE_ENEMY_ATK = 2    // enemy ATK constant term
   val ATK_PER_LEVEL = 3     // enemy ATK per level
@@ -93,10 +93,12 @@ module quint_crawl {
   pure def zone_weather(x: int, y: int, turn: int): int =
     ((x * 3 + y * 7 + turn / WEATHER_CYCLE) % 4)
 
-  // XP thresholds: level 2 at 10 XP, level 3 at 25 XP
+  // XP thresholds for leveling up
   pure def xp_threshold(lvl: int): int =
     if (lvl == 2) 10
     else if (lvl == 3) 25
+    else if (lvl == 4) 50
+    else if (lvl == 5) 85
     else 9999
 
   // --- Zone properties: pure functions of coordinates ---
@@ -106,17 +108,23 @@ module quint_crawl {
     val raw = (x + y) / TILES_PER_LEVEL + 1
     if (raw > MAX_LEVEL) MAX_LEVEL else raw
 
-  // Zone names (cosmetic — will be replaced by biome system in future)
+  // Zone biome — tiles the 3x3 pattern across the grid
+  pure def zone_biome_x(x: int): int = x % 3
+  pure def zone_biome_y(y: int): int = y % 3
+
+  // Zone names (derived from tiled biome pattern)
   pure def zone_name(x: int, y: int): str =
-    if (x == 0 and y == 0) "Village"
-    else if (x == 1 and y == 0) "Forest"
-    else if (x == 2 and y == 0) "Swamp"
-    else if (x == 0 and y == 1) "Plains"
-    else if (x == 1 and y == 1) "Cave"
-    else if (x == 2 and y == 1) "Mountain"
-    else if (x == 0 and y == 2) "Ruins"
-    else if (x == 1 and y == 2) "Shrine"
-    else if (x == 2 and y == 2) "Castle"
+    val bx = zone_biome_x(x)
+    val by = zone_biome_y(y)
+    if (bx == 0 and by == 0) "Village"
+    else if (bx == 1 and by == 0) "Forest"
+    else if (bx == 2 and by == 0) "Swamp"
+    else if (bx == 0 and by == 1) "Plains"
+    else if (bx == 1 and by == 1) "Cave"
+    else if (bx == 2 and by == 1) "Mountain"
+    else if (bx == 0 and by == 2) "Ruins"
+    else if (bx == 1 and by == 2) "Shrine"
+    else if (bx == 2 and by == 2) "Castle"
     else "Unknown"
 
   // Enemy stats — linear formulas of zone level
@@ -125,10 +133,10 @@ module quint_crawl {
   pure def zone_xp_reward(x: int, y: int): int = BASE_XP * zone_level(x, y)
   pure def zone_gold_reward(x: int, y: int): int = BASE_GOLD + GOLD_PER_LEVEL * zone_level(x, y)
 
-  // Zone feature predicates — which zones have which facilities
-  pure def zone_has_services(x: int, y: int): bool = (x == 0 and y == 0)
-  pure def zone_has_wood(x: int, y: int): bool = (x == 1 and y == 0)
-  pure def zone_has_iron(x: int, y: int): bool = (x == 2 and y == 1)
+  // Zone feature predicates — tiles the 3x3 facility pattern
+  pure def zone_has_services(x: int, y: int): bool = (x % 3 == 0 and y % 3 == 0)
+  pure def zone_has_wood(x: int, y: int): bool = (x % 3 == 1 and y % 3 == 0)
+  pure def zone_has_iron(x: int, y: int): bool = (x % 3 == 2 and y % 3 == 1)
 
   // Total attack power (sword bonus only if equipped AND not broken, plus ATK buff)
   val attack_power = base_attack + (if (has_sword and sword_dur > 0) SWORD_ATK_BONUS else 0) + (if (player_atk_buff_dur > 0) ATK_BUFF_BONUS else 0)
@@ -323,7 +331,7 @@ module quint_crawl {
     val poison_dmg = if (player_poison_dur > 0) POISON_DMG else 0
     val new_hp = if (new_enemy_hp > 0) hp - effective_enemy_dmg - poison_dmg else hp - poison_dmg
     val gained_xp = if (new_enemy_hp <= 0 and new_hp > 0) xp + zone_xp_reward(pos_x, pos_y) else xp
-    val new_level = if (level < 3 and gained_xp >= xp_threshold(level + 1)) level + 1 else level
+    val new_level = if (level < MAX_LEVEL and gained_xp >= xp_threshold(level + 1)) level + 1 else level
     // Tier 2+ enemies apply poison if player isn't already poisoned
     val zone_tier = zone_level(pos_x, pos_y)
     val apply_poison = (zone_tier >= 2 and player_poison_dur == 0 and new_enemy_hp > 0)
@@ -354,7 +362,7 @@ module quint_crawl {
       level' = new_level,
       max_hp' = if (new_level > level) max_hp + 20 else max_hp,
       base_attack' = if (new_level > level) base_attack + 3 else base_attack,
-      game_won' = (new_level >= 3),
+      game_won' = (new_level >= MAX_LEVEL),
       pos_x' = pos_x, pos_y' = pos_y,
       qty_potion' = if (should_drop) qty_potion + 1 else qty_potion,
       qty_wood' = qty_wood,
@@ -683,7 +691,7 @@ module quint_crawl {
     val poison_dmg = if (player_poison_dur > 0) POISON_DMG else 0
     val new_hp = if (new_enemy_hp > 0) hp - effective_enemy_dmg - poison_dmg else hp - poison_dmg
     val gained_xp = if (new_enemy_hp <= 0 and new_hp > 0) xp + zone_xp_reward(pos_x, pos_y) else xp
-    val new_level = if (level < 3 and gained_xp >= xp_threshold(level + 1)) level + 1 else level
+    val new_level = if (level < MAX_LEVEL and gained_xp >= xp_threshold(level + 1)) level + 1 else level
     // Status ticking
     val zone_tier = zone_level(pos_x, pos_y)
     val apply_poison = (zone_tier >= 2 and player_poison_dur == 0 and new_enemy_hp > 0)
@@ -716,7 +724,7 @@ module quint_crawl {
       level' = new_level,
       max_hp' = if (new_level > level) max_hp + 20 else max_hp,
       base_attack' = if (new_level > level) base_attack + 3 else base_attack,
-      game_won' = (new_level >= 3),
+      game_won' = (new_level >= MAX_LEVEL),
       pos_x' = pos_x, pos_y' = pos_y,
       qty_potion' = if (should_drop) qty_potion + 1 else qty_potion,
       qty_wood' = qty_wood,
@@ -755,7 +763,7 @@ module quint_crawl {
     val poison_dmg = if (player_poison_dur > 0) POISON_DMG else 0
     val new_hp = if (new_enemy_hp > 0) hp - effective_enemy_dmg - poison_dmg else hp - poison_dmg
     val gained_xp = if (new_enemy_hp <= 0 and new_hp > 0) xp + zone_xp_reward(pos_x, pos_y) else xp
-    val new_level = if (level < 3 and gained_xp >= xp_threshold(level + 1)) level + 1 else level
+    val new_level = if (level < MAX_LEVEL and gained_xp >= xp_threshold(level + 1)) level + 1 else level
     // Status ticking
     val zone_tier = zone_level(pos_x, pos_y)
     val apply_poison = (zone_tier >= 2 and player_poison_dur == 0 and new_enemy_hp > 0)
@@ -784,7 +792,7 @@ module quint_crawl {
       level' = new_level,
       max_hp' = if (new_level > level) max_hp + 20 else max_hp,
       base_attack' = if (new_level > level) base_attack + 3 else base_attack,
-      game_won' = (new_level >= 3),
+      game_won' = (new_level >= MAX_LEVEL),
       pos_x' = pos_x, pos_y' = pos_y,
       qty_potion' = if (should_drop) qty_potion + 1 else qty_potion,
       qty_wood' = qty_wood,
@@ -917,8 +925,8 @@ module quint_crawl {
   /// Gold never goes negative
   val gold_non_negative = gold >= 0
 
-  /// Level is bounded [1, 3]
-  val level_bounded = level >= 1 and level <= 3
+  /// Level is bounded [1, MAX_LEVEL]
+  val level_bounded = level >= 1 and level <= MAX_LEVEL
 
   /// Position stays on the grid
   val position_bounded = pos_x >= 0 and pos_x < WORLD_SIZE and pos_y >= 0 and pos_y < WORLD_SIZE
@@ -937,8 +945,8 @@ module quint_crawl {
   /// XP never decreases
   val xp_monotonic = xp >= 0
 
-  /// Game won only at level 3
-  val win_condition_correct = game_won.implies(level >= 3)
+  /// Game won only at max level
+  val win_condition_correct = game_won.implies(level >= MAX_LEVEL)
 
   /// Enemy HP is non-negative
   val enemy_hp_bounded = enemy_hp >= 0

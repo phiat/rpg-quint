@@ -11,7 +11,7 @@ Inspired by: [Model-Based Testing for D&D](https://www.loskutoff.com/blog/model-
 
 ## The Game
 
-**Quint Crawl** is a turn-based RPG rendered with raylib. Explore a 3x3 world grid, fight enemies, gather resources, craft gear, and level up to conquer the Castle.
+**Quint Crawl** is a turn-based RPG rendered with raylib. Explore a 9x9 world grid (81 zones across 5 difficulty levels), fight enemies, gather resources, craft gear, and level up to conquer the Castle.
 
 ```bash
 just play             # build and run the game
@@ -20,8 +20,10 @@ just play             # build and run the game
 Controls: WASD to move, E to fight, A to attack, K for combo, H for heavy strike, Y for battle cry, P for potions, V to poison, X for antidote, F to flee, R to rest, B to buy potions, G to gather wood, M to mine iron, C to craft, Q to equip, T to repair, F5 to save, F9 to load. See the HUD sidebar for zone-specific actions.
 
 Features:
-- 3x3 world grid with level-gated zones (Village → Castle)
-- Turn-based combat against tiered enemies (Slime, Skeleton, Dragon)
+- 9x9 world grid with 5 difficulty levels and biome tiling (3x3 pattern repeats across regions)
+- Turn-based combat against 5 enemy tiers (Slime, Skeleton, Wolf, Wraith, Dragon)
+- Mouse hover tooltips showing zone name, level, and available actions
+- HUD minimap with biome region overview
 - Stamina system — actions cost stamina, restored by resting
 - Combo system — 3-hit chain (Slash → Thrust → Finisher) with damage multipliers
 - Cooldown abilities — heavy strike (2x damage) and battle cry (ATK buff)
@@ -106,7 +108,7 @@ justfile               Task runner for common workflows
 | **skill_tree** | Prerequisite-based skill unlocks | Prerequisites respected, points conserved |
 | **reputation** | Faction reputation with rivalries | Standings bounded [-100, 100] |
 | **summoning** | Timed summon slots (3 max) | Count consistent, inactive zeroed, durations non-negative |
-| **world_grid** | 3x3 level-gated zone grid | Position bounded, zone matches, level gates respected |
+| **world_grid** | 9x9 level-gated zone grid with biome tiling | Position bounded, zone matches, level gates respected |
 | **elemental** | 4-element damage affinity (Fire/Ice/Lightning/Earth) | Elements bounded, multiplier matrix consistent, damage symmetric |
 | **enchantment** | 3-slot weapon enchantments (fire/ice/vampiric/lightning) | Mutual exclusion, slot count bounded, enchantment validity |
 | **trap** | Trap/hazard system on 2x2 grid with perception | Triggered implies present, HP bounded, perception bounded |
@@ -119,7 +121,7 @@ justfile               Task runner for common workflows
 | **fog_of_war** | Exploration reveal system | Revealed tiles monotonic, visibility radius bounded |
 | **permadeath** | Permadeath with legacy bonuses | Death permanent, legacy bonuses carry forward |
 | **bounty** | Bounty board quest system | Bounty rewards match difficulty, completion tracked |
-| **quint_crawl** | Full RPG game state machine | HP bounded, gold non-negative, level gates, durability bounded, combo bounded, stamina bounded, cooldowns bounded, loot pity bounded, status effects bounded, weather deterministic, win condition correct |
+| **quint_crawl** | Full RPG game state machine (9x9 grid, 5 levels) | HP bounded, gold non-negative, level gates, durability bounded, combo bounded, stamina bounded, cooldowns bounded, loot pity bounded, status effects bounded, weather deterministic, win condition correct |
 
 ## Quick start
 
@@ -134,6 +136,8 @@ just all         # all of the above
 just check-one rpg          # typecheck one spec
 just test-one rpg           # test one module
 just trace rpg rpg_run      # regenerate one trace
+just trace-crawl            # regenerate quint_crawl traces (5x, 100k samples)
+just test-crawl             # regen traces + run crawl MBT tests
 ```
 
 ## Prerequisites

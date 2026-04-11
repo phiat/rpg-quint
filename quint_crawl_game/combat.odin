@@ -9,8 +9,16 @@ draw_combat :: proc(app: ^App_State) {
 	g := &app.game
 	tier := qc.zone_level(g.pos_x, g.pos_y) - 1
 
-	// Combat background
-	rl.DrawRectangle(0, 0, HUD_X, WINDOW_H, COMBAT_BG)
+	// Combat background with zone biome tint
+	base_bg := COMBAT_BG
+	biome := BASE_ZONE_COLORS[g.pos_x % 3][g.pos_y % 3]
+	tinted_bg := rl.Color{
+		u8((int(base_bg.r) * 3 + int(biome.r)) / 4),
+		u8((int(base_bg.g) * 3 + int(biome.g)) / 4),
+		u8((int(base_bg.b) * 3 + int(biome.b)) / 4),
+		255,
+	}
+	rl.DrawRectangle(0, 0, HUD_X, WINDOW_H, tinted_bg)
 
 	// Zone name at top
 	zone := qc.zone_name(g.pos_x, g.pos_y)
@@ -237,7 +245,7 @@ draw_victory_rewards :: proc(app: ^App_State) {
 
 		// XP bar
 		g := &app.game
-		xp_target := qc.XP_THRESHOLDS[g.level + 1] if g.level < 3 else g.xp
+		xp_target := qc.XP_THRESHOLDS[g.level + 1] if g.level < qc.MAX_LEVEL else g.xp
 		bar_w := panel_w - 80
 		bar_x := panel_x + 40 + slide_x
 		bar_y := panel_y + 110
