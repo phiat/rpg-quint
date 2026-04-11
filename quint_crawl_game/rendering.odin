@@ -4,7 +4,6 @@ import qc "../quint_crawl"
 import rl "vendor:raylib"
 import "core:fmt"
 import "core:math"
-import "core:strings"
 
 // --- Bar rendering ---
 draw_bar :: proc(x, y, w, h: i32, current, maximum: int, fg, bg: rl.Color) {
@@ -17,91 +16,99 @@ draw_bar :: proc(x, y, w, h: i32, current, maximum: int, fg, bg: rl.Color) {
 }
 
 // --- Tile rendering ---
+// Get tile color from biome pattern, adjusted by zone level for brightness
+tile_color :: proc(x, y: int) -> rl.Color {
+	base := BASE_ZONE_COLORS[x % 3][y % 3]
+	lvl := qc.zone_level(x, y)
+	// Slightly darken higher-level zones for visual progression
+	scale := f32(1.0) - f32(lvl - 1) * 0.08
+	return {u8(f32(base.r) * scale), u8(f32(base.g) * scale), u8(f32(base.b) * scale), 255}
+}
+
 draw_tile :: proc(x, y: int, g: ^qc.Game_State) {
 	px := i32(TILE_OFFSET + x * (TILE_SIZE + TILE_PAD))
 	py := i32(TILE_OFFSET + y * (TILE_SIZE + TILE_PAD))
 	is_current := x == g.pos_x && y == g.pos_y
 	level_req := qc.zone_level(x, y)
 	locked := level_req > g.level
-	name := qc.zone_name(x, y)
 
 	// Tile background
-	color := ZONE_COLORS[x][y]
+	color := tile_color(x, y)
 	if !is_current {
-		// Slightly dim non-current tiles
 		color.r = u8(f32(color.r) * 0.7)
 		color.g = u8(f32(color.g) * 0.7)
 		color.b = u8(f32(color.b) * 0.7)
 	}
 	rl.DrawRectangle(px, py, TILE_SIZE, TILE_SIZE, color)
 
-	// Zone name
-	name_cstr := strings.clone_to_cstring(name, context.temp_allocator)
-	name_size :: 22
-	name_w := rl.MeasureText(name_cstr, name_size)
-	rl.DrawText(name_cstr, px + (TILE_SIZE - name_w) / 2, py + 10, name_size, TEXT_BRIGHT)
+	// Zone name (abbreviated for small tiles)
+	abbrev := zone_abbrev(x, y)
+	name_size := i32(10)
+	name_w := rl.MeasureText(abbrev, name_size)
+	rl.DrawText(abbrev, px + (TILE_SIZE - name_w) / 2, py + 2, name_size, TEXT_BRIGHT)
 
-	// Level requirement badge
-	lvl_str := fmt.ctprintf("Lv.%d", level_req)
-	rl.DrawText(lvl_str, px + 8, py + TILE_SIZE - 28, 18, TEXT_DIM)
-
-	// Zone-specific icon hint
-	draw_zone_icon(px, py, x, y)
+	// Level pips (colored dots in bottom-left corner)
+	pip_colors := [5]rl.Color{
+		{100, 200, 100, 200},  // L1: green
+		{100, 180, 255, 200},  // L2: blue
+		{200, 180, 60, 200},   // L3: gold
+		{180, 100, 220, 200},  // L4: purple
+		{220, 60, 60, 200},    // L5: red
+	}
+	pip_color := pip_colors[min(level_req, 5) - 1]
+	pip_size := i32(3)
+	pip_y := py + TILE_SIZE - pip_size * 2 - 2
+	for i in 0 ..< level_req {
+		rl.DrawRectangle(px + 3 + i32(i) * (pip_size + 2), pip_y, pip_size, pip_size, pip_color)
+	}
 
 	// Locked overlay
 	if locked {
-		rl.DrawRectangle(px, py, TILE_SIZE, TILE_SIZE, LOCKED_OVERLAY)
-		lock_str := fmt.ctprintf("Lv.%d Required", level_req)
-		lock_w := rl.MeasureText(lock_str, 20)
-		rl.DrawText(lock_str, px + (TILE_SIZE - lock_w) / 2, py + TILE_SIZE / 2 - 10, 20, {255, 100, 100, 200})
+		rl.DrawRectangle(px, py, TILE_SIZE, TILE_SIZE, {0, 0, 0, 160})
+		lvl_lock := fmt.ctprintf("L%d", level_req)
+		lw := rl.MeasureText(lvl_lock, 10)
+		rl.DrawText(lvl_lock, px + (TILE_SIZE - lw) / 2, py + TILE_SIZE / 2 - 5, 10, {255, 100, 100, 200})
 	}
 
-	// Tile border
-	border_color := PLAYER_COLOR if is_current else TILE_BORDER
-	border_thick := f32(3) if is_current else f32(1)
-	rl.DrawRectangleLinesEx({f32(px), f32(py), f32(TILE_SIZE), f32(TILE_SIZE)}, border_thick, border_color)
+	// Tile border (glow ring for player tile)
+	if is_current {
+		// Outer glow — semi-transparent expanding ring
+		glow_alpha := u8(60 + i32(math.sin(f32(rl.GetTime()) * 3.0) * 30))
+		rl.DrawRectangleLinesEx({f32(px) - 2, f32(py) - 2, f32(TILE_SIZE) + 4, f32(TILE_SIZE) + 4}, 2, {0, 220, 255, glow_alpha})
+		rl.DrawRectangleLinesEx({f32(px), f32(py), f32(TILE_SIZE), f32(TILE_SIZE)}, 2, PLAYER_COLOR)
+	} else {
+		rl.DrawRectangleLinesEx({f32(px), f32(py), f32(TILE_SIZE), f32(TILE_SIZE)}, 1, TILE_BORDER)
+	}
 }
 
-// Simple icon hints per zone type
-draw_zone_icon :: proc(px, py: i32, x, y: int) {
-	cx := f32(px) + f32(TILE_SIZE) / 2
-	cy := f32(py) + f32(TILE_SIZE) / 2 + 10
-
+// Short zone name abbreviations for small tiles
+zone_abbrev :: proc(x, y: int) -> cstring {
+	bx, by := x % 3, y % 3
 	switch {
-	case x == 0 && y == 0: // Village — house shape
-		rl.DrawTriangle({cx, cy - 30}, {cx - 25, cy - 5}, {cx + 25, cy - 5}, {180, 140, 100, 120})
-		rl.DrawRectangle(i32(cx) - 15, i32(cy) - 5, 30, 25, {160, 120, 80, 120})
-	case x == 1 && y == 0: // Forest — tree
-		rl.DrawTriangle({cx, cy - 35}, {cx - 20, cy}, {cx + 20, cy}, {40, 120, 40, 120})
-		rl.DrawRectangle(i32(cx) - 4, i32(cy), 8, 15, {100, 70, 40, 120})
-	case x == 2 && y == 0: // Swamp — wavy water
-		for i in 0..<3 {
-			ox := f32(i) * 20 - 20
-			rl.DrawCircle(i32(cx + ox), i32(cy), 8, {60, 90, 60, 100})
-		}
-	case x == 0 && y == 1: // Plains — grass tufts
-		for i in 0..<3 {
-			ox := f32(i) * 25 - 25
-			rl.DrawLine(i32(cx + ox), i32(cy + 5), i32(cx + ox - 5), i32(cy - 15), {100, 160, 60, 120})
-			rl.DrawLine(i32(cx + ox), i32(cy + 5), i32(cx + ox + 5), i32(cy - 15), {100, 160, 60, 120})
-		}
-	case x == 1 && y == 1: // Cave — dark circle
-		rl.DrawCircle(i32(cx), i32(cy), 25, {30, 30, 40, 150})
-		rl.DrawCircle(i32(cx), i32(cy), 20, {15, 15, 25, 200})
-	case x == 2 && y == 1: // Mountain — peak
-		rl.DrawTriangle({cx, cy - 35}, {cx - 30, cy + 10}, {cx + 30, cy + 10}, {150, 150, 170, 120})
-		rl.DrawTriangle({cx, cy - 35}, {cx - 8, cy - 15}, {cx + 8, cy - 15}, {240, 240, 255, 150})
-	case x == 0 && y == 2: // Ruins — broken pillars
-		rl.DrawRectangle(i32(cx) - 20, i32(cy) - 15, 8, 30, {140, 130, 110, 120})
-		rl.DrawRectangle(i32(cx) + 12, i32(cy) - 10, 8, 25, {140, 130, 110, 120})
-		rl.DrawRectangle(i32(cx) - 5, i32(cy) - 5, 8, 20, {120, 110, 90, 100})
-	case x == 1 && y == 2: // Shrine — glowing circle
-		rl.DrawCircle(i32(cx), i32(cy), 20, {200, 180, 60, 80})
-		rl.DrawCircle(i32(cx), i32(cy), 12, {255, 230, 100, 120})
-	case x == 2 && y == 2: // Castle — tower
-		rl.DrawRectangle(i32(cx) - 18, i32(cy) - 10, 36, 30, {100, 40, 40, 130})
-		rl.DrawRectangle(i32(cx) - 22, i32(cy) - 20, 10, 15, {120, 50, 50, 130})
-		rl.DrawRectangle(i32(cx) + 12, i32(cy) - 20, 10, 15, {120, 50, 50, 130})
+	case bx == 0 && by == 0: return "Vlg"
+	case bx == 1 && by == 0: return "For"
+	case bx == 2 && by == 0: return "Swp"
+	case bx == 0 && by == 1: return "Pln"
+	case bx == 1 && by == 1: return "Cav"
+	case bx == 2 && by == 1: return "Mtn"
+	case bx == 0 && by == 2: return "Rns"
+	case bx == 1 && by == 2: return "Shr"
+	case bx == 2 && by == 2: return "Cst"
+	case: return "???"
+	}
+}
+
+// Draw biome boundary lines — thicker separators every 3 tiles
+draw_biome_grid :: proc() {
+	boundary_color := rl.Color{100, 100, 130, 120}
+	num_regions :: qc.WORLD_SIZE / 3
+	for i in 1 ..< num_regions {
+		// Vertical boundary (between columns 2-3 and 5-6)
+		vx := i32(TILE_OFFSET + i * 3 * (TILE_SIZE + TILE_PAD)) - TILE_PAD / 2 - 1
+		rl.DrawRectangle(vx, 0, 2, MAP_SIZE, boundary_color)
+		// Horizontal boundary
+		hy := i32(TILE_OFFSET + i * 3 * (TILE_SIZE + TILE_PAD)) - TILE_PAD / 2 - 1
+		rl.DrawRectangle(0, hy, MAP_SIZE, 2, boundary_color)
 	}
 }
 
@@ -109,17 +116,14 @@ draw_zone_icon :: proc(px, py: i32, x, y: int) {
 draw_player_marker :: proc(app: ^App_State) {
 	g := &app.game
 	px := f32(TILE_OFFSET + g.pos_x * (TILE_SIZE + TILE_PAD)) + f32(TILE_SIZE) / 2
-	py := f32(TILE_OFFSET + g.pos_y * (TILE_SIZE + TILE_PAD)) + f32(TILE_SIZE) - 40
+	py := f32(TILE_OFFSET + g.pos_y * (TILE_SIZE + TILE_PAD)) + f32(TILE_SIZE) / 2 + 8
 
-	pulse := math.sin(app.pulse_timer) * 4
-	size := f32(12) + pulse
+	pulse := math.sin(app.pulse_timer) * 2
+	size := f32(8) + pulse
 
-	// Diamond shape
+	// Diamond shape (scaled for 76px tiles)
 	rl.DrawPoly({px, py}, 4, size, 45, PLAYER_COLOR)
-	rl.DrawPoly({px, py}, 4, size - 3, 45, {0, 180, 220, 255})
-
-	// "You" label
-	rl.DrawText("You", i32(px) - 12, i32(py) + i32(size) + 4, 14, PLAYER_COLOR)
+	rl.DrawPoly({px, py}, 4, size - 2, 45, {0, 180, 220, 255})
 }
 
 // --- Enemy drawing (combat) ---
@@ -145,9 +149,36 @@ draw_enemy_shape_tinted :: proc(cx, cy: f32, tier: int, shake: f32, alpha: u8) {
 		rl.DrawRectangle(i32(cx + ox) + 4, i32(cy) - 62, 8, 8, eye_black)
 		rl.DrawLine(i32(cx + ox) - 20, i32(cy) - 30, i32(cx + ox) - 45, i32(cy), color)
 		rl.DrawLine(i32(cx + ox) + 20, i32(cy) - 30, i32(cx + ox) + 45, i32(cy), color)
-	case 2: // Dragon
+	case 2: // Wolf — crouching body with pointed ears
+		rl.DrawEllipse(i32(cx + ox), i32(cy + 10), 50, 30, color)  // body
+		rl.DrawCircle(i32(cx + ox - 30), i32(cy - 10), 18, color)  // head
+		rl.DrawTriangle({cx + ox - 38, cy - 28}, {cx + ox - 45, cy - 50}, {cx + ox - 30, cy - 28}, color)  // ear L
+		rl.DrawTriangle({cx + ox - 22, cy - 28}, {cx + ox - 28, cy - 50}, {cx + ox - 15, cy - 28}, color)  // ear R
+		rl.DrawCircle(i32(cx + ox - 35), i32(cy - 14), 4, eye_white)
+		rl.DrawCircle(i32(cx + ox - 25), i32(cy - 14), 4, eye_white)
+		rl.DrawCircle(i32(cx + ox - 35), i32(cy - 14), 2, eye_black)
+		rl.DrawCircle(i32(cx + ox - 25), i32(cy - 14), 2, eye_black)
+		// Tail
+		rl.DrawLine(i32(cx + ox + 45), i32(cy + 5), i32(cx + ox + 65), i32(cy - 15), color)
+	case 3: // Wraith — floating hooded figure
+		// Hood/cloak shape
+		rl.DrawTriangle({cx + ox, cy - 55}, {cx + ox - 35, cy + 30}, {cx + ox + 35, cy + 30}, color)
+		// Inner darkness
+		inner := rl.Color{color.r / 2, color.g / 2, color.b / 2, alpha}
+		rl.DrawTriangle({cx + ox, cy - 40}, {cx + ox - 25, cy + 20}, {cx + ox + 25, cy + 20}, inner)
+		// Glowing eyes
+		eye_glow := rl.Color{200, 100, 255, alpha}
+		rl.DrawCircle(i32(cx + ox) - 10, i32(cy) - 20, 5, eye_glow)
+		rl.DrawCircle(i32(cx + ox) + 10, i32(cy) - 20, 5, eye_glow)
+		// Wispy tendrils at bottom
+		for i in 0..<4 {
+			tx := cx + ox + f32(i) * 18 - 27
+			ty := cy + 30 + math.sin(ox * 0.5 + f32(i)) * 8
+			rl.DrawLine(i32(tx), i32(cy + 25), i32(tx), i32(ty + 15), {color.r, color.g, color.b, alpha / 2})
+		}
+	case 4: // Dragon — winged beast
 		rl.DrawTriangle({cx + ox, cy - 60}, {cx + ox - 50, cy + 30}, {cx + ox + 50, cy + 30}, color)
-		wing := rl.Color{color.r - 30 if color.r >= 30 else 0, color.g, color.b, alpha}
+		wing := rl.Color{u8(int(color.r) * 3 / 4), u8(int(color.g) * 3 / 4), u8(int(color.b) * 3 / 4), alpha}
 		rl.DrawTriangle({cx + ox - 30, cy - 20}, {cx + ox - 80, cy - 40}, {cx + ox - 30, cy + 10}, wing)
 		rl.DrawTriangle({cx + ox + 30, cy - 20}, {cx + ox + 80, cy - 40}, {cx + ox + 30, cy + 10}, wing)
 		eye_yellow := rl.Color{255, 255, 0, alpha}
@@ -171,10 +202,80 @@ draw_map :: proc(app: ^App_State) {
 		}
 	}
 
+	// Biome region boundaries
+	draw_biome_grid()
+
 	// Player marker
 	if !g.in_combat {
 		draw_player_marker(app)
 	}
+
+	// Mouse hover tooltip
+	if !g.in_combat {
+		draw_tile_tooltip(g)
+	}
+}
+
+// --- Tile hover tooltip ---
+draw_tile_tooltip :: proc(g: ^qc.Game_State) {
+	mouse := rl.GetMousePosition()
+	mx, my := i32(mouse.x), i32(mouse.y)
+
+	// Convert mouse position to tile coordinates
+	// tile_x = (mx - TILE_OFFSET) / (TILE_SIZE + TILE_PAD)
+	rel_x := mx - TILE_OFFSET
+	rel_y := my - TILE_OFFSET
+	if rel_x < 0 || rel_y < 0 do return
+
+	tile_x := int(rel_x / (TILE_SIZE + TILE_PAD))
+	tile_y := int(rel_y / (TILE_SIZE + TILE_PAD))
+	if tile_x < 0 || tile_x >= qc.WORLD_SIZE || tile_y < 0 || tile_y >= qc.WORLD_SIZE do return
+
+	// Check we're actually inside a tile (not in the padding)
+	in_tile_x := int(rel_x) % (TILE_SIZE + TILE_PAD)
+	in_tile_y := int(rel_y) % (TILE_SIZE + TILE_PAD)
+	if in_tile_x >= TILE_SIZE || in_tile_y >= TILE_SIZE do return
+
+	// Build tooltip
+	zone := qc.zone_name(tile_x, tile_y)
+	lvl := qc.zone_level(tile_x, tile_y)
+	locked := lvl > g.level
+
+	// Tooltip lines
+	line1 := fmt.ctprintf("%s — Level %d", zone, lvl)
+	line2: cstring
+	if locked {
+		line2 = fmt.ctprintf("Locked (need Lv.%d)", lvl)
+	} else if qc.zone_has_services(tile_x, tile_y) {
+		line2 = "Rest, Shop, Craft"
+	} else if qc.zone_has_wood(tile_x, tile_y) {
+		line2 = "Gather Wood"
+	} else if qc.zone_has_iron(tile_x, tile_y) {
+		line2 = "Mine Iron"
+	} else {
+		line2 = "Fight enemies here"
+	}
+
+	// Measure and position
+	w1 := rl.MeasureText(line1, 13)
+	w2 := rl.MeasureText(line2, 11)
+	tip_w := max(w1, w2) + 12
+	tip_h := i32(34)
+	tip_x := mx + 16
+	tip_y := my - tip_h - 4
+
+	// Keep on screen
+	if tip_x + tip_w > MAP_SIZE do tip_x = mx - tip_w - 4
+	if tip_y < 0 do tip_y = my + 20
+
+	// Draw tooltip box
+	rl.DrawRectangle(tip_x, tip_y, tip_w, tip_h, {20, 20, 35, 220})
+	rl.DrawRectangleLines(tip_x, tip_y, tip_w, tip_h, TILE_BORDER)
+
+	// Text
+	line1_color := TEXT_BRIGHT if !locked else rl.Color{255, 100, 100, 200}
+	rl.DrawText(line1, tip_x + 6, tip_y + 3, 13, line1_color)
+	rl.DrawText(line2, tip_x + 6, tip_y + 18, 11, TEXT_DIM)
 }
 
 // --- Title screen ---
@@ -197,7 +298,7 @@ draw_title :: proc(app: ^App_State) {
 
 	// Controls hint
 	rl.DrawText("WASD: Move   E: Fight   R: Rest", cx - 160, cy + 150, 16, TEXT_DIM)
-	rl.DrawText("Goal: Reach Level 3 and conquer the Castle!", cx - 200, cy + 180, 16, TEXT_GOLD)
+	rl.DrawText("Goal: Reach Level 5 and conquer the Castle!", cx - 200, cy + 180, 16, TEXT_GOLD)
 }
 
 // --- Victory screen ---

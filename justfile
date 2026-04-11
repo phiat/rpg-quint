@@ -98,6 +98,16 @@ trace name main:
     quint run --main={{main}} --mbt --max-steps=8 \
         --out-itf=traces/{{name}}_trace.itf.json "$f"
 
+# Regenerate quint_crawl traces (9x9 integrated spec, 5 traces)
+trace-crawl:
+    quint run --main=quint_crawl_run --mbt --max-samples=100000 --max-steps=20 --n-traces=5 \
+        --out-itf=traces/quint_crawl_trace.itf.json \
+        specs/quint_crawl.qnt
+
+# Test just the quint_crawl MBT harness
+test-crawl: trace-crawl
+    odin test quint_crawl_mbt/
+
 # --- Test execution ---
 
 # Run all MBT tests
