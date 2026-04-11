@@ -55,3 +55,6 @@ ENEMY_COLORS := [3]rl.Color{
 }
 
 ENEMY_NAMES := [3]string{"Slime", "Skeleton", "Dragon"}
+
+// Day/night cycle (temporary - will be driven by game state later)
+DAY_CYCLE_SPEED :: f32(0.03)  // full cycle in ~33 seconds for testing

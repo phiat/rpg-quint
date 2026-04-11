@@ -30,6 +30,8 @@ App_State :: struct {
 	shake_timer:  f32,       // combat hit shake
 	flash_color:  rl.Color,  // combat flash overlay
 	flash_timer:  f32,
+	pipeline:     Shader_Pipeline,
+	day_time:     f32,
 }
 
 add_message :: proc(app: ^App_State, text: string, color: rl.Color) {
@@ -79,6 +81,10 @@ update :: proc(app: ^App_State) {
 			ordered_remove(&app.messages, i)
 		}
 	}
+
+	// Advance day/night cycle
+	app.day_time += dt * DAY_CYCLE_SPEED
+	if app.day_time > 1.0 do app.day_time -= 1.0
 }
 
 main :: proc() {
@@ -89,6 +95,8 @@ main :: proc() {
 	app: App_State
 	app.screen = .Title
 	qc.init_game(&app.game)
+	init_shaders(&app.pipeline)
+	defer destroy_shaders(&app.pipeline)
 
 	for !rl.WindowShouldClose() {
 		// Update
@@ -105,6 +113,7 @@ main :: proc() {
 		// Draw
 		rl.BeginDrawing()
 		rl.ClearBackground(BG_COLOR)
+		begin_pipeline(&app.pipeline)
 
 		switch app.screen {
 		case .Title:
@@ -121,6 +130,7 @@ main :: proc() {
 			draw_game_over(&app)
 		}
 
+		end_pipeline(&app.pipeline, &app)
 		rl.EndDrawing()
 	}
 }

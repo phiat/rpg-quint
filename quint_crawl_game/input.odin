@@ -77,6 +77,13 @@ handle_map_input :: proc(app: ^App_State) {
 		}
 	}
 
+	// Repair sword
+	if rl.IsKeyPressed(.T) {
+		if qc.repair_sword(g) {
+			add_message(app, fmt.tprintf("Repaired sword for %d gold.", qc.REPAIR_COST), TEXT_GOLD)
+		}
+	}
+
 	// Equip sword
 	if rl.IsKeyPressed(.Q) {
 		if qc.equip_sword(g) {

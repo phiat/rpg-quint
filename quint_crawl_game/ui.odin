@@ -73,7 +73,8 @@ draw_hud :: proc(app: ^App_State) {
 	y += 18
 
 	if g.has_sword {
-		rl.DrawText("Equipped: Sword", x + 8, y, 14, {100, 200, 255, 255})
+		dur_color := TEXT_BRIGHT if g.sword_dur > 3 else BAR_HP_FG
+		rl.DrawText(fmt.ctprintf("Sword: %d/%d dur", g.sword_dur, g.sword_max_dur), x + 8, y, 14, dur_color)
 	} else {
 		rl.DrawText("Equipped: None", x + 8, y, 14, TEXT_DIM)
 	}
@@ -109,6 +110,9 @@ draw_hud :: proc(app: ^App_State) {
 			draw_action(x, &y, "[R]", "Rest", g.hp < g.max_hp)
 			draw_action(x, &y, "[B]", "Buy Potion (10g)", g.gold >= 10)
 			draw_action(x, &y, "[C]", "Craft Sword", g.qty_wood >= 1 && g.qty_iron >= 2)
+			if g.has_sword && g.sword_dur < g.sword_max_dur {
+				draw_action(x, &y, "[T]", fmt.ctprintf("Repair Sword (%dg)", qc.REPAIR_COST), g.gold >= qc.REPAIR_COST)
+			}
 		}
 		// Forest
 		if g.pos_x == 1 && g.pos_y == 0 {

@@ -23,10 +23,17 @@ module quint_crawl {
   var enemy_hp: int
   var enemy_attack: int
 
+  // === Durability ===
+  var sword_dur: int        // current durability (0 = broken, no bonus)
+  var sword_max_dur: int    // max durability
+
   // === Win condition ===
   var game_won: bool
 
   // --- Constants ---
+  val SWORD_MAX_DUR = 10
+  val REPAIR_COST = 5
+
   // XP thresholds: level 2 at 10 XP, level 3 at 25 XP
   pure def xp_threshold(lvl: int): int =
     if (lvl == 2) 10
@@ -81,11 +88,10 @@ module quint_crawl {
     else if (zone_level_req(x, y) == 2) 15
     else 25
 
-  // Total attack power
-  val attack_power = base_attack + (if (has_sword) 5 else 0)
+  // Total attack power (sword bonus only if equipped AND not broken)
+  val attack_power = base_attack + (if (has_sword and sword_dur > 0) 5 else 0)
 
   // --- Helpers ---
-  // Keep non-combat state unchanged
   pure def clamp_hp(v: int, mx: int): int =
     if (v > mx) mx else if (v < 0) 0 else v
 
@@ -108,100 +114,91 @@ module quint_crawl {
     enemy_hp' = 0,
     enemy_attack' = 0,
     game_won' = false,
+    sword_dur' = 0,
+    sword_max_dur' = SWORD_MAX_DUR,
   }
 
   // === Movement (only when not in combat) ===
   action move_up = all {
-    not(in_combat),
-    not(game_won),
-    hp > 0,
+    not(in_combat), not(game_won), hp > 0,
     pos_y > 0,
     zone_level_req(pos_x, pos_y - 1) <= level,
-    pos_y' = pos_y - 1,
-    pos_x' = pos_x,
+    pos_y' = pos_y - 1, pos_x' = pos_x,
     hp' = hp, max_hp' = max_hp, base_attack' = base_attack,
     xp' = xp, level' = level, gold' = gold,
     qty_potion' = qty_potion, qty_wood' = qty_wood,
     qty_iron' = qty_iron, qty_sword' = qty_sword, has_sword' = has_sword,
     in_combat' = false, enemy_hp' = 0, enemy_attack' = 0,
     game_won' = game_won,
+    sword_dur' = sword_dur, sword_max_dur' = sword_max_dur,
   }
 
   action move_down = all {
-    not(in_combat),
-    not(game_won),
-    hp > 0,
+    not(in_combat), not(game_won), hp > 0,
     pos_y < 2,
     zone_level_req(pos_x, pos_y + 1) <= level,
-    pos_y' = pos_y + 1,
-    pos_x' = pos_x,
+    pos_y' = pos_y + 1, pos_x' = pos_x,
     hp' = hp, max_hp' = max_hp, base_attack' = base_attack,
     xp' = xp, level' = level, gold' = gold,
     qty_potion' = qty_potion, qty_wood' = qty_wood,
     qty_iron' = qty_iron, qty_sword' = qty_sword, has_sword' = has_sword,
     in_combat' = false, enemy_hp' = 0, enemy_attack' = 0,
     game_won' = game_won,
+    sword_dur' = sword_dur, sword_max_dur' = sword_max_dur,
   }
 
   action move_left = all {
-    not(in_combat),
-    not(game_won),
-    hp > 0,
+    not(in_combat), not(game_won), hp > 0,
     pos_x > 0,
     zone_level_req(pos_x - 1, pos_y) <= level,
-    pos_x' = pos_x - 1,
-    pos_y' = pos_y,
+    pos_x' = pos_x - 1, pos_y' = pos_y,
     hp' = hp, max_hp' = max_hp, base_attack' = base_attack,
     xp' = xp, level' = level, gold' = gold,
     qty_potion' = qty_potion, qty_wood' = qty_wood,
     qty_iron' = qty_iron, qty_sword' = qty_sword, has_sword' = has_sword,
     in_combat' = false, enemy_hp' = 0, enemy_attack' = 0,
     game_won' = game_won,
+    sword_dur' = sword_dur, sword_max_dur' = sword_max_dur,
   }
 
   action move_right = all {
-    not(in_combat),
-    not(game_won),
-    hp > 0,
+    not(in_combat), not(game_won), hp > 0,
     pos_x < 2,
     zone_level_req(pos_x + 1, pos_y) <= level,
-    pos_x' = pos_x + 1,
-    pos_y' = pos_y,
+    pos_x' = pos_x + 1, pos_y' = pos_y,
     hp' = hp, max_hp' = max_hp, base_attack' = base_attack,
     xp' = xp, level' = level, gold' = gold,
     qty_potion' = qty_potion, qty_wood' = qty_wood,
     qty_iron' = qty_iron, qty_sword' = qty_sword, has_sword' = has_sword,
     in_combat' = false, enemy_hp' = 0, enemy_attack' = 0,
     game_won' = game_won,
+    sword_dur' = sword_dur, sword_max_dur' = sword_max_dur,
   }
 
   // === Enter combat ===
   action enter_combat = all {
-    not(in_combat),
-    not(game_won),
-    hp > 0,
+    not(in_combat), not(game_won), hp > 0,
     in_combat' = true,
     enemy_hp' = zone_enemy_hp(pos_x, pos_y),
     enemy_attack' = zone_enemy_attack(pos_x, pos_y),
-    // Everything else unchanged
     hp' = hp, max_hp' = max_hp, base_attack' = base_attack,
     xp' = xp, level' = level, gold' = gold,
     pos_x' = pos_x, pos_y' = pos_y,
     qty_potion' = qty_potion, qty_wood' = qty_wood,
     qty_iron' = qty_iron, qty_sword' = qty_sword, has_sword' = has_sword,
     game_won' = game_won,
+    sword_dur' = sword_dur, sword_max_dur' = sword_max_dur,
   }
 
   // === Combat: attack enemy ===
   action combat_attack = all {
-    in_combat,
-    not(game_won),
-    hp > 0,
-    enemy_hp > 0,
+    in_combat, not(game_won), hp > 0, enemy_hp > 0,
     val new_enemy_hp = enemy_hp - attack_power
     val new_hp = if (new_enemy_hp > 0) hp - enemy_attack else hp
     val gained_xp = if (new_enemy_hp <= 0 and new_hp > 0) xp + zone_xp_reward(pos_x, pos_y) else xp
     val new_level = if (level < 3 and gained_xp >= xp_threshold(level + 1)) level + 1 else level
+    // Degrade sword on attack (only if equipped and not already broken)
+    val new_sword_dur = if (has_sword and sword_dur > 0) sword_dur - 1 else sword_dur
     all {
       enemy_hp' = if (new_enemy_hp <= 0 or new_hp <= 0) 0 else new_enemy_hp,
       hp' = if (new_hp < 0) 0 else new_hp,
@@ -216,20 +213,15 @@ module quint_crawl {
       pos_x' = pos_x, pos_y' = pos_y,
       qty_potion' = qty_potion, qty_wood' = qty_wood,
       qty_iron' = qty_iron, qty_sword' = qty_sword, has_sword' = has_sword,
+      sword_dur' = new_sword_dur, sword_max_dur' = sword_max_dur,
     }
   }
 
   // === Combat: use potion ===
   action combat_potion = all {
-    in_combat,
-    not(game_won),
-    qty_potion > 0,
-    hp > 0,
+    in_combat, not(game_won), qty_potion > 0, hp > 0,
     hp' = clamp_hp(hp + 20, max_hp),
     qty_potion' = qty_potion - 1,
-    // Enemy still attacks
-    // Actually: use potion = heal + take hit
-    // Simplified: just heal, enemy doesn't attack on potion turn
     max_hp' = max_hp, base_attack' = base_attack,
     xp' = xp, level' = level, gold' = gold,
     pos_x' = pos_x, pos_y' = pos_y,
@@ -237,36 +229,30 @@ module quint_crawl {
     qty_sword' = qty_sword, has_sword' = has_sword,
     in_combat' = in_combat, enemy_hp' = enemy_hp, enemy_attack' = enemy_attack,
     game_won' = game_won,
+    sword_dur' = sword_dur, sword_max_dur' = sword_max_dur,
   }
 
   // === Flee combat ===
   action flee_combat = all {
-    in_combat,
-    not(game_won),
-    hp > 0,
-    // Take one hit while fleeing
+    in_combat, not(game_won), hp > 0,
     val new_hp = hp - enemy_attack
     all {
       hp' = if (new_hp < 0) 0 else new_hp,
-      in_combat' = false,
-      enemy_hp' = 0,
-      enemy_attack' = 0,
+      in_combat' = false, enemy_hp' = 0, enemy_attack' = 0,
       max_hp' = max_hp, base_attack' = base_attack,
       xp' = xp, level' = level, gold' = gold,
       pos_x' = pos_x, pos_y' = pos_y,
       qty_potion' = qty_potion, qty_wood' = qty_wood,
       qty_iron' = qty_iron, qty_sword' = qty_sword, has_sword' = has_sword,
       game_won' = game_won,
+      sword_dur' = sword_dur, sword_max_dur' = sword_max_dur,
     }
   }
 
   // === Rest at village (pos 0,0, not in combat) ===
   action rest_at_village = all {
-    not(in_combat),
-    not(game_won),
-    hp > 0,
-    pos_x == 0,
-    pos_y == 0,
+    not(in_combat), not(game_won), hp > 0,
+    pos_x == 0, pos_y == 0,
     hp < max_hp,
     hp' = max_hp,
     max_hp' = max_hp, base_attack' = base_attack,
@@ -276,18 +262,15 @@ module quint_crawl {
     qty_iron' = qty_iron, qty_sword' = qty_sword, has_sword' = has_sword,
     in_combat' = false, enemy_hp' = 0, enemy_attack' = 0,
     game_won' = game_won,
+    sword_dur' = sword_dur, sword_max_dur' = sword_max_dur,
   }
 
   // === Buy potion (at village, costs 10 gold) ===
   action buy_potion = all {
-    not(in_combat),
-    not(game_won),
-    hp > 0,
-    pos_x == 0,
-    pos_y == 0,
+    not(in_combat), not(game_won), hp > 0,
+    pos_x == 0, pos_y == 0,
     gold >= 10,
-    gold' = gold - 10,
-    qty_potion' = qty_potion + 1,
+    gold' = gold - 10, qty_potion' = qty_potion + 1,
     hp' = hp, max_hp' = max_hp, base_attack' = base_attack,
     xp' = xp, level' = level,
     pos_x' = pos_x, pos_y' = pos_y,
@@ -295,15 +278,32 @@ module quint_crawl {
     qty_sword' = qty_sword, has_sword' = has_sword,
     in_combat' = false, enemy_hp' = 0, enemy_attack' = 0,
     game_won' = game_won,
+    sword_dur' = sword_dur, sword_max_dur' = sword_max_dur,
+  }
+
+  // === Repair sword (at village, costs gold) ===
+  action repair_sword = all {
+    not(in_combat), not(game_won), hp > 0,
+    pos_x == 0, pos_y == 0,
+    has_sword,
+    sword_dur < sword_max_dur,
+    gold >= REPAIR_COST,
+    sword_dur' = sword_max_dur,
+    gold' = gold - REPAIR_COST,
+    hp' = hp, max_hp' = max_hp, base_attack' = base_attack,
+    xp' = xp, level' = level,
+    pos_x' = pos_x, pos_y' = pos_y,
+    qty_potion' = qty_potion, qty_wood' = qty_wood, qty_iron' = qty_iron,
+    qty_sword' = qty_sword, has_sword' = has_sword,
+    in_combat' = false, enemy_hp' = 0, enemy_attack' = 0,
+    game_won' = game_won,
+    sword_max_dur' = sword_max_dur,
   }
 
   // === Gather wood (in Forest x=1,y=0) ===
   action gather_wood = all {
-    not(in_combat),
-    not(game_won),
-    hp > 0,
-    pos_x == 1,
-    pos_y == 0,
+    not(in_combat), not(game_won), hp > 0,
+    pos_x == 1, pos_y == 0,
     qty_wood' = qty_wood + 1,
     hp' = hp, max_hp' = max_hp, base_attack' = base_attack,
     xp' = xp, level' = level, gold' = gold,
@@ -312,15 +312,13 @@ module quint_crawl {
     qty_sword' = qty_sword, has_sword' = has_sword,
     in_combat' = false, enemy_hp' = 0, enemy_attack' = 0,
     game_won' = game_won,
+    sword_dur' = sword_dur, sword_max_dur' = sword_max_dur,
   }
 
   // === Mine iron (in Mountain x=2,y=1) ===
   action mine_iron = all {
-    not(in_combat),
-    not(game_won),
-    hp > 0,
-    pos_x == 2,
-    pos_y == 1,
+    not(in_combat), not(game_won), hp > 0,
+    pos_x == 2, pos_y == 1,
     qty_iron' = qty_iron + 1,
     hp' = hp, max_hp' = max_hp, base_attack' = base_attack,
     xp' = xp, level' = level, gold' = gold,
@@ -329,19 +327,15 @@ module quint_crawl {
     qty_sword' = qty_sword, has_sword' = has_sword,
     in_combat' = false, enemy_hp' = 0, enemy_attack' = 0,
     game_won' = game_won,
+    sword_dur' = sword_dur, sword_max_dur' = sword_max_dur,
   }
 
   // === Craft sword (1 wood + 2 iron -> 1 sword, at village) ===
   action craft_sword = all {
-    not(in_combat),
-    not(game_won),
-    hp > 0,
-    pos_x == 0,
-    pos_y == 0,
-    qty_wood >= 1,
-    qty_iron >= 2,
-    qty_wood' = qty_wood - 1,
-    qty_iron' = qty_iron - 2,
+    not(in_combat), not(game_won), hp > 0,
+    pos_x == 0, pos_y == 0,
+    qty_wood >= 1, qty_iron >= 2,
+    qty_wood' = qty_wood - 1, qty_iron' = qty_iron - 2,
     qty_sword' = qty_sword + 1,
     hp' = hp, max_hp' = max_hp, base_attack' = base_attack,
     xp' = xp, level' = level, gold' = gold,
@@ -349,41 +343,30 @@ module quint_crawl {
     qty_potion' = qty_potion, has_sword' = has_sword,
     in_combat' = false, enemy_hp' = 0, enemy_attack' = 0,
     game_won' = game_won,
+    sword_dur' = sword_dur, sword_max_dur' = sword_max_dur,
   }
 
-  // === Equip sword ===
+  // === Equip sword (sets durability to max) ===
   action equip_sword = all {
-    not(in_combat),
-    not(game_won),
-    hp > 0,
-    qty_sword >= 1,
-    not(has_sword),
-    has_sword' = true,
-    qty_sword' = qty_sword - 1,
+    not(in_combat), not(game_won), hp > 0,
+    qty_sword >= 1, not(has_sword),
+    has_sword' = true, qty_sword' = qty_sword - 1,
+    sword_dur' = SWORD_MAX_DUR,
     hp' = hp, max_hp' = max_hp, base_attack' = base_attack,
     xp' = xp, level' = level, gold' = gold,
     pos_x' = pos_x, pos_y' = pos_y,
     qty_potion' = qty_potion, qty_wood' = qty_wood, qty_iron' = qty_iron,
     in_combat' = false, enemy_hp' = 0, enemy_attack' = 0,
     game_won' = game_won,
+    sword_max_dur' = sword_max_dur,
   }
 
   // === Step ===
   action step = any {
-    move_up,
-    move_down,
-    move_left,
-    move_right,
-    enter_combat,
-    combat_attack,
-    combat_potion,
-    flee_combat,
-    rest_at_village,
-    buy_potion,
-    gather_wood,
-    mine_iron,
-    craft_sword,
-    equip_sword,
+    move_up, move_down, move_left, move_right,
+    enter_combat, combat_attack, combat_potion, flee_combat,
+    rest_at_village, buy_potion, repair_sword,
+    gather_wood, mine_iron, craft_sword, equip_sword,
   }
 
   // === Invariants ===
@@ -422,6 +405,15 @@ module quint_crawl {
 
   /// Not in combat means no enemy
   val combat_consistent = not(in_combat).implies(enemy_hp == 0 and enemy_attack == 0)
+
+  /// Durability bounded [0, max]
+  val dur_bounded = sword_dur >= 0 and sword_dur <= sword_max_dur
+
+  /// Max durability is constant
+  val dur_max_constant = sword_max_dur == SWORD_MAX_DUR
+
+  /// Broken sword gives no attack bonus
+  val broken_no_bonus = (has_sword and sword_dur == 0).implies(attack_power == base_attack)
 }
 
 module quint_crawl_run {

@@ -1,3 +1,8 @@
+![Odin](https://img.shields.io/badge/Odin-lang-blue)
+![Quint](https://img.shields.io/badge/Quint-formal%20spec-purple)
+![Raylib](https://img.shields.io/badge/raylib-5.5-green)
+![License](https://img.shields.io/badge/license-MIT-blue)
+
 # Quint Crawl — Formally Verified RPG
 
 A raylib RPG game built on formally verified game logic. Every game rule is specified in [Quint](https://quint-lang.org/), tested via Model-Based Testing (MBT), and implemented in [Odin](https://odin-lang.org/).

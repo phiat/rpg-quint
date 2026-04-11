@@ -19,6 +19,9 @@ ZONE_GOLD_REWARD := [3]int{10, 15, 25}
 
 XP_THRESHOLDS := [4]int{0, 0, 10, 25}   // index by level: threshold for level 2 = 10, level 3 = 25
 
+SWORD_MAX_DUR :: 10
+REPAIR_COST :: 5
+
 Game_State :: struct {
 	hp:           int,
 	max_hp:       int,
@@ -33,6 +36,8 @@ Game_State :: struct {
 	qty_iron:     int,
 	qty_sword:    int,
 	has_sword:    bool,
+	sword_dur:    int,
+	sword_max_dur: int,
 	in_combat:    bool,
 	enemy_hp:     int,
 	enemy_attack: int,
@@ -50,7 +55,7 @@ zone_level_req :: proc(x, y: int) -> int {
 }
 
 attack_power :: proc(g: ^Game_State) -> int {
-	return g.base_attack + (5 if g.has_sword else 0)
+	return g.base_attack + (5 if (g.has_sword && g.sword_dur > 0) else 0)
 }
 
 init_game :: proc(g: ^Game_State) {
@@ -67,6 +72,8 @@ init_game :: proc(g: ^Game_State) {
 	g.qty_iron = 0
 	g.qty_sword = 0
 	g.has_sword = false
+	g.sword_dur = 0
+	g.sword_max_dur = SWORD_MAX_DUR
 	g.in_combat = false
 	g.enemy_hp = 0
 	g.enemy_attack = 0
@@ -95,6 +102,10 @@ enter_combat :: proc(g: ^Game_State) -> bool {
 combat_attack :: proc(g: ^Game_State) -> bool {
 	if !g.in_combat || g.game_won || g.hp <= 0 || g.enemy_hp <= 0 do return false
 	atk := attack_power(g)
+	// Degrade sword on attack
+	if g.has_sword && g.sword_dur > 0 {
+		g.sword_dur -= 1
+	}
 	new_enemy_hp := g.enemy_hp - atk
 	new_hp := g.hp
 	if new_enemy_hp > 0 {
@@ -193,5 +204,17 @@ equip_sword :: proc(g: ^Game_State) -> bool {
 	if g.qty_sword < 1 || g.has_sword do return false
 	g.has_sword = true
 	g.qty_sword -= 1
+	g.sword_dur = SWORD_MAX_DUR
+	return true
+}
+
+repair_sword :: proc(g: ^Game_State) -> bool {
+	if g.in_combat || g.game_won || g.hp <= 0 do return false
+	if g.pos_x != 0 || g.pos_y != 0 do return false
+	if !g.has_sword do return false
+	if g.sword_dur >= g.sword_max_dur do return false
+	if g.gold < REPAIR_COST do return false
+	g.sword_dur = g.sword_max_dur
+	g.gold -= REPAIR_COST
 	return true
 }

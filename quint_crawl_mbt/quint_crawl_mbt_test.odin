@@ -54,6 +54,9 @@ crawl_step :: proc(driver: rawptr, action: string, picks: map[string]mbt.ITF_Val
 	case "equip_sword":
 		qc.equip_sword(g)
 		return true
+	case "repair_sword":
+		qc.repair_sword(g)
+		return true
 	case:
 		return false
 	}
@@ -79,6 +82,8 @@ crawl_state :: proc(driver: rawptr) -> map[string]mbt.ITF_Value {
 	state["enemy_hp"] = mbt.ITF_Int{g.enemy_hp}
 	state["enemy_attack"] = mbt.ITF_Int{g.enemy_attack}
 	state["game_won"] = mbt.ITF_Bool{g.game_won}
+	state["sword_dur"] = mbt.ITF_Int{g.sword_dur}
+	state["sword_max_dur"] = mbt.ITF_Int{g.sword_max_dur}
 	return state
 }
 
