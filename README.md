@@ -17,7 +17,7 @@ Inspired by: [Model-Based Testing for D&D](https://www.loskutoff.com/blog/model-
 just play             # build and run the game
 ```
 
-Controls: WASD to move, E to fight, A to attack, K for combo, H for heavy strike, Y for battle cry, P for potions, V to poison, X for antidote, F to flee, R to rest, B to buy potions, G to gather wood, M to mine iron, C to craft, Q to equip, T to repair, F5 to save, F9 to load. See the HUD sidebar for zone-specific actions.
+Controls: WASD to move, E to fight, A to attack, K for combo, H for heavy strike, Y for battle cry, P for potions, V to poison, X for antidote, F to flee, R to rest, B to buy potions, G to gather wood, M to mine iron, C to craft, Q to equip, T to repair, L to claim victory (at Level 5 Castle), F5 to save, F9 to load. See the HUD sidebar for zone-specific actions.
 
 Features:
 - 9x9 world grid with 5 difficulty levels and biome tiling (3x3 pattern repeats across regions)

@@ -60,7 +60,7 @@ module quint_crawl {
   // --- Constants ---
   val SWORD_MAX_DUR = 10
   val REPAIR_COST = 5
-  val POISON_DMG = 3
+  val POISON_DMG = 7
   val ATK_BUFF_BONUS = 5
   val DEF_BUFF_REDUCTION = 3
   val STATUS_DURATION = 3
@@ -75,18 +75,32 @@ module quint_crawl {
   val BATTLE_CRY_STAMINA = 3    // stamina cost for battle cry
   val HEAVY_STRIKE_CD = 3   // cooldown turns for heavy strike
   val BATTLE_CRY_CD = 4     // cooldown turns for battle cry
-  val PITY_THRESHOLD = 5    // kills without drop before guaranteed drop
+  val PITY_THRESHOLD = 8    // kills without drop before guaranteed drop
+  val POTION_COST = 15      // gold cost to buy a potion
+  val HP_PER_LEVEL = 15     // max HP gained per level-up
+  val ATK_PER_LEVEL_UP = 2  // base attack gained per level-up
+  val STAMINA_PER_LEVEL = 3 // max stamina gained per level-up
+  val INITIAL_HP = 50       // starting HP and max HP
+  val INITIAL_ATTACK = 10   // starting base attack
+  val INITIAL_POTIONS = 2   // starting potion count
+  val INITIAL_STAMINA = 10  // starting stamina and max stamina
+  val POTION_HEAL = 20      // HP restored per potion
+  val CRAFT_WOOD_COST = 1   // wood required to craft a sword
+  val CRAFT_IRON_COST = 2   // iron required to craft a sword
+  val POISON_APPLY_TIER = 2 // minimum zone tier for auto-poison
+  val LOOT_DROP_MODULO = 3  // turn modulo for guaranteed loot drops
+  val MAX_COMBO_CHAIN = 3   // max combo hits before reset
 
   // --- World scaling constants ---
   val WORLD_SIZE = 9        // grid dimension (NxN)
   val MAX_LEVEL = 5         // max zone difficulty
   val TILES_PER_LEVEL = 3   // (x+y) distance per level increment
-  val BASE_ENEMY_HP = 15    // enemy HP at level 1
+  val BASE_ENEMY_HP = 20    // enemy HP at level 1
   val BASE_ENEMY_ATK = 2    // enemy ATK constant term
-  val ATK_PER_LEVEL = 3     // enemy ATK per level
+  val ATK_PER_LEVEL = 4     // enemy ATK per level
   val BASE_XP = 5           // XP reward per level
-  val BASE_GOLD = 5         // gold reward constant term
-  val GOLD_PER_LEVEL = 5    // gold reward per level
+  val BASE_GOLD = 3         // gold reward constant term
+  val GOLD_PER_LEVEL = 3    // gold reward per level
 
   // Weather types: 0=Clear, 1=Rain, 2=Fog, 3=Storm
   // Deterministic weather based on turn and zone
@@ -95,10 +109,10 @@ module quint_crawl {
 
   // XP thresholds for leveling up
   pure def xp_threshold(lvl: int): int =
-    if (lvl == 2) 10
-    else if (lvl == 3) 25
-    else if (lvl == 4) 50
-    else if (lvl == 5) 85
+    if (lvl == 2) 15
+    else if (lvl == 3) 45
+    else if (lvl == 4) 90
+    else if (lvl == 5) 150
     else 9999
 
   // --- Zone properties: pure functions of coordinates ---
@@ -147,15 +161,15 @@ module quint_crawl {
 
   // === Init ===
   action init = all {
-    hp' = 50,
-    max_hp' = 50,
-    base_attack' = 10,
+    hp' = INITIAL_HP,
+    max_hp' = INITIAL_HP,
+    base_attack' = INITIAL_ATTACK,
     xp' = 0,
     level' = 1,
     gold' = 0,
     pos_x' = 0,
     pos_y' = 0,
-    qty_potion' = 2,
+    qty_potion' = INITIAL_POTIONS,
     qty_wood' = 0,
     qty_iron' = 0,
     qty_sword' = 0,
@@ -173,8 +187,8 @@ module quint_crawl {
     combo_count' = 0,
     turn_count' = 0,
     saved_exists' = false,
-    stamina' = 10,
-    max_stamina' = 10,
+    stamina' = INITIAL_STAMINA,
+    max_stamina' = INITIAL_STAMINA,
     cd_heavy_strike' = 0,
     cd_battle_cry' = 0,
     pity_counter' = 0,
@@ -334,7 +348,7 @@ module quint_crawl {
     val new_level = if (level < MAX_LEVEL and gained_xp >= xp_threshold(level + 1)) level + 1 else level
     // Tier 2+ enemies apply poison if player isn't already poisoned
     val zone_tier = zone_level(pos_x, pos_y)
-    val apply_poison = (zone_tier >= 2 and player_poison_dur == 0 and new_enemy_hp > 0)
+    val apply_poison = (zone_tier >= POISON_APPLY_TIER and player_poison_dur == 0 and new_enemy_hp > 0)
     // Tick status durations (decrement, floor at 0)
     val next_player_poison = if (apply_poison) STATUS_DURATION
                              else if (player_poison_dur > 0) player_poison_dur - 1
@@ -346,7 +360,7 @@ module quint_crawl {
     val combat_ends = (new_enemy_hp <= 0 or new_hp <= 0)
     // Loot drop on enemy defeat (deterministic pity system)
     val enemy_defeated_alive = (new_enemy_hp <= 0 and new_hp > 0)
-    val drop_trigger = (pity_counter >= PITY_THRESHOLD or (turn_count % 3 == 0))
+    val drop_trigger = (pity_counter >= PITY_THRESHOLD or (turn_count % LOOT_DROP_MODULO == 0))
     val should_drop = enemy_defeated_alive and drop_trigger
     val new_pity = if (should_drop) 0
                    else if (enemy_defeated_alive) pity_counter + 1
@@ -360,9 +374,9 @@ module quint_crawl {
       gold' = if (new_enemy_hp <= 0) gold + zone_gold_reward(pos_x, pos_y) else gold,
       enemy_attack' = if (combat_ends) 0 else enemy_attack,
       level' = new_level,
-      max_hp' = if (new_level > level) max_hp + 20 else max_hp,
-      base_attack' = if (new_level > level) base_attack + 3 else base_attack,
-      game_won' = (new_level >= MAX_LEVEL),
+      max_hp' = if (new_level > level) max_hp + HP_PER_LEVEL else max_hp,
+      base_attack' = if (new_level > level) base_attack + ATK_PER_LEVEL_UP else base_attack,
+      game_won' = game_won,  // win requires claim_victory at Castle
       pos_x' = pos_x, pos_y' = pos_y,
       qty_potion' = if (should_drop) qty_potion + 1 else qty_potion,
       qty_wood' = qty_wood,
@@ -377,7 +391,7 @@ module quint_crawl {
       saved_exists' = saved_exists,
       turn_count' = turn_count + 1,
       stamina' = stamina - ATTACK_STAMINA,
-      max_stamina' = if (new_level > level) max_stamina + 5 else max_stamina,
+      max_stamina' = if (new_level > level) max_stamina + STAMINA_PER_LEVEL else max_stamina,
       cd_heavy_strike' = if (combat_ends) 0 else (if (cd_heavy_strike > 0) cd_heavy_strike - 1 else 0),
       cd_battle_cry' = if (combat_ends) 0 else (if (cd_battle_cry > 0) cd_battle_cry - 1 else 0),
       pity_counter' = new_pity,
@@ -388,7 +402,7 @@ module quint_crawl {
   // === Combat: use potion (quick action — no stamina cost, no CD tick) ===
   action combat_potion = all {
     in_combat, not(game_won), qty_potion > 0, hp > 0,
-    hp' = clamp_hp(hp + 20, max_hp),
+    hp' = clamp_hp(hp + POTION_HEAL, max_hp),
     qty_potion' = qty_potion - 1,
     max_hp' = max_hp, base_attack' = base_attack,
     xp' = xp, level' = level, gold' = gold,
@@ -461,8 +475,8 @@ module quint_crawl {
   action buy_potion = all {
     not(in_combat), not(game_won), hp > 0,
     zone_has_services(pos_x, pos_y),
-    gold >= 10,
-    gold' = gold - 10, qty_potion' = qty_potion + 1,
+    gold >= POTION_COST,
+    gold' = gold - POTION_COST, qty_potion' = qty_potion + 1,
     hp' = hp, max_hp' = max_hp, base_attack' = base_attack,
     xp' = xp, level' = level,
     pos_x' = pos_x, pos_y' = pos_y,
@@ -566,8 +580,8 @@ module quint_crawl {
   action craft_sword = all {
     not(in_combat), not(game_won), hp > 0,
     zone_has_services(pos_x, pos_y),
-    qty_wood >= 1, qty_iron >= 2,
-    qty_wood' = qty_wood - 1, qty_iron' = qty_iron - 2,
+    qty_wood >= CRAFT_WOOD_COST, qty_iron >= CRAFT_IRON_COST,
+    qty_wood' = qty_wood - CRAFT_WOOD_COST, qty_iron' = qty_iron - CRAFT_IRON_COST,
     qty_sword' = qty_sword + 1,
     hp' = hp, max_hp' = max_hp, base_attack' = base_attack,
     xp' = xp, level' = level, gold' = gold,
@@ -673,7 +687,7 @@ module quint_crawl {
   // === Combo attack (3-hit chain: Slash 1x → Thrust 1.5x → Finisher 2x) ===
   action combo_attack = all {
     in_combat, not(game_won), hp > 0, enemy_hp > 0,
-    combo_count < 3,
+    combo_count < MAX_COMBO_CHAIN,
     stamina >= COMBO_STAMINA,
     val next_combo = combo_count + 1
     val base_dmg = attack_power
@@ -694,7 +708,7 @@ module quint_crawl {
     val new_level = if (level < MAX_LEVEL and gained_xp >= xp_threshold(level + 1)) level + 1 else level
     // Status ticking
     val zone_tier = zone_level(pos_x, pos_y)
-    val apply_poison = (zone_tier >= 2 and player_poison_dur == 0 and new_enemy_hp > 0)
+    val apply_poison = (zone_tier >= POISON_APPLY_TIER and player_poison_dur == 0 and new_enemy_hp > 0)
     val next_player_poison = if (apply_poison) STATUS_DURATION
                              else if (player_poison_dur > 0) player_poison_dur - 1
                              else 0
@@ -704,11 +718,11 @@ module quint_crawl {
     val combat_ends = (new_enemy_hp <= 0 or new_hp <= 0)
     // Combo state: reset on combat end or chain complete (3 hits), else advance
     val new_combo_count = if (combat_ends) 0
-                          else if (next_combo >= 3) 0
+                          else if (next_combo >= MAX_COMBO_CHAIN) 0
                           else next_combo
     // Loot drop on enemy defeat
     val enemy_defeated_alive = (new_enemy_hp <= 0 and new_hp > 0)
-    val drop_trigger = (pity_counter >= PITY_THRESHOLD or (turn_count % 3 == 0))
+    val drop_trigger = (pity_counter >= PITY_THRESHOLD or (turn_count % LOOT_DROP_MODULO == 0))
     val should_drop = enemy_defeated_alive and drop_trigger
     val new_pity = if (should_drop) 0
                    else if (enemy_defeated_alive) pity_counter + 1
@@ -722,9 +736,9 @@ module quint_crawl {
       gold' = if (new_enemy_hp <= 0) gold + zone_gold_reward(pos_x, pos_y) else gold,
       enemy_attack' = if (combat_ends) 0 else enemy_attack,
       level' = new_level,
-      max_hp' = if (new_level > level) max_hp + 20 else max_hp,
-      base_attack' = if (new_level > level) base_attack + 3 else base_attack,
-      game_won' = (new_level >= MAX_LEVEL),
+      max_hp' = if (new_level > level) max_hp + HP_PER_LEVEL else max_hp,
+      base_attack' = if (new_level > level) base_attack + ATK_PER_LEVEL_UP else base_attack,
+      game_won' = game_won,  // win requires claim_victory at Castle
       pos_x' = pos_x, pos_y' = pos_y,
       qty_potion' = if (should_drop) qty_potion + 1 else qty_potion,
       qty_wood' = qty_wood,
@@ -738,7 +752,7 @@ module quint_crawl {
       saved_exists' = saved_exists,
       turn_count' = turn_count + 1,
       stamina' = stamina - COMBO_STAMINA,
-      max_stamina' = if (new_level > level) max_stamina + 5 else max_stamina,
+      max_stamina' = if (new_level > level) max_stamina + STAMINA_PER_LEVEL else max_stamina,
       cd_heavy_strike' = if (combat_ends) 0 else (if (cd_heavy_strike > 0) cd_heavy_strike - 1 else 0),
       cd_battle_cry' = if (combat_ends) 0 else (if (cd_battle_cry > 0) cd_battle_cry - 1 else 0),
       pity_counter' = new_pity,
@@ -766,7 +780,7 @@ module quint_crawl {
     val new_level = if (level < MAX_LEVEL and gained_xp >= xp_threshold(level + 1)) level + 1 else level
     // Status ticking
     val zone_tier = zone_level(pos_x, pos_y)
-    val apply_poison = (zone_tier >= 2 and player_poison_dur == 0 and new_enemy_hp > 0)
+    val apply_poison = (zone_tier >= POISON_APPLY_TIER and player_poison_dur == 0 and new_enemy_hp > 0)
     val next_player_poison = if (apply_poison) STATUS_DURATION
                              else if (player_poison_dur > 0) player_poison_dur - 1
                              else 0
@@ -776,7 +790,7 @@ module quint_crawl {
     val combat_ends = (new_enemy_hp <= 0 or new_hp <= 0)
     // Loot drop on enemy defeat
     val enemy_defeated_alive = (new_enemy_hp <= 0 and new_hp > 0)
-    val drop_trigger = (pity_counter >= PITY_THRESHOLD or (turn_count % 3 == 0))
+    val drop_trigger = (pity_counter >= PITY_THRESHOLD or (turn_count % LOOT_DROP_MODULO == 0))
     val should_drop = enemy_defeated_alive and drop_trigger
     val new_pity = if (should_drop) 0
                    else if (enemy_defeated_alive) pity_counter + 1
@@ -790,9 +804,9 @@ module quint_crawl {
       gold' = if (new_enemy_hp <= 0) gold + zone_gold_reward(pos_x, pos_y) else gold,
       enemy_attack' = if (combat_ends) 0 else enemy_attack,
       level' = new_level,
-      max_hp' = if (new_level > level) max_hp + 20 else max_hp,
-      base_attack' = if (new_level > level) base_attack + 3 else base_attack,
-      game_won' = (new_level >= MAX_LEVEL),
+      max_hp' = if (new_level > level) max_hp + HP_PER_LEVEL else max_hp,
+      base_attack' = if (new_level > level) base_attack + ATK_PER_LEVEL_UP else base_attack,
+      game_won' = game_won,  // win requires claim_victory at Castle
       pos_x' = pos_x, pos_y' = pos_y,
       qty_potion' = if (should_drop) qty_potion + 1 else qty_potion,
       qty_wood' = qty_wood,
@@ -806,7 +820,7 @@ module quint_crawl {
       saved_exists' = saved_exists,
       turn_count' = turn_count + 1,
       stamina' = stamina - HEAVY_STRIKE_STAMINA,
-      max_stamina' = if (new_level > level) max_stamina + 5 else max_stamina,
+      max_stamina' = if (new_level > level) max_stamina + STAMINA_PER_LEVEL else max_stamina,
       cd_heavy_strike' = if (combat_ends) 0 else HEAVY_STRIKE_CD,
       cd_battle_cry' = if (combat_ends) 0 else (if (cd_battle_cry > 0) cd_battle_cry - 1 else 0),
       pity_counter' = new_pity,
@@ -828,7 +842,7 @@ module quint_crawl {
     val combat_ends = (new_hp <= 0)
     // Status ticking
     val zone_tier = zone_level(pos_x, pos_y)
-    val apply_poison = (zone_tier >= 2 and player_poison_dur == 0)
+    val apply_poison = (zone_tier >= POISON_APPLY_TIER and player_poison_dur == 0)
     val next_player_poison = if (apply_poison) STATUS_DURATION
                              else if (player_poison_dur > 0) player_poison_dur - 1
                              else 0
@@ -906,6 +920,31 @@ module quint_crawl {
     pity_counter' = pity_counter, last_drop' = last_drop,
   }
 
+  // === Claim Victory ===
+  // Player must be at max level AND standing on a level-5 Castle tile
+  action claim_victory = all {
+    not(in_combat), not(game_won), hp > 0,
+    level >= MAX_LEVEL,
+    zone_biome_x(pos_x) == 2, zone_biome_y(pos_y) == 2,
+    zone_level(pos_x, pos_y) >= MAX_LEVEL,
+    game_won' = true,
+    hp' = hp, max_hp' = max_hp, base_attack' = base_attack,
+    xp' = xp, level' = level, gold' = gold,
+    pos_x' = pos_x, pos_y' = pos_y,
+    qty_potion' = qty_potion, qty_wood' = qty_wood,
+    qty_iron' = qty_iron, qty_sword' = qty_sword, has_sword' = has_sword,
+    in_combat' = false, enemy_hp' = 0, enemy_attack' = 0,
+    sword_dur' = sword_dur, sword_max_dur' = sword_max_dur,
+    player_poison_dur' = 0, player_atk_buff_dur' = 0,
+    player_def_buff_dur' = 0, enemy_poison_dur' = 0,
+    combo_count' = 0,
+    saved_exists' = saved_exists,
+    turn_count' = turn_count,
+    stamina' = stamina, max_stamina' = max_stamina,
+    cd_heavy_strike' = 0, cd_battle_cry' = 0,
+    pity_counter' = pity_counter, last_drop' = last_drop,
+  }
+
   // === Step ===
   action step = any {
     move_up, move_down, move_left, move_right,
@@ -914,7 +953,7 @@ module quint_crawl {
     gather_wood, mine_iron, craft_sword, equip_sword,
     use_antidote, poison_strike, combo_attack,
     heavy_strike, battle_cry,
-    save_game, load_game,
+    save_game, load_game, claim_victory,
   }
 
   // === Invariants ===

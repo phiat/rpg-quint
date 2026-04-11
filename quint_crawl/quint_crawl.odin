@@ -7,22 +7,22 @@ ZONE_NAMES := [3][3]string{
 	{"Swamp", "Mountain", "Castle"},
 }
 
-XP_THRESHOLDS := [MAX_LEVEL + 1]int{0, 0, 10, 25, 50, 85}   // index by level
+XP_THRESHOLDS := [MAX_LEVEL + 1]int{0, 0, 15, 45, 90, 150}   // index by level
 
 // --- World scaling constants ---
 WORLD_SIZE :: 9        // grid dimension (NxN)
 MAX_LEVEL :: 5         // max zone difficulty
 TILES_PER_LEVEL :: 3   // (x+y) distance per level increment
-BASE_ENEMY_HP :: 15    // enemy HP at level 1
+BASE_ENEMY_HP :: 20    // enemy HP at level 1
 BASE_ENEMY_ATK :: 2    // enemy ATK constant term
-ATK_PER_LEVEL :: 3     // enemy ATK per level
+ATK_PER_LEVEL :: 4     // enemy ATK per level
 BASE_XP :: 5           // XP reward per level
-BASE_GOLD :: 5         // gold reward constant term
-GOLD_PER_LEVEL :: 5    // gold reward per level
+BASE_GOLD :: 3         // gold reward constant term
+GOLD_PER_LEVEL :: 3    // gold reward per level
 
 SWORD_MAX_DUR :: 10
 REPAIR_COST :: 5
-POISON_DMG :: 3
+POISON_DMG :: 7
 ATK_BUFF_BONUS :: 5
 DEF_BUFF_REDUCTION :: 3
 STATUS_DURATION :: 3
@@ -36,8 +36,22 @@ HEAVY_STRIKE_STAMINA :: 5
 BATTLE_CRY_STAMINA :: 3
 HEAVY_STRIKE_CD :: 3
 BATTLE_CRY_CD :: 4
-PITY_THRESHOLD :: 5
+PITY_THRESHOLD :: 8
 SWORD_ATK_BONUS :: 5
+POTION_COST :: 15
+HP_PER_LEVEL :: 15
+ATK_PER_LEVEL_UP :: 2
+STAMINA_PER_LEVEL :: 3
+INITIAL_HP :: 50
+INITIAL_ATTACK :: 10
+INITIAL_POTIONS :: 2
+INITIAL_STAMINA :: 10
+POTION_HEAL :: 20
+CRAFT_WOOD_COST :: 1
+CRAFT_IRON_COST :: 2
+POISON_APPLY_TIER :: 2
+LOOT_DROP_MODULO :: 3
+MAX_COMBO_CHAIN :: 3
 
 Save_Data :: struct {
 	hp:           int,
@@ -158,15 +172,15 @@ attack_power :: proc(g: ^Game_State) -> int {
 }
 
 init_game :: proc(g: ^Game_State) {
-	g.hp = 50
-	g.max_hp = 50
-	g.base_attack = 10
+	g.hp = INITIAL_HP
+	g.max_hp = INITIAL_HP
+	g.base_attack = INITIAL_ATTACK
 	g.xp = 0
 	g.level = 1
 	g.gold = 0
 	g.pos_x = 0
 	g.pos_y = 0
-	g.qty_potion = 2
+	g.qty_potion = INITIAL_POTIONS
 	g.qty_wood = 0
 	g.qty_iron = 0
 	g.qty_sword = 0
@@ -185,8 +199,8 @@ init_game :: proc(g: ^Game_State) {
 
 	g.turn_count = 0
 	g.saved_exists = false
-	g.stamina = 10
-	g.max_stamina = 10
+	g.stamina = INITIAL_STAMINA
+	g.max_stamina = INITIAL_STAMINA
 	g.cd_heavy_strike = 0
 	g.cd_battle_cry = 0
 	g.pity_counter = 0
@@ -242,7 +256,7 @@ reset_cooldowns :: proc(g: ^Game_State) {
 resolve_loot :: proc(g: ^Game_State) {
 	// turn_count was already incremented before resolve_combat_hit, so use -1 to match spec
 	pre_turn := g.turn_count - 1
-	should_drop := g.pity_counter >= PITY_THRESHOLD || (pre_turn % 3 == 0)
+	should_drop := g.pity_counter >= PITY_THRESHOLD || (pre_turn % LOOT_DROP_MODULO == 0)
 	if should_drop {
 		g.qty_potion += 1
 		g.pity_counter = 0
@@ -286,7 +300,7 @@ resolve_combat_hit :: proc(g: ^Game_State, dmg: int) -> bool {
 		reset_cooldowns(g)
 	} else {
 		zlvl := zone_level(g.pos_x, g.pos_y)
-		if zlvl >= 2 && g.player_poison_dur == 0 {
+		if zlvl >= POISON_APPLY_TIER && g.player_poison_dur == 0 {
 			g.player_poison_dur = STATUS_DURATION
 		} else if g.player_poison_dur > 0 {
 			g.player_poison_dur -= 1
@@ -315,12 +329,9 @@ resolve_combat_hit :: proc(g: ^Game_State, dmg: int) -> bool {
 		resolve_loot(g)
 		if g.level < MAX_LEVEL && g.xp >= XP_THRESHOLDS[g.level + 1] {
 			g.level += 1
-			g.max_hp += 20
-			g.base_attack += 3
-			g.max_stamina += 5
-		}
-		if g.level >= MAX_LEVEL {
-			g.game_won = true
+			g.max_hp += HP_PER_LEVEL
+			g.base_attack += ATK_PER_LEVEL_UP
+			g.max_stamina += STAMINA_PER_LEVEL
 		}
 	}
 	return combat_ends
@@ -343,7 +354,7 @@ combat_attack :: proc(g: ^Game_State) -> bool {
 combat_potion :: proc(g: ^Game_State) -> bool {
 	if !g.in_combat || g.game_won || g.qty_potion <= 0 || g.hp <= 0 do return false
 	g.turn_count += 1
-	g.hp = min(g.hp + 20, g.max_hp)
+	g.hp = min(g.hp + POTION_HEAL, g.max_hp)
 	g.qty_potion -= 1
 	g.combo_count = 0
 
@@ -381,9 +392,9 @@ rest_at_village :: proc(g: ^Game_State) -> bool {
 buy_potion :: proc(g: ^Game_State) -> bool {
 	if g.in_combat || g.game_won || g.hp <= 0 do return false
 	if !zone_has_services(g.pos_x, g.pos_y) do return false
-	if g.gold < 10 do return false
+	if g.gold < POTION_COST do return false
 	g.turn_count += 1
-	g.gold -= 10
+	g.gold -= POTION_COST
 	g.qty_potion += 1
 	return true
 }
@@ -409,10 +420,10 @@ mine_iron :: proc(g: ^Game_State) -> bool {
 craft_sword :: proc(g: ^Game_State) -> bool {
 	if g.in_combat || g.game_won || g.hp <= 0 do return false
 	if !zone_has_services(g.pos_x, g.pos_y) do return false
-	if g.qty_wood < 1 || g.qty_iron < 2 do return false
+	if g.qty_wood < CRAFT_WOOD_COST || g.qty_iron < CRAFT_IRON_COST do return false
 	g.turn_count += 1
-	g.qty_wood -= 1
-	g.qty_iron -= 2
+	g.qty_wood -= CRAFT_WOOD_COST
+	g.qty_iron -= CRAFT_IRON_COST
 	g.qty_sword += 1
 	return true
 }
@@ -436,6 +447,16 @@ repair_sword :: proc(g: ^Game_State) -> bool {
 	g.turn_count += 1
 	g.sword_dur = g.sword_max_dur
 	g.gold -= REPAIR_COST
+	return true
+}
+
+claim_victory :: proc(g: ^Game_State) -> bool {
+	if g.in_combat || g.game_won || g.hp <= 0 do return false
+	if g.level < MAX_LEVEL do return false
+	// Must be on a Castle biome (x%3==2, y%3==2) at zone level >= MAX_LEVEL
+	if g.pos_x % 3 != 2 || g.pos_y % 3 != 2 do return false
+	if zone_level(g.pos_x, g.pos_y) < MAX_LEVEL do return false
+	g.game_won = true
 	return true
 }
 
@@ -481,7 +502,7 @@ poison_strike :: proc(g: ^Game_State) -> bool {
 
 combo_attack :: proc(g: ^Game_State) -> bool {
 	if !g.in_combat || g.game_won || g.hp <= 0 || g.enemy_hp <= 0 do return false
-	if g.combo_count >= 3 do return false
+	if g.combo_count >= MAX_COMBO_CHAIN do return false
 	if g.stamina < COMBO_STAMINA do return false
 	g.turn_count += 1
 	g.stamina -= COMBO_STAMINA
@@ -501,7 +522,7 @@ combo_attack :: proc(g: ^Game_State) -> bool {
 	combat_ends := resolve_combat_hit(g, combo_dmg)
 
 	// Combo state: reset on combat end or chain complete, else advance
-	if combat_ends || next_combo >= 3 {
+	if combat_ends || next_combo >= MAX_COMBO_CHAIN {
 		g.combo_count = 0
 	
 	} else {
@@ -566,7 +587,7 @@ battle_cry :: proc(g: ^Game_State) -> bool {
 		g.player_atk_buff_dur = STATUS_DURATION
 		// Tick statuses
 		zone_tier := zone_level(g.pos_x, g.pos_y)
-		if zone_tier >= 2 && g.player_poison_dur == 0 {
+		if zone_tier >= POISON_APPLY_TIER && g.player_poison_dur == 0 {
 			g.player_poison_dur = STATUS_DURATION
 		} else if g.player_poison_dur > 0 {
 			g.player_poison_dur -= 1

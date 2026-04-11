@@ -57,7 +57,7 @@ handle_map_input :: proc(app: ^App_State) {
 	// Buy potion
 	if rl.IsKeyPressed(.B) {
 		if qc.buy_potion(g) {
-			add_message(app, "Bought a potion for 10 gold.", TEXT_GOLD)
+			add_message(app, fmt.tprintf("Bought a potion for %d gold.", qc.POTION_COST), TEXT_GOLD)
 		}
 	}
 
@@ -96,6 +96,13 @@ handle_map_input :: proc(app: ^App_State) {
 		}
 	}
 
+	// Claim victory
+	if rl.IsKeyPressed(.L) {
+		if qc.claim_victory(g) {
+			add_message(app, "Victory! You conquered the Castle!", TEXT_GOLD)
+		}
+	}
+
 	// Save game
 	if rl.IsKeyPressed(.F5) {
 		if qc.save_game(g) {
@@ -122,8 +129,8 @@ handle_enemy_defeated :: proc(app: ^App_State, old_level: int) {
 		qc.zone_gold_reward(g.pos_x, g.pos_y),
 		leveled,
 		g.level,
-		20 if leveled else 0,
-		3 if leveled else 0,
+		qc.HP_PER_LEVEL if leveled else 0,
+		qc.ATK_PER_LEVEL_UP if leveled else 0,
 	)
 	if g.last_drop == 1 {
 		add_message(app, "Loot: +1 Potion!", {100, 220, 255, 255})

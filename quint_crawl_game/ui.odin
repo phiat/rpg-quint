@@ -135,8 +135,8 @@ draw_hud :: proc(app: ^App_State) {
 		// Town actions
 		if qc.zone_has_services(g.pos_x, g.pos_y) {
 			draw_action(x, &y, "[R]", "Rest", g.hp < g.max_hp || g.stamina < g.max_stamina)
-			draw_action(x, &y, "[B]", "Buy Potion (10g)", g.gold >= 10)
-			draw_action(x, &y, "[C]", "Craft Sword", g.qty_wood >= 1 && g.qty_iron >= 2)
+			draw_action(x, &y, "[B]", fmt.ctprintf("Buy Potion (%dg)", qc.POTION_COST), g.gold >= qc.POTION_COST)
+			draw_action(x, &y, "[C]", "Craft Sword", g.qty_wood >= qc.CRAFT_WOOD_COST && g.qty_iron >= qc.CRAFT_IRON_COST)
 			if g.has_sword && g.sword_dur < g.sword_max_dur {
 				draw_action(x, &y, "[T]", fmt.ctprintf("Repair Sword (%dg)", qc.REPAIR_COST), g.gold >= qc.REPAIR_COST)
 			}
@@ -152,6 +152,11 @@ draw_hud :: proc(app: ^App_State) {
 		// Equip (anywhere)
 		if g.qty_sword >= 1 && !g.has_sword {
 			draw_action(x, &y, "[Q]", "Equip Sword", true)
+		}
+
+		// Claim Victory (on Castle biome at max level)
+		if g.level >= qc.MAX_LEVEL && g.pos_x % 3 == 2 && g.pos_y % 3 == 2 && qc.zone_level(g.pos_x, g.pos_y) >= qc.MAX_LEVEL {
+			draw_action(x, &y, "[L]", "Claim Victory!", true)
 		}
 
 		// Save/Load
