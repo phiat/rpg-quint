@@ -102,13 +102,15 @@ zone_abbrev :: proc(x, y: int) -> cstring {
 draw_biome_grid :: proc() {
 	boundary_color := rl.Color{100, 100, 130, 120}
 	num_regions :: qc.WORLD_SIZE / 3
+	grid_start := i32(TILE_OFFSET)
+	grid_end := i32(TILE_OFFSET + (qc.WORLD_SIZE - 1) * (TILE_SIZE + TILE_PAD) + TILE_SIZE)
 	for i in 1 ..< num_regions {
 		// Vertical boundary (between columns 2-3 and 5-6)
 		vx := i32(TILE_OFFSET + i * 3 * (TILE_SIZE + TILE_PAD)) - TILE_PAD / 2 - 1
-		rl.DrawRectangle(vx, 0, 2, MAP_SIZE, boundary_color)
+		rl.DrawRectangle(vx, grid_start, 2, grid_end - grid_start, boundary_color)
 		// Horizontal boundary
 		hy := i32(TILE_OFFSET + i * 3 * (TILE_SIZE + TILE_PAD)) - TILE_PAD / 2 - 1
-		rl.DrawRectangle(0, hy, MAP_SIZE, 2, boundary_color)
+		rl.DrawRectangle(grid_start, hy, grid_end - grid_start, 2, boundary_color)
 	}
 }
 
