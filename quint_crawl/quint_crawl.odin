@@ -52,6 +52,14 @@ CRAFT_IRON_COST :: 2
 POISON_APPLY_TIER :: 2
 LOOT_DROP_MODULO :: 3
 MAX_COMBO_CHAIN :: 3
+SKILL_POINTS_PER_LEVEL :: 1
+RESPEC_COST :: 25
+COUNTER_STAMINA :: 3
+SHIELD_BLOCK_STAMINA :: 3
+FORTIFY_STAMINA :: 4
+FORTIFY_CD :: 5
+FORTIFY_DURATION :: 6
+CRAFT_VENOM_IRON_COST :: 2
 
 // Common guard checks
 can_act_map :: proc(g: ^Game_State) -> bool {
@@ -82,6 +90,15 @@ Save_Data :: struct {
 	stamina:      int,
 	max_stamina:  int,
 	pity_counter: int,
+	skill_points: int,
+	skill_combo:  bool,
+	skill_poison: bool,
+	skill_shield_block: bool,
+	skill_heavy_strike: bool,
+	skill_counter_attack: bool,
+	skill_battle_cry: bool,
+	skill_fortify: bool,
+	qty_venom_sac: int,
 }
 
 Game_State :: struct {
@@ -117,6 +134,7 @@ Game_State :: struct {
 	// Cooldowns
 	cd_heavy_strike:     int,
 	cd_battle_cry:       int,
+	cd_fortify:          int,
 	// Loot
 	pity_counter:        int,
 	last_drop:           int,
@@ -126,6 +144,17 @@ Game_State :: struct {
 	visited:             [WORLD_SIZE][WORLD_SIZE]bool,
 	// Fast travel
 	waypoints:           [WORLD_SIZE][WORLD_SIZE]bool,
+	// Skill tree
+	skill_points:        int,
+	skill_combo:         bool,
+	skill_poison:        bool,
+	skill_shield_block:  bool,
+	skill_heavy_strike:  bool,
+	skill_counter_attack: bool,
+	skill_battle_cry:    bool,
+	skill_fortify:       bool,
+	// Venom sac
+	qty_venom_sac:       int,
 	// Save/Load
 	saved_exists:        bool,
 	save_data:           Save_Data,
@@ -218,6 +247,16 @@ init_game :: proc(g: ^Game_State) {
 	g.cd_battle_cry = 0
 	g.pity_counter = 0
 	g.last_drop = 0
+	g.cd_fortify = 0
+	g.skill_points = 0
+	g.skill_combo = false
+	g.skill_poison = false
+	g.skill_shield_block = false
+	g.skill_heavy_strike = false
+	g.skill_counter_attack = false
+	g.skill_battle_cry = false
+	g.skill_fortify = false
+	g.qty_venom_sac = 0
 	// Fog of war: clear all, mark starting zone + neighbors as revealed
 	for x in 0 ..< WORLD_SIZE {
 		for y in 0 ..< WORLD_SIZE {
@@ -294,6 +333,7 @@ enter_combat :: proc(g: ^Game_State) -> bool {
 
 	g.cd_heavy_strike = 0
 	g.cd_battle_cry = 0
+	g.cd_fortify = 0
 	g.last_drop = 0
 	return true
 }
@@ -302,12 +342,14 @@ enter_combat :: proc(g: ^Game_State) -> bool {
 tick_cooldowns :: proc(g: ^Game_State) {
 	if g.cd_heavy_strike > 0 do g.cd_heavy_strike -= 1
 	if g.cd_battle_cry > 0 do g.cd_battle_cry -= 1
+	if g.cd_fortify > 0 do g.cd_fortify -= 1
 }
 
 // Reset cooldowns when leaving combat
 reset_cooldowns :: proc(g: ^Game_State) {
 	g.cd_heavy_strike = 0
 	g.cd_battle_cry = 0
+	g.cd_fortify = 0
 }
 
 // Resolve loot drop on enemy defeat. Uses pre-increment turn for determinism (matches spec).
@@ -316,9 +358,15 @@ resolve_loot :: proc(g: ^Game_State) {
 	pre_turn := g.turn_count - 1
 	should_drop := g.pity_counter >= PITY_THRESHOLD || (pre_turn % LOOT_DROP_MODULO == 0)
 	if should_drop {
-		g.qty_potion += 1
+		zlvl := zone_level(g.pos_x, g.pos_y)
+		if zlvl >= POISON_APPLY_TIER {
+			g.qty_venom_sac += 1
+			g.last_drop = 2
+		} else {
+			g.qty_potion += 1
+			g.last_drop = 1
+		}
 		g.pity_counter = 0
-		g.last_drop = 1
 	} else {
 		g.pity_counter += 1
 		g.last_drop = 0
@@ -393,6 +441,7 @@ resolve_combat_hit :: proc(g: ^Game_State, dmg: int) -> bool {
 			g.max_hp += HP_PER_LEVEL
 			g.base_attack += ATK_PER_LEVEL_UP
 			g.max_stamina += STAMINA_PER_LEVEL
+			g.skill_points += SKILL_POINTS_PER_LEVEL
 		}
 	}
 	return combat_ends
@@ -535,10 +584,13 @@ use_antidote :: proc(g: ^Game_State) -> bool {
 
 poison_strike :: proc(g: ^Game_State) -> bool {
 	if !can_act_combat(g) do return false
+	if !g.skill_poison do return false
+	if g.qty_venom_sac <= 0 do return false
 	if g.enemy_poison_dur != 0 do return false  // can't stack
 	if g.stamina < ATTACK_STAMINA do return false
 	g.turn_count += 1
 	g.stamina -= ATTACK_STAMINA
+	g.qty_venom_sac -= 1
 	// Enemy hits back
 	enemy_dmg := g.enemy_attack - (DEF_BUFF_REDUCTION if g.player_def_buff_dur > 0 else 0)
 	if enemy_dmg < 1 do enemy_dmg = 1
@@ -563,6 +615,7 @@ poison_strike :: proc(g: ^Game_State) -> bool {
 
 combo_attack :: proc(g: ^Game_State) -> bool {
 	if !can_act_combat(g) do return false
+	if !g.skill_combo do return false
 	if g.combo_count >= MAX_COMBO_CHAIN do return false
 	if g.stamina < COMBO_STAMINA do return false
 	g.turn_count += 1
@@ -594,6 +647,7 @@ combo_attack :: proc(g: ^Game_State) -> bool {
 
 heavy_strike :: proc(g: ^Game_State) -> bool {
 	if !can_act_combat(g) do return false
+	if !g.skill_heavy_strike do return false
 	if g.cd_heavy_strike != 0 do return false
 	if g.stamina < HEAVY_STRIKE_STAMINA do return false
 	g.turn_count += 1
@@ -621,6 +675,7 @@ heavy_strike :: proc(g: ^Game_State) -> bool {
 
 battle_cry :: proc(g: ^Game_State) -> bool {
 	if !can_act_combat(g) do return false
+	if !g.skill_battle_cry do return false
 	if g.cd_battle_cry != 0 do return false
 	if g.stamina < BATTLE_CRY_STAMINA do return false
 	g.turn_count += 1
@@ -666,9 +721,10 @@ battle_cry :: proc(g: ^Game_State) -> bool {
 
 shield_block :: proc(g: ^Game_State) -> bool {
 	if !can_act_combat(g) do return false
-	if g.stamina < BATTLE_CRY_STAMINA do return false
+	if !g.skill_shield_block do return false
+	if g.stamina < SHIELD_BLOCK_STAMINA do return false
 	g.turn_count += 1
-	g.stamina -= BATTLE_CRY_STAMINA
+	g.stamina -= SHIELD_BLOCK_STAMINA
 
 	// Enemy hits back
 	enemy_dmg := g.enemy_attack - (DEF_BUFF_REDUCTION if g.player_def_buff_dur > 0 else 0)
@@ -706,6 +762,230 @@ shield_block :: proc(g: ^Game_State) -> bool {
 	return true
 }
 
+// --- Skill unlock procs ---
+
+unlock_combo :: proc(g: ^Game_State) -> bool {
+	if !can_act_map(g) do return false
+	if g.skill_combo do return false
+	if g.skill_points < 1 do return false
+	g.skill_combo = true
+	g.skill_points -= 1
+	return true
+}
+
+unlock_poison :: proc(g: ^Game_State) -> bool {
+	if !can_act_map(g) do return false
+	if g.skill_poison do return false
+	if g.skill_points < 1 do return false
+	g.skill_poison = true
+	g.skill_points -= 1
+	return true
+}
+
+unlock_shield_block :: proc(g: ^Game_State) -> bool {
+	if !can_act_map(g) do return false
+	if g.skill_shield_block do return false
+	if g.skill_points < 1 do return false
+	g.skill_shield_block = true
+	g.skill_points -= 1
+	return true
+}
+
+unlock_heavy_strike :: proc(g: ^Game_State) -> bool {
+	if !can_act_map(g) do return false
+	if g.skill_heavy_strike do return false
+	if !g.skill_combo do return false  // prereq
+	if g.skill_points < 1 do return false
+	g.skill_heavy_strike = true
+	g.skill_points -= 1
+	return true
+}
+
+unlock_counter_attack :: proc(g: ^Game_State) -> bool {
+	if !can_act_map(g) do return false
+	if g.skill_counter_attack do return false
+	if !g.skill_shield_block do return false  // prereq
+	if g.skill_points < 1 do return false
+	g.skill_counter_attack = true
+	g.skill_points -= 1
+	return true
+}
+
+unlock_battle_cry :: proc(g: ^Game_State) -> bool {
+	if !can_act_map(g) do return false
+	if g.skill_battle_cry do return false
+	if !g.skill_heavy_strike do return false  // prereq
+	if g.skill_points < 2 do return false
+	g.skill_battle_cry = true
+	g.skill_points -= 2
+	return true
+}
+
+unlock_fortify :: proc(g: ^Game_State) -> bool {
+	if !can_act_map(g) do return false
+	if g.skill_fortify do return false
+	if !g.skill_counter_attack do return false  // prereq
+	if g.skill_points < 2 do return false
+	g.skill_fortify = true
+	g.skill_points -= 2
+	return true
+}
+
+respec :: proc(g: ^Game_State) -> bool {
+	if !can_act_map(g) do return false
+	if !zone_has_services(g.pos_x, g.pos_y) do return false
+	if g.gold < RESPEC_COST do return false
+	spent := 0
+	if g.skill_combo do spent += 1
+	if g.skill_poison do spent += 1
+	if g.skill_shield_block do spent += 1
+	if g.skill_heavy_strike do spent += 1
+	if g.skill_counter_attack do spent += 1
+	if g.skill_battle_cry do spent += 2
+	if g.skill_fortify do spent += 2
+	if spent == 0 do return false
+	g.gold -= RESPEC_COST
+	g.skill_points += spent
+	g.skill_combo = false
+	g.skill_poison = false
+	g.skill_shield_block = false
+	g.skill_heavy_strike = false
+	g.skill_counter_attack = false
+	g.skill_battle_cry = false
+	g.skill_fortify = false
+	return true
+}
+
+counter_attack :: proc(g: ^Game_State) -> bool {
+	if !can_act_combat(g) do return false
+	if !g.skill_counter_attack do return false
+	if g.stamina < COUNTER_STAMINA do return false
+	g.turn_count += 1
+	g.stamina -= COUNTER_STAMINA
+
+	// Player deals base damage + sword durability cost
+	dmg := attack_power(g)
+	if g.has_sword && g.sword_dur > 0 {
+		g.sword_dur -= 1
+	}
+
+	// Enemy takes hit + poison
+	enemy_poison_dmg := POISON_DMG if g.enemy_poison_dur > 0 else 0
+	new_enemy_hp := g.enemy_hp - dmg - enemy_poison_dmg
+	g.enemy_hp = max(new_enemy_hp, 0)
+
+	// Enemy hits player (with DEF buff reduction)
+	enemy_dmg := g.enemy_attack - (DEF_BUFF_REDUCTION if g.player_def_buff_dur > 0 else 0)
+	if enemy_dmg < 1 do enemy_dmg = 1
+	poison_dmg := POISON_DMG if g.player_poison_dur > 0 else 0
+	g.hp = max(g.hp - enemy_dmg - poison_dmg, 0)
+
+	combat_ends := (g.hp <= 0 || g.enemy_hp <= 0)
+
+	if combat_ends {
+		// Gold on enemy kill (even mutual)
+		if new_enemy_hp <= 0 {
+			g.gold += zone_gold_reward(g.pos_x, g.pos_y)
+		}
+		if g.hp <= 0 {
+			g.in_combat = false
+			g.enemy_hp = 0
+			g.enemy_attack = 0
+			g.player_poison_dur = 0
+			g.player_atk_buff_dur = 0
+			g.player_def_buff_dur = 0
+			g.enemy_poison_dur = 0
+			reset_cooldowns(g)
+		} else {
+			// Enemy defeated, player alive
+			g.xp += zone_xp_reward(g.pos_x, g.pos_y)
+			g.in_combat = false
+			g.enemy_attack = 0
+			g.player_poison_dur = 0
+			g.player_atk_buff_dur = 0
+			g.player_def_buff_dur = 0
+			g.enemy_poison_dur = 0
+			reset_cooldowns(g)
+			resolve_loot(g)
+			if g.level < MAX_LEVEL && g.xp >= XP_THRESHOLDS[g.level + 1] {
+				g.level += 1
+				g.max_hp += HP_PER_LEVEL
+				g.base_attack += ATK_PER_LEVEL_UP
+				g.max_stamina += STAMINA_PER_LEVEL
+				g.skill_points += SKILL_POINTS_PER_LEVEL
+			}
+		}
+	} else {
+		// Grant DEF buff on counter
+		g.player_def_buff_dur = STATUS_DURATION
+		// Tick statuses
+		zone_tier := zone_level(g.pos_x, g.pos_y)
+		if zone_tier >= POISON_APPLY_TIER && g.player_poison_dur == 0 {
+			g.player_poison_dur = STATUS_DURATION
+		} else if g.player_poison_dur > 0 {
+			g.player_poison_dur -= 1
+		}
+		if g.player_atk_buff_dur > 0 do g.player_atk_buff_dur -= 1
+		if g.enemy_poison_dur > 0 do g.enemy_poison_dur -= 1
+		tick_cooldowns(g)
+	}
+	g.combo_count = 0
+	return true
+}
+
+fortify :: proc(g: ^Game_State) -> bool {
+	if !can_act_combat(g) do return false
+	if !g.skill_fortify do return false
+	if g.cd_fortify != 0 do return false
+	if g.stamina < FORTIFY_STAMINA do return false
+	g.turn_count += 1
+	g.stamina -= FORTIFY_STAMINA
+
+	// Enemy hits back
+	enemy_dmg := g.enemy_attack - (DEF_BUFF_REDUCTION if g.player_def_buff_dur > 0 else 0)
+	if enemy_dmg < 1 do enemy_dmg = 1
+	poison_dmg := POISON_DMG if g.player_poison_dur > 0 else 0
+	g.hp = max(g.hp - enemy_dmg - poison_dmg, 0)
+
+	combat_ends := (g.hp <= 0)
+
+	if combat_ends {
+		g.in_combat = false
+		g.enemy_hp = 0
+		g.enemy_attack = 0
+		g.player_poison_dur = 0
+		g.player_atk_buff_dur = 0
+		g.player_def_buff_dur = 0
+		g.enemy_poison_dur = 0
+		reset_cooldowns(g)
+	} else {
+		// Grant extended DEF buff
+		g.player_def_buff_dur = FORTIFY_DURATION
+		// Tick statuses
+		zone_tier := zone_level(g.pos_x, g.pos_y)
+		if zone_tier >= POISON_APPLY_TIER && g.player_poison_dur == 0 {
+			g.player_poison_dur = STATUS_DURATION
+		} else if g.player_poison_dur > 0 {
+			g.player_poison_dur -= 1
+		}
+		if g.player_atk_buff_dur > 0 do g.player_atk_buff_dur -= 1
+		if g.enemy_poison_dur > 0 do g.enemy_poison_dur -= 1
+		tick_cooldowns(g)
+		g.cd_fortify = FORTIFY_CD
+	}
+	g.combo_count = 0
+	return true
+}
+
+craft_venom_sac :: proc(g: ^Game_State) -> bool {
+	if !can_act_map(g) do return false
+	if !zone_has_services(g.pos_x, g.pos_y) do return false
+	if g.qty_iron < CRAFT_VENOM_IRON_COST do return false
+	g.qty_iron -= CRAFT_VENOM_IRON_COST
+	g.qty_venom_sac += 1
+	return true
+}
+
 save_game :: proc(g: ^Game_State) -> bool {
 	if !can_act_map(g) do return false
 	g.saved_exists = true
@@ -729,6 +1009,15 @@ save_game :: proc(g: ^Game_State) -> bool {
 		stamina      = g.stamina,
 		max_stamina  = g.max_stamina,
 		pity_counter = g.pity_counter,
+		skill_points = g.skill_points,
+		skill_combo = g.skill_combo,
+		skill_poison = g.skill_poison,
+		skill_shield_block = g.skill_shield_block,
+		skill_heavy_strike = g.skill_heavy_strike,
+		skill_counter_attack = g.skill_counter_attack,
+		skill_battle_cry = g.skill_battle_cry,
+		skill_fortify = g.skill_fortify,
+		qty_venom_sac = g.qty_venom_sac,
 	}
 	return true
 }
@@ -755,6 +1044,15 @@ load_game :: proc(g: ^Game_State) -> bool {
 	g.stamina = s.stamina
 	g.max_stamina = s.max_stamina
 	g.pity_counter = s.pity_counter
+	g.skill_points = s.skill_points
+	g.skill_combo = s.skill_combo
+	g.skill_poison = s.skill_poison
+	g.skill_shield_block = s.skill_shield_block
+	g.skill_heavy_strike = s.skill_heavy_strike
+	g.skill_counter_attack = s.skill_counter_attack
+	g.skill_battle_cry = s.skill_battle_cry
+	g.skill_fortify = s.skill_fortify
+	g.qty_venom_sac = s.qty_venom_sac
 	// Clear combat/status state (save is only outside combat)
 	g.in_combat = false
 	g.enemy_hp = 0
@@ -768,6 +1066,7 @@ load_game :: proc(g: ^Game_State) -> bool {
 
 	g.cd_heavy_strike = 0
 	g.cd_battle_cry = 0
+	g.cd_fortify = 0
 	g.last_drop = 0
 	return true
 }

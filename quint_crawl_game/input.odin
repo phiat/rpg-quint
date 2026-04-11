@@ -137,6 +137,59 @@ handle_map_input :: proc(app: ^App_State) {
 		}
 	}
 
+	// Respec skills (at village)
+	if rl.IsKeyPressed(.U) {
+		if qc.respec(g) {
+			add_message(app, fmt.tprintf("Skills reset! %d points refunded. (%d gold)", g.skill_points, qc.RESPEC_COST), TEXT_GOLD)
+		}
+	}
+
+	// Craft venom sac (at village)
+	if rl.IsKeyPressed(.O) {
+		if qc.craft_venom_sac(g) {
+			add_message(app, fmt.tprintf("Crafted Venom Sac! (%d iron)", qc.CRAFT_VENOM_IRON_COST), {100, 220, 50, 255})
+		}
+	}
+
+	// Skill unlocks (when skill points available)
+	if g.skill_points > 0 {
+		if rl.IsKeyPressed(.ONE) {
+			if qc.unlock_combo(g) {
+				add_message(app, "Learned: Combo Attack! [K]", {255, 220, 50, 255})
+			}
+		}
+		if rl.IsKeyPressed(.TWO) {
+			if qc.unlock_poison(g) {
+				add_message(app, "Learned: Poison Strike! [V]", {100, 220, 50, 255})
+			}
+		}
+		if rl.IsKeyPressed(.THREE) {
+			if qc.unlock_shield_block(g) {
+				add_message(app, "Learned: Shield Block! [Z]", {100, 180, 255, 255})
+			}
+		}
+		if rl.IsKeyPressed(.FOUR) {
+			if qc.unlock_heavy_strike(g) {
+				add_message(app, "Learned: Heavy Strike! [H]", {255, 120, 50, 255})
+			}
+		}
+		if rl.IsKeyPressed(.FIVE) {
+			if qc.unlock_counter_attack(g) {
+				add_message(app, "Learned: Counter-Attack! [N]", {180, 140, 255, 255})
+			}
+		}
+		if rl.IsKeyPressed(.SIX) {
+			if qc.unlock_battle_cry(g) {
+				add_message(app, "Learned: Battle Cry! [Y] (2pts)", {255, 200, 100, 255})
+			}
+		}
+		if rl.IsKeyPressed(.SEVEN) {
+			if qc.unlock_fortify(g) {
+				add_message(app, "Learned: Fortify! [I] (2pts)", {80, 200, 200, 255})
+			}
+		}
+	}
+
 	check_screen_transitions(app)
 }
 
@@ -154,6 +207,8 @@ handle_enemy_defeated :: proc(app: ^App_State, old_level: int) {
 	)
 	if g.last_drop == 1 {
 		add_message(app, "Loot: +1 Potion!", {100, 220, 255, 255})
+	} else if g.last_drop == 2 {
+		add_message(app, "Loot: +1 Venom Sac!", {100, 220, 50, 255})
 	}
 }
 
@@ -304,6 +359,35 @@ handle_combat_input :: proc(app: ^App_State) {
 			add_message(app, "SHIELD BLOCK! DEF boosted!", {100, 180, 255, 255})
 			if g.hp < old_hp {
 				handle_combat_damage(app, old_hp, old_poison, {100, 180, 255, 60})
+			}
+		}
+	}
+
+	// Counter-attack
+	if rl.IsKeyPressed(.N) {
+		old_enemy_hp := g.enemy_hp
+		old_hp := g.hp
+		old_level := g.level
+		old_poison := g.player_poison_dur
+		if qc.counter_attack(g) {
+			dmg_dealt := old_enemy_hp - g.enemy_hp
+			add_message(app, fmt.tprintf("COUNTER! %d damage + DEF buff!", dmg_dealt), {180, 140, 255, 255})
+			if g.enemy_hp <= 0 {
+				handle_enemy_defeated(app, old_level)
+			} else if g.hp < old_hp {
+				handle_combat_damage(app, old_hp, old_poison, {180, 140, 255, 60})
+			}
+		}
+	}
+
+	// Fortify
+	if rl.IsKeyPressed(.I) {
+		old_hp := g.hp
+		old_poison := g.player_poison_dur
+		if qc.fortify(g) {
+			add_message(app, fmt.tprintf("FORTIFY! Extended DEF buff (%d turns)!", qc.FORTIFY_DURATION), {80, 200, 200, 255})
+			if g.hp < old_hp {
+				handle_combat_damage(app, old_hp, old_poison, {80, 200, 200, 60})
 			}
 		}
 	}

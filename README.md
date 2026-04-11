@@ -9,6 +9,10 @@ A raylib RPG game built on formally verified game logic. Every game rule is spec
 
 Inspired by: [Model-Based Testing for D&D](https://www.loskutoff.com/blog/model-based-testing-dnd/)
 
+![Title Screen](screenshots/title.png)
+![Map Exploration](screenshots/map.png)
+![Combat](screenshots/combat.png)
+
 ## The Game
 
 **Quint Crawl** is a turn-based RPG rendered with raylib. Explore a 9x9 world grid (81 zones across 5 difficulty levels), fight enemies, gather resources, craft gear, and level up to conquer the Castle.
@@ -17,7 +21,7 @@ Inspired by: [Model-Based Testing for D&D](https://www.loskutoff.com/blog/model-
 just play             # build and run the game
 ```
 
-Controls: WASD to move, E to fight, A to attack, K for combo, H for heavy strike, Y for battle cry, Z for shield block, P for potions, V to poison, X for antidote, F to flee, R to rest, B to buy potions, G to gather wood, M to mine iron, C to craft, Q to equip, T to repair, J to fast travel, L to claim victory (at Level 5 Castle), F5 to save, F9 to load. See the HUD sidebar for zone-specific actions.
+Controls: WASD to move, E to fight, A to attack, K for combo, H for heavy strike, Y for battle cry, Z for shield block, N for counter-attack, I for fortify, P for potions, V to poison, X for antidote, F to flee, R to rest, B to buy potions, G to gather wood, M to mine iron, C to craft, Q to equip, T to repair, O to craft venom sac, U to respec skills, J to fast travel, L to claim victory (at Level 5 Castle), 1-7 to unlock skills (when points available), F5 to save, F9 to load. See the HUD sidebar for zone-specific actions.
 
 Features:
 - 9x9 world grid with 5 difficulty levels and biome tiling (3x3 pattern repeats across regions)
@@ -26,8 +30,10 @@ Features:
 - HUD minimap with biome region overview
 - Stamina system — actions cost stamina, restored by resting
 - Combo system — 3-hit chain (Slash → Thrust → Finisher) with damage multipliers
-- Cooldown abilities — heavy strike (2x damage) and battle cry (ATK buff)
+- Skill tree — 3 branches (Offense/Defense/Utility), 1 point per level-up, respec at village
+- Cooldown abilities — heavy strike (2x damage), battle cry (ATK buff), fortify (extended DEF buff), counter-attack (block + retaliatory hit)
 - Status effects — poison, ATK/DEF buffs with turn-based ticking
+- Venom sac system — consumable for poison strike, dropped from ZL2+ enemies or crafted at village
 - Per-zone weather (Clear/Rain/Fog/Storm) affecting combat, gathering, and movement
 - Loot drops with pity-counter guarantee system
 - Resource gathering (wood, iron), crafting, and equipment
@@ -122,7 +128,7 @@ justfile               Task runner for common workflows
 | **fog_of_war** | Exploration reveal system | Revealed tiles monotonic, visibility radius bounded |
 | **permadeath** | Permadeath with legacy bonuses | Death permanent, legacy bonuses carry forward |
 | **bounty** | Bounty board quest system | Bounty rewards match difficulty, completion tracked |
-| **quint_crawl** | Full RPG game state machine (9x9 grid, 5 levels) | HP bounded, gold non-negative, level gates, durability bounded, combo bounded, stamina bounded, cooldowns bounded, loot pity bounded, status effects bounded, weather deterministic, win condition correct |
+| **quint_crawl** | Full RPG game state machine (9x9 grid, 5 levels) | HP bounded, gold non-negative, level gates, durability bounded, combo bounded, stamina bounded, cooldowns bounded (incl. fortify), loot pity bounded, status effects bounded, weather deterministic, skill points non-negative, skill prereqs respected, venom sac non-negative, win condition correct |
 
 ## Quick start
 

@@ -78,6 +78,39 @@ crawl_step :: proc(driver: rawptr, action: string, picks: map[string]mbt.ITF_Val
 	case "claim_victory":
 		qc.claim_victory(g)
 		return true
+	case "counter_attack":
+		qc.counter_attack(g)
+		return true
+	case "fortify":
+		qc.fortify(g)
+		return true
+	case "unlock_combo":
+		qc.unlock_combo(g)
+		return true
+	case "unlock_poison":
+		qc.unlock_poison(g)
+		return true
+	case "unlock_shield_block":
+		qc.unlock_shield_block(g)
+		return true
+	case "unlock_heavy_strike":
+		qc.unlock_heavy_strike(g)
+		return true
+	case "unlock_counter_attack":
+		qc.unlock_counter_attack(g)
+		return true
+	case "unlock_battle_cry":
+		qc.unlock_battle_cry(g)
+		return true
+	case "unlock_fortify":
+		qc.unlock_fortify(g)
+		return true
+	case "respec":
+		qc.respec(g)
+		return true
+	case "craft_venom_sac":
+		qc.craft_venom_sac(g)
+		return true
 	case "save_game":
 		qc.save_game(g)
 		return true
@@ -125,6 +158,16 @@ crawl_state :: proc(driver: rawptr) -> map[string]mbt.ITF_Value {
 	state["cd_battle_cry"] = mbt.ITF_Int{g.cd_battle_cry}
 	state["pity_counter"] = mbt.ITF_Int{g.pity_counter}
 	state["last_drop"] = mbt.ITF_Int{g.last_drop}
+	state["cd_fortify"] = mbt.ITF_Int{g.cd_fortify}
+	state["skill_points"] = mbt.ITF_Int{g.skill_points}
+	state["skill_combo"] = mbt.ITF_Bool{g.skill_combo}
+	state["skill_poison"] = mbt.ITF_Bool{g.skill_poison}
+	state["skill_shield_block"] = mbt.ITF_Bool{g.skill_shield_block}
+	state["skill_heavy_strike"] = mbt.ITF_Bool{g.skill_heavy_strike}
+	state["skill_counter_attack"] = mbt.ITF_Bool{g.skill_counter_attack}
+	state["skill_battle_cry"] = mbt.ITF_Bool{g.skill_battle_cry}
+	state["skill_fortify"] = mbt.ITF_Bool{g.skill_fortify}
+	state["qty_venom_sac"] = mbt.ITF_Int{g.qty_venom_sac}
 	return state
 }
 

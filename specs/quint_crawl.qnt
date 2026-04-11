@@ -54,6 +54,22 @@ module quint_crawl {
   // === Win condition ===
   var game_won: bool
 
+  // === Skill tree ===
+  var skill_points: int        // unspent skill points
+  var skill_combo: bool        // combo attack unlocked
+  var skill_poison: bool       // poison strike unlocked
+  var skill_shield_block: bool // shield block unlocked
+  var skill_heavy_strike: bool // heavy strike unlocked
+  var skill_counter_attack: bool // counter-attack unlocked
+  var skill_battle_cry: bool   // battle cry unlocked
+  var skill_fortify: bool      // fortify unlocked
+
+  // === Venom sac (consumable for poison strike) ===
+  var qty_venom_sac: int
+
+  // === Fortify cooldown ===
+  var cd_fortify: int
+
   // === Save/Load ===
   var saved_exists: bool  // whether a save slot is occupied
 
@@ -90,6 +106,14 @@ module quint_crawl {
   val POISON_APPLY_TIER = 2 // minimum zone tier for auto-poison
   val LOOT_DROP_MODULO = 3  // turn modulo for guaranteed loot drops
   val MAX_COMBO_CHAIN = 3   // max combo hits before reset
+  val SKILL_POINTS_PER_LEVEL = 1  // skill points earned per level-up
+  val RESPEC_COST = 25            // gold cost to respec skills
+  val COUNTER_STAMINA = 3         // stamina cost for counter-attack
+  val SHIELD_BLOCK_STAMINA = 3    // stamina cost for shield block
+  val FORTIFY_STAMINA = 4         // stamina cost for fortify
+  val FORTIFY_CD = 5              // cooldown turns for fortify
+  val FORTIFY_DURATION = 6        // DEF buff duration from fortify (double STATUS_DURATION)
+  val CRAFT_VENOM_IRON_COST = 2   // iron cost to craft venom sac
 
   // --- World scaling constants ---
   val WORLD_SIZE = 9        // grid dimension (NxN)
@@ -193,6 +217,16 @@ module quint_crawl {
     cd_battle_cry' = 0,
     pity_counter' = 0,
     last_drop' = 0,
+    skill_points' = 0,
+    skill_combo' = false,
+    skill_poison' = false,
+    skill_shield_block' = false,
+    skill_heavy_strike' = false,
+    skill_counter_attack' = false,
+    skill_battle_cry' = false,
+    skill_fortify' = false,
+    qty_venom_sac' = 0,
+    cd_fortify' = 0,
   }
 
   // === Movement (only when not in combat) ===
@@ -220,6 +254,10 @@ module quint_crawl {
       stamina' = stamina, max_stamina' = max_stamina,
       cd_heavy_strike' = 0, cd_battle_cry' = 0,
       pity_counter' = pity_counter, last_drop' = last_drop,
+      skill_points' = skill_points, skill_combo' = skill_combo, skill_poison' = skill_poison,
+      skill_shield_block' = skill_shield_block, skill_heavy_strike' = skill_heavy_strike,
+      skill_counter_attack' = skill_counter_attack, skill_battle_cry' = skill_battle_cry,
+      skill_fortify' = skill_fortify, qty_venom_sac' = qty_venom_sac, cd_fortify' = cd_fortify,
     }
   }
 
@@ -246,6 +284,10 @@ module quint_crawl {
       stamina' = stamina, max_stamina' = max_stamina,
       cd_heavy_strike' = 0, cd_battle_cry' = 0,
       pity_counter' = pity_counter, last_drop' = last_drop,
+      skill_points' = skill_points, skill_combo' = skill_combo, skill_poison' = skill_poison,
+      skill_shield_block' = skill_shield_block, skill_heavy_strike' = skill_heavy_strike,
+      skill_counter_attack' = skill_counter_attack, skill_battle_cry' = skill_battle_cry,
+      skill_fortify' = skill_fortify, qty_venom_sac' = qty_venom_sac, cd_fortify' = cd_fortify,
     }
   }
 
@@ -272,6 +314,10 @@ module quint_crawl {
       stamina' = stamina, max_stamina' = max_stamina,
       cd_heavy_strike' = 0, cd_battle_cry' = 0,
       pity_counter' = pity_counter, last_drop' = last_drop,
+      skill_points' = skill_points, skill_combo' = skill_combo, skill_poison' = skill_poison,
+      skill_shield_block' = skill_shield_block, skill_heavy_strike' = skill_heavy_strike,
+      skill_counter_attack' = skill_counter_attack, skill_battle_cry' = skill_battle_cry,
+      skill_fortify' = skill_fortify, qty_venom_sac' = qty_venom_sac, cd_fortify' = cd_fortify,
     }
   }
 
@@ -298,6 +344,10 @@ module quint_crawl {
       stamina' = stamina, max_stamina' = max_stamina,
       cd_heavy_strike' = 0, cd_battle_cry' = 0,
       pity_counter' = pity_counter, last_drop' = last_drop,
+      skill_points' = skill_points, skill_combo' = skill_combo, skill_poison' = skill_poison,
+      skill_shield_block' = skill_shield_block, skill_heavy_strike' = skill_heavy_strike,
+      skill_counter_attack' = skill_counter_attack, skill_battle_cry' = skill_battle_cry,
+      skill_fortify' = skill_fortify, qty_venom_sac' = qty_venom_sac, cd_fortify' = cd_fortify,
     }
   }
 
@@ -327,6 +377,10 @@ module quint_crawl {
       stamina' = stamina, max_stamina' = max_stamina,
       cd_heavy_strike' = 0, cd_battle_cry' = 0,
       pity_counter' = pity_counter, last_drop' = 0,
+      skill_points' = skill_points, skill_combo' = skill_combo, skill_poison' = skill_poison,
+      skill_shield_block' = skill_shield_block, skill_heavy_strike' = skill_heavy_strike,
+      skill_counter_attack' = skill_counter_attack, skill_battle_cry' = skill_battle_cry,
+      skill_fortify' = skill_fortify, qty_venom_sac' = qty_venom_sac, cd_fortify' = 0,
     }
   }
 
@@ -365,7 +419,8 @@ module quint_crawl {
     val new_pity = if (should_drop) 0
                    else if (enemy_defeated_alive) pity_counter + 1
                    else pity_counter
-    val new_last_drop = if (should_drop) 1 else 0
+    val drops_venom = should_drop and zone_tier >= POISON_APPLY_TIER
+    val new_last_drop = if (drops_venom) 2 else if (should_drop) 1 else 0
     all {
       enemy_hp' = if (combat_ends) 0 else new_enemy_hp,
       hp' = if (new_hp < 0) 0 else new_hp,
@@ -378,7 +433,7 @@ module quint_crawl {
       base_attack' = if (new_level > level) base_attack + ATK_PER_LEVEL_UP else base_attack,
       game_won' = game_won,  // win requires claim_victory at Castle
       pos_x' = pos_x, pos_y' = pos_y,
-      qty_potion' = if (should_drop) qty_potion + 1 else qty_potion,
+      qty_potion' = if (should_drop and not(drops_venom)) qty_potion + 1 else qty_potion,
       qty_wood' = qty_wood,
       qty_iron' = qty_iron, qty_sword' = qty_sword, has_sword' = has_sword,
       sword_dur' = new_sword_dur, sword_max_dur' = sword_max_dur,
@@ -396,6 +451,13 @@ module quint_crawl {
       cd_battle_cry' = if (combat_ends) 0 else (if (cd_battle_cry > 0) cd_battle_cry - 1 else 0),
       pity_counter' = new_pity,
       last_drop' = new_last_drop,
+      skill_points' = if (new_level > level) skill_points + SKILL_POINTS_PER_LEVEL else skill_points,
+      skill_combo' = skill_combo, skill_poison' = skill_poison,
+      skill_shield_block' = skill_shield_block, skill_heavy_strike' = skill_heavy_strike,
+      skill_counter_attack' = skill_counter_attack, skill_battle_cry' = skill_battle_cry,
+      skill_fortify' = skill_fortify,
+      qty_venom_sac' = if (drops_venom) qty_venom_sac + 1 else qty_venom_sac,
+      cd_fortify' = if (combat_ends) 0 else (if (cd_fortify > 0) cd_fortify - 1 else 0),
     }
   }
 
@@ -420,6 +482,10 @@ module quint_crawl {
     stamina' = stamina, max_stamina' = max_stamina,
     cd_heavy_strike' = cd_heavy_strike, cd_battle_cry' = cd_battle_cry,
     pity_counter' = pity_counter, last_drop' = last_drop,
+    skill_points' = skill_points, skill_combo' = skill_combo, skill_poison' = skill_poison,
+    skill_shield_block' = skill_shield_block, skill_heavy_strike' = skill_heavy_strike,
+    skill_counter_attack' = skill_counter_attack, skill_battle_cry' = skill_battle_cry,
+    skill_fortify' = skill_fortify, qty_venom_sac' = qty_venom_sac, cd_fortify' = cd_fortify,
   }
 
   // === Flee combat ===
@@ -444,6 +510,10 @@ module quint_crawl {
       stamina' = stamina, max_stamina' = max_stamina,
       cd_heavy_strike' = 0, cd_battle_cry' = 0,
       pity_counter' = pity_counter, last_drop' = last_drop,
+      skill_points' = skill_points, skill_combo' = skill_combo, skill_poison' = skill_poison,
+      skill_shield_block' = skill_shield_block, skill_heavy_strike' = skill_heavy_strike,
+      skill_counter_attack' = skill_counter_attack, skill_battle_cry' = skill_battle_cry,
+      skill_fortify' = skill_fortify, qty_venom_sac' = qty_venom_sac, cd_fortify' = 0,
     }
   }
 
@@ -469,6 +539,10 @@ module quint_crawl {
     stamina' = max_stamina, max_stamina' = max_stamina,
     cd_heavy_strike' = 0, cd_battle_cry' = 0,
     pity_counter' = pity_counter, last_drop' = last_drop,
+    skill_points' = skill_points, skill_combo' = skill_combo, skill_poison' = skill_poison,
+    skill_shield_block' = skill_shield_block, skill_heavy_strike' = skill_heavy_strike,
+    skill_counter_attack' = skill_counter_attack, skill_battle_cry' = skill_battle_cry,
+    skill_fortify' = skill_fortify, qty_venom_sac' = qty_venom_sac, cd_fortify' = cd_fortify,
   }
 
   // === Buy potion (at town, costs 10 gold) ===
@@ -493,6 +567,10 @@ module quint_crawl {
     stamina' = stamina, max_stamina' = max_stamina,
     cd_heavy_strike' = 0, cd_battle_cry' = 0,
     pity_counter' = pity_counter, last_drop' = last_drop,
+    skill_points' = skill_points, skill_combo' = skill_combo, skill_poison' = skill_poison,
+    skill_shield_block' = skill_shield_block, skill_heavy_strike' = skill_heavy_strike,
+    skill_counter_attack' = skill_counter_attack, skill_battle_cry' = skill_battle_cry,
+    skill_fortify' = skill_fortify, qty_venom_sac' = qty_venom_sac, cd_fortify' = cd_fortify,
   }
 
   // === Repair sword (at town, costs gold) ===
@@ -520,6 +598,10 @@ module quint_crawl {
     stamina' = stamina, max_stamina' = max_stamina,
     cd_heavy_strike' = 0, cd_battle_cry' = 0,
     pity_counter' = pity_counter, last_drop' = last_drop,
+    skill_points' = skill_points, skill_combo' = skill_combo, skill_poison' = skill_poison,
+    skill_shield_block' = skill_shield_block, skill_heavy_strike' = skill_heavy_strike,
+    skill_counter_attack' = skill_counter_attack, skill_battle_cry' = skill_battle_cry,
+    skill_fortify' = skill_fortify, qty_venom_sac' = qty_venom_sac, cd_fortify' = cd_fortify,
   }
 
   // === Gather wood (in forest zone) ===
@@ -546,6 +628,10 @@ module quint_crawl {
       stamina' = stamina, max_stamina' = max_stamina,
       cd_heavy_strike' = 0, cd_battle_cry' = 0,
       pity_counter' = pity_counter, last_drop' = last_drop,
+      skill_points' = skill_points, skill_combo' = skill_combo, skill_poison' = skill_poison,
+      skill_shield_block' = skill_shield_block, skill_heavy_strike' = skill_heavy_strike,
+      skill_counter_attack' = skill_counter_attack, skill_battle_cry' = skill_battle_cry,
+      skill_fortify' = skill_fortify, qty_venom_sac' = qty_venom_sac, cd_fortify' = cd_fortify,
     }
   }
 
@@ -573,6 +659,10 @@ module quint_crawl {
       stamina' = stamina, max_stamina' = max_stamina,
       cd_heavy_strike' = 0, cd_battle_cry' = 0,
       pity_counter' = pity_counter, last_drop' = last_drop,
+      skill_points' = skill_points, skill_combo' = skill_combo, skill_poison' = skill_poison,
+      skill_shield_block' = skill_shield_block, skill_heavy_strike' = skill_heavy_strike,
+      skill_counter_attack' = skill_counter_attack, skill_battle_cry' = skill_battle_cry,
+      skill_fortify' = skill_fortify, qty_venom_sac' = qty_venom_sac, cd_fortify' = cd_fortify,
     }
   }
 
@@ -598,6 +688,10 @@ module quint_crawl {
     stamina' = stamina, max_stamina' = max_stamina,
     cd_heavy_strike' = 0, cd_battle_cry' = 0,
     pity_counter' = pity_counter, last_drop' = last_drop,
+    skill_points' = skill_points, skill_combo' = skill_combo, skill_poison' = skill_poison,
+    skill_shield_block' = skill_shield_block, skill_heavy_strike' = skill_heavy_strike,
+    skill_counter_attack' = skill_counter_attack, skill_battle_cry' = skill_battle_cry,
+    skill_fortify' = skill_fortify, qty_venom_sac' = qty_venom_sac, cd_fortify' = cd_fortify,
   }
 
   // === Equip sword (sets durability to max) ===
@@ -621,6 +715,10 @@ module quint_crawl {
     stamina' = stamina, max_stamina' = max_stamina,
     cd_heavy_strike' = 0, cd_battle_cry' = 0,
     pity_counter' = pity_counter, last_drop' = last_drop,
+    skill_points' = skill_points, skill_combo' = skill_combo, skill_poison' = skill_poison,
+    skill_shield_block' = skill_shield_block, skill_heavy_strike' = skill_heavy_strike,
+    skill_counter_attack' = skill_counter_attack, skill_battle_cry' = skill_battle_cry,
+    skill_fortify' = skill_fortify, qty_venom_sac' = qty_venom_sac, cd_fortify' = cd_fortify,
   }
 
   // === Use antidote (quick action — costs 1 potion, clears player poison, no CD tick) ===
@@ -646,11 +744,16 @@ module quint_crawl {
     stamina' = stamina, max_stamina' = max_stamina,
     cd_heavy_strike' = cd_heavy_strike, cd_battle_cry' = cd_battle_cry,
     pity_counter' = pity_counter, last_drop' = last_drop,
+    skill_points' = skill_points, skill_combo' = skill_combo, skill_poison' = skill_poison,
+    skill_shield_block' = skill_shield_block, skill_heavy_strike' = skill_heavy_strike,
+    skill_counter_attack' = skill_counter_attack, skill_battle_cry' = skill_battle_cry,
+    skill_fortify' = skill_fortify, qty_venom_sac' = qty_venom_sac, cd_fortify' = cd_fortify,
   }
 
   // === Poison strike (apply poison to enemy, enemy hits back) ===
   action poison_strike = all {
     in_combat, not(game_won), hp > 0, enemy_hp > 0,
+    skill_poison, qty_venom_sac > 0,
     enemy_poison_dur == 0,  // can't stack poison
     stamina >= ATTACK_STAMINA,
     val dmg_taken = if (player_def_buff_dur > 0) enemy_attack - DEF_BUFF_REDUCTION else enemy_attack
@@ -681,12 +784,18 @@ module quint_crawl {
       cd_heavy_strike' = if (combat_ends) 0 else (if (cd_heavy_strike > 0) cd_heavy_strike - 1 else 0),
       cd_battle_cry' = if (combat_ends) 0 else (if (cd_battle_cry > 0) cd_battle_cry - 1 else 0),
       pity_counter' = pity_counter, last_drop' = last_drop,
+      skill_points' = skill_points, skill_combo' = skill_combo, skill_poison' = skill_poison,
+      skill_shield_block' = skill_shield_block, skill_heavy_strike' = skill_heavy_strike,
+      skill_counter_attack' = skill_counter_attack, skill_battle_cry' = skill_battle_cry,
+      skill_fortify' = skill_fortify, qty_venom_sac' = qty_venom_sac - 1,
+      cd_fortify' = if (combat_ends) 0 else (if (cd_fortify > 0) cd_fortify - 1 else 0),
     }
   }
 
   // === Combo attack (3-hit chain: Slash 1x → Thrust 1.5x → Finisher 2x) ===
   action combo_attack = all {
     in_combat, not(game_won), hp > 0, enemy_hp > 0,
+    skill_combo,
     combo_count < MAX_COMBO_CHAIN,
     stamina >= COMBO_STAMINA,
     val next_combo = combo_count + 1
@@ -727,7 +836,8 @@ module quint_crawl {
     val new_pity = if (should_drop) 0
                    else if (enemy_defeated_alive) pity_counter + 1
                    else pity_counter
-    val new_last_drop = if (should_drop) 1 else 0
+    val drops_venom = should_drop and zone_tier >= POISON_APPLY_TIER
+    val new_last_drop = if (drops_venom) 2 else if (should_drop) 1 else 0
     all {
       enemy_hp' = if (combat_ends) 0 else new_enemy_hp,
       hp' = if (new_hp < 0) 0 else new_hp,
@@ -740,7 +850,7 @@ module quint_crawl {
       base_attack' = if (new_level > level) base_attack + ATK_PER_LEVEL_UP else base_attack,
       game_won' = game_won,  // win requires claim_victory at Castle
       pos_x' = pos_x, pos_y' = pos_y,
-      qty_potion' = if (should_drop) qty_potion + 1 else qty_potion,
+      qty_potion' = if (should_drop and not(drops_venom)) qty_potion + 1 else qty_potion,
       qty_wood' = qty_wood,
       qty_iron' = qty_iron, qty_sword' = qty_sword, has_sword' = has_sword,
       sword_dur' = new_sword_dur, sword_max_dur' = sword_max_dur,
@@ -757,12 +867,20 @@ module quint_crawl {
       cd_battle_cry' = if (combat_ends) 0 else (if (cd_battle_cry > 0) cd_battle_cry - 1 else 0),
       pity_counter' = new_pity,
       last_drop' = new_last_drop,
+      skill_points' = if (new_level > level) skill_points + SKILL_POINTS_PER_LEVEL else skill_points,
+      skill_combo' = skill_combo, skill_poison' = skill_poison,
+      skill_shield_block' = skill_shield_block, skill_heavy_strike' = skill_heavy_strike,
+      skill_counter_attack' = skill_counter_attack, skill_battle_cry' = skill_battle_cry,
+      skill_fortify' = skill_fortify,
+      qty_venom_sac' = if (drops_venom) qty_venom_sac + 1 else qty_venom_sac,
+      cd_fortify' = if (combat_ends) 0 else (if (cd_fortify > 0) cd_fortify - 1 else 0),
     }
   }
 
   // === Heavy strike (2x damage, costs 5 stamina, 3-turn cooldown) ===
   action heavy_strike = all {
     in_combat, not(game_won), hp > 0, enemy_hp > 0,
+    skill_heavy_strike,
     cd_heavy_strike == 0,
     stamina >= HEAVY_STRIKE_STAMINA,
     val heavy_dmg = attack_power * 2
@@ -795,7 +913,8 @@ module quint_crawl {
     val new_pity = if (should_drop) 0
                    else if (enemy_defeated_alive) pity_counter + 1
                    else pity_counter
-    val new_last_drop = if (should_drop) 1 else 0
+    val drops_venom = should_drop and zone_tier >= POISON_APPLY_TIER
+    val new_last_drop = if (drops_venom) 2 else if (should_drop) 1 else 0
     all {
       enemy_hp' = if (combat_ends) 0 else new_enemy_hp,
       hp' = if (new_hp < 0) 0 else new_hp,
@@ -808,7 +927,7 @@ module quint_crawl {
       base_attack' = if (new_level > level) base_attack + ATK_PER_LEVEL_UP else base_attack,
       game_won' = game_won,  // win requires claim_victory at Castle
       pos_x' = pos_x, pos_y' = pos_y,
-      qty_potion' = if (should_drop) qty_potion + 1 else qty_potion,
+      qty_potion' = if (should_drop and not(drops_venom)) qty_potion + 1 else qty_potion,
       qty_wood' = qty_wood,
       qty_iron' = qty_iron, qty_sword' = qty_sword, has_sword' = has_sword,
       sword_dur' = new_sword_dur, sword_max_dur' = sword_max_dur,
@@ -825,6 +944,13 @@ module quint_crawl {
       cd_battle_cry' = if (combat_ends) 0 else (if (cd_battle_cry > 0) cd_battle_cry - 1 else 0),
       pity_counter' = new_pity,
       last_drop' = new_last_drop,
+      skill_points' = if (new_level > level) skill_points + SKILL_POINTS_PER_LEVEL else skill_points,
+      skill_combo' = skill_combo, skill_poison' = skill_poison,
+      skill_shield_block' = skill_shield_block, skill_heavy_strike' = skill_heavy_strike,
+      skill_counter_attack' = skill_counter_attack, skill_battle_cry' = skill_battle_cry,
+      skill_fortify' = skill_fortify,
+      qty_venom_sac' = if (drops_venom) qty_venom_sac + 1 else qty_venom_sac,
+      cd_fortify' = if (combat_ends) 0 else (if (cd_fortify > 0) cd_fortify - 1 else 0),
     }
   }
 
@@ -832,6 +958,7 @@ module quint_crawl {
   // Enemy hits back. Resets combo.
   action battle_cry = all {
     in_combat, not(game_won), hp > 0, enemy_hp > 0,
+    skill_battle_cry,
     cd_battle_cry == 0,
     stamina >= BATTLE_CRY_STAMINA,
     // Enemy hits player
@@ -873,13 +1000,19 @@ module quint_crawl {
       cd_heavy_strike' = if (combat_ends) 0 else (if (cd_heavy_strike > 0) cd_heavy_strike - 1 else 0),
       cd_battle_cry' = if (combat_ends) 0 else BATTLE_CRY_CD,
       pity_counter' = pity_counter, last_drop' = last_drop,
+      skill_points' = skill_points, skill_combo' = skill_combo, skill_poison' = skill_poison,
+      skill_shield_block' = skill_shield_block, skill_heavy_strike' = skill_heavy_strike,
+      skill_counter_attack' = skill_counter_attack, skill_battle_cry' = skill_battle_cry,
+      skill_fortify' = skill_fortify, qty_venom_sac' = qty_venom_sac,
+      cd_fortify' = if (combat_ends) 0 else (if (cd_fortify > 0) cd_fortify - 1 else 0),
     }
   }
 
   // === Shield block (grants DEF buff, takes enemy hit) ===
   action shield_block = all {
     in_combat, not(game_won), hp > 0, enemy_hp > 0,
-    stamina >= BATTLE_CRY_STAMINA,
+    skill_shield_block,
+    stamina >= SHIELD_BLOCK_STAMINA,
     // Enemy hits player
     val enemy_dmg = if (player_def_buff_dur > 0) enemy_attack - DEF_BUFF_REDUCTION else enemy_attack
     val effective_enemy_dmg = if (enemy_dmg < 1) 1 else enemy_dmg
@@ -914,12 +1047,404 @@ module quint_crawl {
       combo_count' = 0,  // shield block breaks combo
       saved_exists' = saved_exists,
       turn_count' = turn_count + 1,
-      stamina' = stamina - BATTLE_CRY_STAMINA,
+      stamina' = stamina - SHIELD_BLOCK_STAMINA,
       max_stamina' = max_stamina,
       cd_heavy_strike' = if (combat_ends) 0 else (if (cd_heavy_strike > 0) cd_heavy_strike - 1 else 0),
       cd_battle_cry' = if (combat_ends) 0 else (if (cd_battle_cry > 0) cd_battle_cry - 1 else 0),
       pity_counter' = pity_counter, last_drop' = last_drop,
+      skill_points' = skill_points, skill_combo' = skill_combo, skill_poison' = skill_poison,
+      skill_shield_block' = skill_shield_block, skill_heavy_strike' = skill_heavy_strike,
+      skill_counter_attack' = skill_counter_attack, skill_battle_cry' = skill_battle_cry,
+      skill_fortify' = skill_fortify, qty_venom_sac' = qty_venom_sac,
+      cd_fortify' = if (combat_ends) 0 else (if (cd_fortify > 0) cd_fortify - 1 else 0),
     }
+  }
+
+  // === Skill unlock: Combo (tier 1 offense, no prereq) ===
+  action unlock_combo = all {
+    not(in_combat), not(game_won), hp > 0,
+    not(skill_combo), skill_points >= 1,
+    skill_combo' = true, skill_points' = skill_points - 1,
+    hp' = hp, max_hp' = max_hp, base_attack' = base_attack,
+    xp' = xp, level' = level, gold' = gold,
+    pos_x' = pos_x, pos_y' = pos_y,
+    qty_potion' = qty_potion, qty_wood' = qty_wood,
+    qty_iron' = qty_iron, qty_sword' = qty_sword, has_sword' = has_sword,
+    in_combat' = in_combat, enemy_hp' = enemy_hp, enemy_attack' = enemy_attack,
+    game_won' = game_won,
+    sword_dur' = sword_dur, sword_max_dur' = sword_max_dur,
+    player_poison_dur' = player_poison_dur, player_atk_buff_dur' = player_atk_buff_dur,
+    player_def_buff_dur' = player_def_buff_dur, enemy_poison_dur' = enemy_poison_dur,
+    combo_count' = combo_count,
+    saved_exists' = saved_exists,
+    turn_count' = turn_count,
+    stamina' = stamina, max_stamina' = max_stamina,
+    cd_heavy_strike' = cd_heavy_strike, cd_battle_cry' = cd_battle_cry,
+    pity_counter' = pity_counter, last_drop' = last_drop,
+    skill_poison' = skill_poison,
+    skill_shield_block' = skill_shield_block, skill_heavy_strike' = skill_heavy_strike,
+    skill_counter_attack' = skill_counter_attack, skill_battle_cry' = skill_battle_cry,
+    skill_fortify' = skill_fortify, qty_venom_sac' = qty_venom_sac, cd_fortify' = cd_fortify,
+  }
+
+  // === Skill unlock: Poison Strike (tier 1 utility, no prereq) ===
+  action unlock_poison = all {
+    not(in_combat), not(game_won), hp > 0,
+    not(skill_poison), skill_points >= 1,
+    skill_poison' = true, skill_points' = skill_points - 1,
+    hp' = hp, max_hp' = max_hp, base_attack' = base_attack,
+    xp' = xp, level' = level, gold' = gold,
+    pos_x' = pos_x, pos_y' = pos_y,
+    qty_potion' = qty_potion, qty_wood' = qty_wood,
+    qty_iron' = qty_iron, qty_sword' = qty_sword, has_sword' = has_sword,
+    in_combat' = in_combat, enemy_hp' = enemy_hp, enemy_attack' = enemy_attack,
+    game_won' = game_won,
+    sword_dur' = sword_dur, sword_max_dur' = sword_max_dur,
+    player_poison_dur' = player_poison_dur, player_atk_buff_dur' = player_atk_buff_dur,
+    player_def_buff_dur' = player_def_buff_dur, enemy_poison_dur' = enemy_poison_dur,
+    combo_count' = combo_count,
+    saved_exists' = saved_exists,
+    turn_count' = turn_count,
+    stamina' = stamina, max_stamina' = max_stamina,
+    cd_heavy_strike' = cd_heavy_strike, cd_battle_cry' = cd_battle_cry,
+    pity_counter' = pity_counter, last_drop' = last_drop,
+    skill_combo' = skill_combo,
+    skill_shield_block' = skill_shield_block, skill_heavy_strike' = skill_heavy_strike,
+    skill_counter_attack' = skill_counter_attack, skill_battle_cry' = skill_battle_cry,
+    skill_fortify' = skill_fortify, qty_venom_sac' = qty_venom_sac, cd_fortify' = cd_fortify,
+  }
+
+  // === Skill unlock: Shield Block (tier 1 defense, no prereq) ===
+  action unlock_shield_block = all {
+    not(in_combat), not(game_won), hp > 0,
+    not(skill_shield_block), skill_points >= 1,
+    skill_shield_block' = true, skill_points' = skill_points - 1,
+    hp' = hp, max_hp' = max_hp, base_attack' = base_attack,
+    xp' = xp, level' = level, gold' = gold,
+    pos_x' = pos_x, pos_y' = pos_y,
+    qty_potion' = qty_potion, qty_wood' = qty_wood,
+    qty_iron' = qty_iron, qty_sword' = qty_sword, has_sword' = has_sword,
+    in_combat' = in_combat, enemy_hp' = enemy_hp, enemy_attack' = enemy_attack,
+    game_won' = game_won,
+    sword_dur' = sword_dur, sword_max_dur' = sword_max_dur,
+    player_poison_dur' = player_poison_dur, player_atk_buff_dur' = player_atk_buff_dur,
+    player_def_buff_dur' = player_def_buff_dur, enemy_poison_dur' = enemy_poison_dur,
+    combo_count' = combo_count,
+    saved_exists' = saved_exists,
+    turn_count' = turn_count,
+    stamina' = stamina, max_stamina' = max_stamina,
+    cd_heavy_strike' = cd_heavy_strike, cd_battle_cry' = cd_battle_cry,
+    pity_counter' = pity_counter, last_drop' = last_drop,
+    skill_combo' = skill_combo, skill_poison' = skill_poison,
+    skill_heavy_strike' = skill_heavy_strike,
+    skill_counter_attack' = skill_counter_attack, skill_battle_cry' = skill_battle_cry,
+    skill_fortify' = skill_fortify, qty_venom_sac' = qty_venom_sac, cd_fortify' = cd_fortify,
+  }
+
+  // === Skill unlock: Heavy Strike (tier 2 offense, requires Combo) ===
+  action unlock_heavy_strike = all {
+    not(in_combat), not(game_won), hp > 0,
+    not(skill_heavy_strike), skill_combo, skill_points >= 1,
+    skill_heavy_strike' = true, skill_points' = skill_points - 1,
+    hp' = hp, max_hp' = max_hp, base_attack' = base_attack,
+    xp' = xp, level' = level, gold' = gold,
+    pos_x' = pos_x, pos_y' = pos_y,
+    qty_potion' = qty_potion, qty_wood' = qty_wood,
+    qty_iron' = qty_iron, qty_sword' = qty_sword, has_sword' = has_sword,
+    in_combat' = in_combat, enemy_hp' = enemy_hp, enemy_attack' = enemy_attack,
+    game_won' = game_won,
+    sword_dur' = sword_dur, sword_max_dur' = sword_max_dur,
+    player_poison_dur' = player_poison_dur, player_atk_buff_dur' = player_atk_buff_dur,
+    player_def_buff_dur' = player_def_buff_dur, enemy_poison_dur' = enemy_poison_dur,
+    combo_count' = combo_count,
+    saved_exists' = saved_exists,
+    turn_count' = turn_count,
+    stamina' = stamina, max_stamina' = max_stamina,
+    cd_heavy_strike' = cd_heavy_strike, cd_battle_cry' = cd_battle_cry,
+    pity_counter' = pity_counter, last_drop' = last_drop,
+    skill_combo' = skill_combo, skill_poison' = skill_poison,
+    skill_shield_block' = skill_shield_block,
+    skill_counter_attack' = skill_counter_attack, skill_battle_cry' = skill_battle_cry,
+    skill_fortify' = skill_fortify, qty_venom_sac' = qty_venom_sac, cd_fortify' = cd_fortify,
+  }
+
+  // === Skill unlock: Counter-Attack (tier 2 defense, requires Shield Block) ===
+  action unlock_counter_attack = all {
+    not(in_combat), not(game_won), hp > 0,
+    not(skill_counter_attack), skill_shield_block, skill_points >= 1,
+    skill_counter_attack' = true, skill_points' = skill_points - 1,
+    hp' = hp, max_hp' = max_hp, base_attack' = base_attack,
+    xp' = xp, level' = level, gold' = gold,
+    pos_x' = pos_x, pos_y' = pos_y,
+    qty_potion' = qty_potion, qty_wood' = qty_wood,
+    qty_iron' = qty_iron, qty_sword' = qty_sword, has_sword' = has_sword,
+    in_combat' = in_combat, enemy_hp' = enemy_hp, enemy_attack' = enemy_attack,
+    game_won' = game_won,
+    sword_dur' = sword_dur, sword_max_dur' = sword_max_dur,
+    player_poison_dur' = player_poison_dur, player_atk_buff_dur' = player_atk_buff_dur,
+    player_def_buff_dur' = player_def_buff_dur, enemy_poison_dur' = enemy_poison_dur,
+    combo_count' = combo_count,
+    saved_exists' = saved_exists,
+    turn_count' = turn_count,
+    stamina' = stamina, max_stamina' = max_stamina,
+    cd_heavy_strike' = cd_heavy_strike, cd_battle_cry' = cd_battle_cry,
+    pity_counter' = pity_counter, last_drop' = last_drop,
+    skill_combo' = skill_combo, skill_poison' = skill_poison,
+    skill_shield_block' = skill_shield_block, skill_heavy_strike' = skill_heavy_strike,
+    skill_battle_cry' = skill_battle_cry,
+    skill_fortify' = skill_fortify, qty_venom_sac' = qty_venom_sac, cd_fortify' = cd_fortify,
+  }
+
+  // === Skill unlock: Battle Cry (tier 3 offense, requires Heavy Strike, costs 2pt) ===
+  action unlock_battle_cry = all {
+    not(in_combat), not(game_won), hp > 0,
+    not(skill_battle_cry), skill_heavy_strike, skill_points >= 2,
+    skill_battle_cry' = true, skill_points' = skill_points - 2,
+    hp' = hp, max_hp' = max_hp, base_attack' = base_attack,
+    xp' = xp, level' = level, gold' = gold,
+    pos_x' = pos_x, pos_y' = pos_y,
+    qty_potion' = qty_potion, qty_wood' = qty_wood,
+    qty_iron' = qty_iron, qty_sword' = qty_sword, has_sword' = has_sword,
+    in_combat' = in_combat, enemy_hp' = enemy_hp, enemy_attack' = enemy_attack,
+    game_won' = game_won,
+    sword_dur' = sword_dur, sword_max_dur' = sword_max_dur,
+    player_poison_dur' = player_poison_dur, player_atk_buff_dur' = player_atk_buff_dur,
+    player_def_buff_dur' = player_def_buff_dur, enemy_poison_dur' = enemy_poison_dur,
+    combo_count' = combo_count,
+    saved_exists' = saved_exists,
+    turn_count' = turn_count,
+    stamina' = stamina, max_stamina' = max_stamina,
+    cd_heavy_strike' = cd_heavy_strike, cd_battle_cry' = cd_battle_cry,
+    pity_counter' = pity_counter, last_drop' = last_drop,
+    skill_combo' = skill_combo, skill_poison' = skill_poison,
+    skill_shield_block' = skill_shield_block, skill_heavy_strike' = skill_heavy_strike,
+    skill_counter_attack' = skill_counter_attack,
+    skill_fortify' = skill_fortify, qty_venom_sac' = qty_venom_sac, cd_fortify' = cd_fortify,
+  }
+
+  // === Skill unlock: Fortify (tier 3 defense, requires Counter-Attack, costs 2pt) ===
+  action unlock_fortify = all {
+    not(in_combat), not(game_won), hp > 0,
+    not(skill_fortify), skill_counter_attack, skill_points >= 2,
+    skill_fortify' = true, skill_points' = skill_points - 2,
+    hp' = hp, max_hp' = max_hp, base_attack' = base_attack,
+    xp' = xp, level' = level, gold' = gold,
+    pos_x' = pos_x, pos_y' = pos_y,
+    qty_potion' = qty_potion, qty_wood' = qty_wood,
+    qty_iron' = qty_iron, qty_sword' = qty_sword, has_sword' = has_sword,
+    in_combat' = in_combat, enemy_hp' = enemy_hp, enemy_attack' = enemy_attack,
+    game_won' = game_won,
+    sword_dur' = sword_dur, sword_max_dur' = sword_max_dur,
+    player_poison_dur' = player_poison_dur, player_atk_buff_dur' = player_atk_buff_dur,
+    player_def_buff_dur' = player_def_buff_dur, enemy_poison_dur' = enemy_poison_dur,
+    combo_count' = combo_count,
+    saved_exists' = saved_exists,
+    turn_count' = turn_count,
+    stamina' = stamina, max_stamina' = max_stamina,
+    cd_heavy_strike' = cd_heavy_strike, cd_battle_cry' = cd_battle_cry,
+    pity_counter' = pity_counter, last_drop' = last_drop,
+    skill_combo' = skill_combo, skill_poison' = skill_poison,
+    skill_shield_block' = skill_shield_block, skill_heavy_strike' = skill_heavy_strike,
+    skill_counter_attack' = skill_counter_attack, skill_battle_cry' = skill_battle_cry,
+    qty_venom_sac' = qty_venom_sac, cd_fortify' = cd_fortify,
+  }
+
+  // === Respec skills (at village, costs gold) ===
+  action respec = all {
+    not(in_combat), not(game_won), hp > 0,
+    zone_has_services(pos_x, pos_y),
+    gold >= RESPEC_COST,
+    // Count spent points
+    val spent = (if (skill_combo) 1 else 0) + (if (skill_poison) 1 else 0) +
+                (if (skill_shield_block) 1 else 0) + (if (skill_heavy_strike) 1 else 0) +
+                (if (skill_counter_attack) 1 else 0) + (if (skill_battle_cry) 2 else 0) +
+                (if (skill_fortify) 2 else 0)
+    all {
+      spent > 0,
+      gold' = gold - RESPEC_COST,
+      skill_points' = skill_points + spent,
+      skill_combo' = false, skill_poison' = false, skill_shield_block' = false,
+      skill_heavy_strike' = false, skill_counter_attack' = false,
+      skill_battle_cry' = false, skill_fortify' = false,
+      hp' = hp, max_hp' = max_hp, base_attack' = base_attack,
+      xp' = xp, level' = level,
+      pos_x' = pos_x, pos_y' = pos_y,
+      qty_potion' = qty_potion, qty_wood' = qty_wood,
+      qty_iron' = qty_iron, qty_sword' = qty_sword, has_sword' = has_sword,
+      in_combat' = in_combat, enemy_hp' = enemy_hp, enemy_attack' = enemy_attack,
+      game_won' = game_won,
+      sword_dur' = sword_dur, sword_max_dur' = sword_max_dur,
+      player_poison_dur' = player_poison_dur, player_atk_buff_dur' = player_atk_buff_dur,
+      player_def_buff_dur' = player_def_buff_dur, enemy_poison_dur' = enemy_poison_dur,
+      combo_count' = combo_count,
+      saved_exists' = saved_exists,
+      turn_count' = turn_count,
+      stamina' = stamina, max_stamina' = max_stamina,
+      cd_heavy_strike' = cd_heavy_strike, cd_battle_cry' = cd_battle_cry,
+      pity_counter' = pity_counter, last_drop' = last_drop,
+      qty_venom_sac' = qty_venom_sac, cd_fortify' = cd_fortify,
+    }
+  }
+
+  // === Counter-Attack (block + retaliatory hit) ===
+  action counter_attack = all {
+    in_combat, not(game_won), hp > 0, enemy_hp > 0,
+    skill_counter_attack,
+    stamina >= COUNTER_STAMINA,
+    // Player deals base damage to enemy
+    val player_dmg = attack_power
+    val new_enemy_hp = if (enemy_hp - player_dmg < 0) 0 else enemy_hp - player_dmg
+    // Enemy hits player (with DEF buff reduction)
+    val enemy_dmg = if (player_def_buff_dur > 0) enemy_attack - DEF_BUFF_REDUCTION else enemy_attack
+    val effective_enemy_dmg = if (enemy_dmg < 1) 1 else enemy_dmg
+    val poison_dmg = if (player_poison_dur > 0) POISON_DMG else 0
+    val enemy_poison_dmg = if (enemy_poison_dur > 0) POISON_DMG else 0
+    val final_enemy_hp = if (new_enemy_hp - enemy_poison_dmg < 0) 0 else new_enemy_hp - enemy_poison_dmg
+    val new_hp = hp - effective_enemy_dmg - poison_dmg
+    val combat_ends = (new_hp <= 0 or final_enemy_hp <= 0)
+    // XP and gold on kill
+    val zone_tier = zone_level(pos_x, pos_y)
+    val xp_reward = if (final_enemy_hp <= 0 and new_hp > 0) BASE_XP * zone_tier else 0
+    val gold_reward = if (final_enemy_hp <= 0 and new_hp > 0) BASE_GOLD + GOLD_PER_LEVEL * zone_tier else 0
+    val new_xp = xp + xp_reward
+    val new_level = if (level < MAX_LEVEL and new_xp >= xp_threshold(level + 1)) level + 1 else level
+    // Status ticking
+    val apply_poison = (zone_tier >= POISON_APPLY_TIER and player_poison_dur == 0)
+    val next_player_poison = if (apply_poison) STATUS_DURATION
+                             else if (player_poison_dur > 0) player_poison_dur - 1
+                             else 0
+    val next_atk_buff = if (player_atk_buff_dur > 0) player_atk_buff_dur - 1 else 0
+    val next_enemy_poison = if (enemy_poison_dur > 0) enemy_poison_dur - 1 else 0
+    // Sword durability (counter-attack uses sword)
+    val dur_cost = if (has_sword and sword_dur > 0) 1 else 0
+    // Loot drop on enemy defeat
+    val enemy_defeated_alive = (final_enemy_hp <= 0 and new_hp > 0)
+    val drop_trigger = (pity_counter >= PITY_THRESHOLD or (turn_count % LOOT_DROP_MODULO == 0))
+    val should_drop = enemy_defeated_alive and drop_trigger
+    val new_pity = if (should_drop) 0
+                   else if (enemy_defeated_alive) pity_counter + 1
+                   else pity_counter
+    val drops_venom = should_drop and zone_tier >= POISON_APPLY_TIER
+    val new_last_drop = if (drops_venom) 2 else if (should_drop) 1 else 0
+    all {
+      hp' = if (new_hp < 0) 0 else new_hp,
+      enemy_hp' = if (combat_ends) 0 else final_enemy_hp,
+      in_combat' = if (combat_ends) false else true,
+      enemy_attack' = if (combat_ends) 0 else enemy_attack,
+      xp' = new_xp, level' = new_level,
+      gold' = gold + gold_reward,
+      // Grant DEF buff on counter
+      player_def_buff_dur' = if (combat_ends) 0 else STATUS_DURATION,
+      player_poison_dur' = if (combat_ends) 0 else next_player_poison,
+      player_atk_buff_dur' = if (combat_ends) 0 else next_atk_buff,
+      enemy_poison_dur' = if (combat_ends) 0 else next_enemy_poison,
+      max_hp' = if (new_level > level) max_hp + HP_PER_LEVEL else max_hp,
+      base_attack' = if (new_level > level) base_attack + ATK_PER_LEVEL_UP else base_attack,
+      pos_x' = pos_x, pos_y' = pos_y,
+      qty_potion' = if (should_drop and not(drops_venom)) qty_potion + 1 else qty_potion,
+      qty_wood' = qty_wood, qty_iron' = qty_iron,
+      qty_sword' = qty_sword, has_sword' = has_sword,
+      game_won' = game_won,
+      sword_dur' = sword_dur - dur_cost, sword_max_dur' = sword_max_dur,
+      combo_count' = 0,  // counter-attack breaks combo
+      saved_exists' = saved_exists,
+      turn_count' = turn_count + 1,
+      stamina' = stamina - COUNTER_STAMINA,
+      max_stamina' = if (new_level > level) max_stamina + STAMINA_PER_LEVEL else max_stamina,
+      cd_heavy_strike' = if (combat_ends) 0 else (if (cd_heavy_strike > 0) cd_heavy_strike - 1 else 0),
+      cd_battle_cry' = if (combat_ends) 0 else (if (cd_battle_cry > 0) cd_battle_cry - 1 else 0),
+      pity_counter' = new_pity,
+      last_drop' = new_last_drop,
+      skill_points' = if (new_level > level) skill_points + SKILL_POINTS_PER_LEVEL else skill_points,
+      skill_combo' = skill_combo, skill_poison' = skill_poison,
+      skill_shield_block' = skill_shield_block, skill_heavy_strike' = skill_heavy_strike,
+      skill_counter_attack' = skill_counter_attack, skill_battle_cry' = skill_battle_cry,
+      skill_fortify' = skill_fortify,
+      qty_venom_sac' = if (drops_venom) qty_venom_sac + 1 else qty_venom_sac,
+      cd_fortify' = if (combat_ends) 0 else (if (cd_fortify > 0) cd_fortify - 1 else 0),
+    }
+  }
+
+  // === Fortify (double-duration DEF buff, no damage, cooldown) ===
+  action fortify = all {
+    in_combat, not(game_won), hp > 0, enemy_hp > 0,
+    skill_fortify,
+    cd_fortify == 0,
+    stamina >= FORTIFY_STAMINA,
+    // Enemy hits player
+    val enemy_dmg = if (player_def_buff_dur > 0) enemy_attack - DEF_BUFF_REDUCTION else enemy_attack
+    val effective_enemy_dmg = if (enemy_dmg < 1) 1 else enemy_dmg
+    val poison_dmg = if (player_poison_dur > 0) POISON_DMG else 0
+    val new_hp = hp - effective_enemy_dmg - poison_dmg
+    val combat_ends = (new_hp <= 0)
+    // Status ticking
+    val zone_tier = zone_level(pos_x, pos_y)
+    val apply_poison = (zone_tier >= POISON_APPLY_TIER and player_poison_dur == 0)
+    val next_player_poison = if (apply_poison) STATUS_DURATION
+                             else if (player_poison_dur > 0) player_poison_dur - 1
+                             else 0
+    val next_atk_buff = if (player_atk_buff_dur > 0) player_atk_buff_dur - 1 else 0
+    val next_enemy_poison = if (enemy_poison_dur > 0) enemy_poison_dur - 1 else 0
+    all {
+      hp' = if (new_hp < 0) 0 else new_hp,
+      in_combat' = if (combat_ends) false else true,
+      enemy_hp' = if (combat_ends) 0 else enemy_hp,
+      enemy_attack' = if (combat_ends) 0 else enemy_attack,
+      // Grant extended DEF buff
+      player_def_buff_dur' = if (combat_ends) 0 else FORTIFY_DURATION,
+      player_poison_dur' = if (combat_ends) 0 else next_player_poison,
+      player_atk_buff_dur' = if (combat_ends) 0 else next_atk_buff,
+      enemy_poison_dur' = if (combat_ends) 0 else next_enemy_poison,
+      max_hp' = max_hp, base_attack' = base_attack,
+      xp' = xp, level' = level, gold' = gold,
+      pos_x' = pos_x, pos_y' = pos_y,
+      qty_potion' = qty_potion, qty_wood' = qty_wood, qty_iron' = qty_iron,
+      qty_sword' = qty_sword, has_sword' = has_sword,
+      game_won' = game_won,
+      sword_dur' = sword_dur, sword_max_dur' = sword_max_dur,
+      combo_count' = 0,  // fortify breaks combo
+      saved_exists' = saved_exists,
+      turn_count' = turn_count + 1,
+      stamina' = stamina - FORTIFY_STAMINA,
+      max_stamina' = max_stamina,
+      cd_heavy_strike' = if (combat_ends) 0 else (if (cd_heavy_strike > 0) cd_heavy_strike - 1 else 0),
+      cd_battle_cry' = if (combat_ends) 0 else (if (cd_battle_cry > 0) cd_battle_cry - 1 else 0),
+      pity_counter' = pity_counter, last_drop' = last_drop,
+      skill_points' = skill_points, skill_combo' = skill_combo, skill_poison' = skill_poison,
+      skill_shield_block' = skill_shield_block, skill_heavy_strike' = skill_heavy_strike,
+      skill_counter_attack' = skill_counter_attack, skill_battle_cry' = skill_battle_cry,
+      skill_fortify' = skill_fortify, qty_venom_sac' = qty_venom_sac,
+      cd_fortify' = if (combat_ends) 0 else FORTIFY_CD,
+    }
+  }
+
+  // === Craft Venom Sac (at village, 2 iron) ===
+  action craft_venom_sac = all {
+    not(in_combat), not(game_won), hp > 0,
+    zone_has_services(pos_x, pos_y),
+    qty_iron >= CRAFT_VENOM_IRON_COST,
+    qty_iron' = qty_iron - CRAFT_VENOM_IRON_COST,
+    qty_venom_sac' = qty_venom_sac + 1,
+    hp' = hp, max_hp' = max_hp, base_attack' = base_attack,
+    xp' = xp, level' = level, gold' = gold,
+    pos_x' = pos_x, pos_y' = pos_y,
+    qty_potion' = qty_potion, qty_wood' = qty_wood,
+    qty_sword' = qty_sword, has_sword' = has_sword,
+    in_combat' = in_combat, enemy_hp' = enemy_hp, enemy_attack' = enemy_attack,
+    game_won' = game_won,
+    sword_dur' = sword_dur, sword_max_dur' = sword_max_dur,
+    player_poison_dur' = player_poison_dur, player_atk_buff_dur' = player_atk_buff_dur,
+    player_def_buff_dur' = player_def_buff_dur, enemy_poison_dur' = enemy_poison_dur,
+    combo_count' = combo_count,
+    saved_exists' = saved_exists,
+    turn_count' = turn_count,
+    stamina' = stamina, max_stamina' = max_stamina,
+    cd_heavy_strike' = cd_heavy_strike, cd_battle_cry' = cd_battle_cry,
+    pity_counter' = pity_counter, last_drop' = last_drop,
+    skill_points' = skill_points, skill_combo' = skill_combo, skill_poison' = skill_poison,
+    skill_shield_block' = skill_shield_block, skill_heavy_strike' = skill_heavy_strike,
+    skill_counter_attack' = skill_counter_attack, skill_battle_cry' = skill_battle_cry,
+    skill_fortify' = skill_fortify, cd_fortify' = cd_fortify,
   }
 
   // === Save game (only outside combat, alive, not won) ===
@@ -941,6 +1466,10 @@ module quint_crawl {
     stamina' = stamina, max_stamina' = max_stamina,
     cd_heavy_strike' = cd_heavy_strike, cd_battle_cry' = cd_battle_cry,
     pity_counter' = pity_counter, last_drop' = last_drop,
+    skill_points' = skill_points, skill_combo' = skill_combo, skill_poison' = skill_poison,
+    skill_shield_block' = skill_shield_block, skill_heavy_strike' = skill_heavy_strike,
+    skill_counter_attack' = skill_counter_attack, skill_battle_cry' = skill_battle_cry,
+    skill_fortify' = skill_fortify, qty_venom_sac' = qty_venom_sac, cd_fortify' = cd_fortify,
   }
 
   // === Load game (requires a save to exist) ===
@@ -964,6 +1493,10 @@ module quint_crawl {
     stamina' = stamina, max_stamina' = max_stamina,
     cd_heavy_strike' = cd_heavy_strike, cd_battle_cry' = cd_battle_cry,
     pity_counter' = pity_counter, last_drop' = last_drop,
+    skill_points' = skill_points, skill_combo' = skill_combo, skill_poison' = skill_poison,
+    skill_shield_block' = skill_shield_block, skill_heavy_strike' = skill_heavy_strike,
+    skill_counter_attack' = skill_counter_attack, skill_battle_cry' = skill_battle_cry,
+    skill_fortify' = skill_fortify, qty_venom_sac' = qty_venom_sac, cd_fortify' = cd_fortify,
   }
 
   // === Claim Victory ===
@@ -989,6 +1522,10 @@ module quint_crawl {
     stamina' = stamina, max_stamina' = max_stamina,
     cd_heavy_strike' = 0, cd_battle_cry' = 0,
     pity_counter' = pity_counter, last_drop' = last_drop,
+    skill_points' = skill_points, skill_combo' = skill_combo, skill_poison' = skill_poison,
+    skill_shield_block' = skill_shield_block, skill_heavy_strike' = skill_heavy_strike,
+    skill_counter_attack' = skill_counter_attack, skill_battle_cry' = skill_battle_cry,
+    skill_fortify' = skill_fortify, qty_venom_sac' = qty_venom_sac, cd_fortify' = cd_fortify,
   }
 
   // === Step ===
@@ -999,6 +1536,11 @@ module quint_crawl {
     gather_wood, mine_iron, craft_sword, equip_sword,
     use_antidote, poison_strike, combo_attack,
     heavy_strike, battle_cry, shield_block,
+    counter_attack, fortify,
+    unlock_combo, unlock_poison, unlock_shield_block,
+    unlock_heavy_strike, unlock_counter_attack,
+    unlock_battle_cry, unlock_fortify,
+    respec, craft_venom_sac,
     save_game, load_game, claim_victory,
   }
 
@@ -1052,7 +1594,7 @@ module quint_crawl {
   val status_dur_bounded = and {
     player_poison_dur >= 0, player_poison_dur <= STATUS_DURATION,
     player_atk_buff_dur >= 0, player_atk_buff_dur <= STATUS_DURATION,
-    player_def_buff_dur >= 0, player_def_buff_dur <= STATUS_DURATION,
+    player_def_buff_dur >= 0, player_def_buff_dur <= FORTIFY_DURATION,
     enemy_poison_dur >= 0, enemy_poison_dur <= STATUS_DURATION,
   }
 
@@ -1085,18 +1627,19 @@ module quint_crawl {
   val cooldowns_bounded = and {
     cd_heavy_strike >= 0, cd_heavy_strike <= HEAVY_STRIKE_CD,
     cd_battle_cry >= 0, cd_battle_cry <= BATTLE_CRY_CD,
+    cd_fortify >= 0, cd_fortify <= FORTIFY_CD,
   }
 
   /// Cooldowns only active during combat
   val cooldowns_only_in_combat = not(in_combat).implies(
-    cd_heavy_strike == 0 and cd_battle_cry == 0
+    cd_heavy_strike == 0 and cd_battle_cry == 0 and cd_fortify == 0
   )
 
   /// Pity counter bounded [0, PITY_THRESHOLD]
   val pity_bounded = pity_counter >= 0 and pity_counter <= PITY_THRESHOLD
 
-  /// Last drop is valid (0=none, 1=potion)
-  val last_drop_valid = last_drop >= 0 and last_drop <= 1
+  /// Last drop is valid (0=none, 1=potion, 2=venom_sac)
+  val last_drop_valid = last_drop >= 0 and last_drop <= 2
 
   /// XP thresholds increase with level (progression is monotonic)
   val xp_thresholds_monotonic = and {
@@ -1109,6 +1652,20 @@ module quint_crawl {
   val win_requires_castle = game_won.implies(
     pos_x % 3 == 2 and pos_y % 3 == 2 and zone_level(pos_x, pos_y) >= MAX_LEVEL
   )
+
+  /// Skill points are non-negative
+  val skill_points_non_negative = skill_points >= 0
+
+  /// Skill prerequisites are respected
+  val skill_prereqs_respected = and {
+    skill_heavy_strike.implies(skill_combo),
+    skill_counter_attack.implies(skill_shield_block),
+    skill_battle_cry.implies(skill_heavy_strike),
+    skill_fortify.implies(skill_counter_attack),
+  }
+
+  /// Venom sac quantity is non-negative
+  val qty_venom_sac_non_negative = qty_venom_sac >= 0
 }
 
 module quint_crawl_run {

@@ -137,53 +137,91 @@ draw_combat :: proc(app: ^App_State) {
 	rl.DrawText("[P]", 230, action_y, 20, pot_color)
 	rl.DrawText(fmt.ctprintf("Potion (%d)", g.qty_potion), 270, action_y, 20, pot_text_color)
 
-	// Combo
-	combo_ok := g.combo_count < 3 && g.enemy_hp > 0
-	combo_color := rl.Color{255, 220, 50, 255} if combo_ok else rl.Color{60, 60, 70, 255}
-	rl.DrawText("[K]", 420, action_y, 20, combo_color)
-	rl.DrawText("Combo", 460, action_y, 20, combo_color)
-
 	// Flee
 	rl.DrawText("[F]", 560, action_y, 20, {255, 180, 100, 255})
 	rl.DrawText("Flee", 600, action_y, 20, {255, 180, 100, 255})
 
-	// Row 2: Poison strike / Antidote
+	// Row 2: Combo / Poison / Antidote (only show unlocked skills)
 	action_y2 := action_y + 28
-	ps_ok := g.enemy_poison_dur == 0 && g.stamina >= qc.ATTACK_STAMINA
-	ps_color := rl.Color{100, 220, 50, 255} if ps_ok else rl.Color{60, 60, 70, 255}
-	rl.DrawText("[V]", 60, action_y2, 20, ps_color)
-	rl.DrawText("Poison", 100, action_y2, 20, ps_color)
+	row2_x := i32(60)
+
+	if g.skill_combo {
+		combo_ok2 := g.combo_count < 3 && g.enemy_hp > 0 && g.stamina >= qc.COMBO_STAMINA
+		combo_color2 := rl.Color{255, 220, 50, 255} if combo_ok2 else rl.Color{60, 60, 70, 255}
+		rl.DrawText("[K]", row2_x, action_y2, 20, combo_color2)
+		rl.DrawText("Combo", row2_x + 40, action_y2, 20, combo_color2)
+		row2_x += 140
+	}
+
+	if g.skill_poison {
+		ps_ok := g.enemy_poison_dur == 0 && g.stamina >= qc.ATTACK_STAMINA && g.qty_venom_sac > 0
+		ps_color := rl.Color{100, 220, 50, 255} if ps_ok else rl.Color{60, 60, 70, 255}
+		rl.DrawText("[V]", row2_x, action_y2, 20, ps_color)
+		rl.DrawText(fmt.ctprintf("Poison(%d)", g.qty_venom_sac), row2_x + 40, action_y2, 20, ps_color)
+		row2_x += 160
+	}
 
 	anti_ok := g.qty_potion > 0 && g.player_poison_dur > 0
 	anti_color := rl.Color{100, 220, 50, 255} if anti_ok else rl.Color{60, 60, 70, 255}
-	rl.DrawText("[X]", 230, action_y2, 20, anti_color)
-	rl.DrawText("Antidote", 270, action_y2, 20, anti_color)
+	rl.DrawText("[X]", row2_x, action_y2, 20, anti_color)
+	rl.DrawText("Antidote", row2_x + 40, action_y2, 20, anti_color)
 
-	// Row 3: Heavy strike / Battle cry (with cooldown indicators)
+	// Row 3: Heavy / Warcry / Block / Counter / Fortify (only show unlocked)
 	action_y3 := action_y2 + 28
-	hs_ok := g.cd_heavy_strike == 0 && g.stamina >= qc.HEAVY_STRIKE_STAMINA && g.enemy_hp > 0
-	hs_color := rl.Color{255, 120, 50, 255} if hs_ok else rl.Color{60, 60, 70, 255}
-	rl.DrawText("[H]", 60, action_y3, 20, hs_color)
-	if g.cd_heavy_strike > 0 {
-		rl.DrawText(fmt.ctprintf("Heavy (%d)", g.cd_heavy_strike), 100, action_y3, 20, hs_color)
-	} else {
-		rl.DrawText("Heavy", 100, action_y3, 20, hs_color)
+	row3_x := i32(60)
+
+	if g.skill_heavy_strike {
+		hs_ok := g.cd_heavy_strike == 0 && g.stamina >= qc.HEAVY_STRIKE_STAMINA && g.enemy_hp > 0
+		hs_color := rl.Color{255, 120, 50, 255} if hs_ok else rl.Color{60, 60, 70, 255}
+		rl.DrawText("[H]", row3_x, action_y3, 20, hs_color)
+		if g.cd_heavy_strike > 0 {
+			rl.DrawText(fmt.ctprintf("Heavy(%d)", g.cd_heavy_strike), row3_x + 40, action_y3, 20, hs_color)
+		} else {
+			rl.DrawText("Heavy", row3_x + 40, action_y3, 20, hs_color)
+		}
+		row3_x += 130
 	}
 
-	bc_ok := g.cd_battle_cry == 0 && g.stamina >= qc.BATTLE_CRY_STAMINA && g.enemy_hp > 0
-	bc_color := rl.Color{255, 200, 100, 255} if bc_ok else rl.Color{60, 60, 70, 255}
-	rl.DrawText("[Y]", 230, action_y3, 20, bc_color)
-	if g.cd_battle_cry > 0 {
-		rl.DrawText(fmt.ctprintf("Warcry (%d)", g.cd_battle_cry), 270, action_y3, 20, bc_color)
-	} else {
-		rl.DrawText("Warcry", 270, action_y3, 20, bc_color)
+	if g.skill_battle_cry {
+		bc_ok := g.cd_battle_cry == 0 && g.stamina >= qc.BATTLE_CRY_STAMINA && g.enemy_hp > 0
+		bc_color := rl.Color{255, 200, 100, 255} if bc_ok else rl.Color{60, 60, 70, 255}
+		rl.DrawText("[Y]", row3_x, action_y3, 20, bc_color)
+		if g.cd_battle_cry > 0 {
+			rl.DrawText(fmt.ctprintf("Warcry(%d)", g.cd_battle_cry), row3_x + 40, action_y3, 20, bc_color)
+		} else {
+			rl.DrawText("Warcry", row3_x + 40, action_y3, 20, bc_color)
+		}
+		row3_x += 130
 	}
 
-	// Shield block
-	sb_ok := g.stamina >= qc.BATTLE_CRY_STAMINA && g.enemy_hp > 0
-	sb_color := rl.Color{100, 180, 255, 255} if sb_ok else rl.Color{60, 60, 70, 255}
-	rl.DrawText("[Z]", 420, action_y3, 20, sb_color)
-	rl.DrawText("Block", 460, action_y3, 20, sb_color)
+	if g.skill_shield_block {
+		sb_ok := g.stamina >= qc.SHIELD_BLOCK_STAMINA && g.enemy_hp > 0
+		sb_color := rl.Color{100, 180, 255, 255} if sb_ok else rl.Color{60, 60, 70, 255}
+		rl.DrawText("[Z]", row3_x, action_y3, 20, sb_color)
+		rl.DrawText("Block", row3_x + 40, action_y3, 20, sb_color)
+		row3_x += 110
+	}
+
+	if g.skill_counter_attack {
+		ca_ok := g.stamina >= qc.COUNTER_STAMINA && g.enemy_hp > 0
+		ca_color := rl.Color{180, 140, 255, 255} if ca_ok else rl.Color{60, 60, 70, 255}
+		rl.DrawText("[N]", row3_x, action_y3, 20, ca_color)
+		rl.DrawText("Counter", row3_x + 40, action_y3, 20, ca_color)
+		row3_x += 130
+	}
+
+	// Row 4: Fortify (if unlocked, with cooldown)
+	if g.skill_fortify {
+		action_y4 := action_y3 + 28
+		ft_ok := g.cd_fortify == 0 && g.stamina >= qc.FORTIFY_STAMINA && g.enemy_hp > 0
+		ft_color := rl.Color{80, 200, 200, 255} if ft_ok else rl.Color{60, 60, 70, 255}
+		rl.DrawText("[I]", 60, action_y4, 20, ft_color)
+		if g.cd_fortify > 0 {
+			rl.DrawText(fmt.ctprintf("Fortify(%d)", g.cd_fortify), 100, action_y4, 20, ft_color)
+		} else {
+			rl.DrawText("Fortify", 100, action_y4, 20, ft_color)
+		}
+	}
 
 	// Flash overlay for hit feedback
 	if app.flash_timer > 0 {

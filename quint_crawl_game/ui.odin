@@ -64,7 +64,13 @@ draw_hud :: proc(app: ^App_State) {
 
 	// Gold
 	rl.DrawText(fmt.ctprintf("Gold: %d", g.gold), x, y, 16, TEXT_GOLD)
-	y += 30
+	y += 20
+
+	// Skill points
+	if g.skill_points > 0 {
+		rl.DrawText(fmt.ctprintf("Skill Pts: %d", g.skill_points), x, y, 16, {255, 220, 50, 255})
+	}
+	y += 20
 
 	// --- Inventory ---
 	rl.DrawLine(x, y, x + w, y, TILE_BORDER)
@@ -80,6 +86,10 @@ draw_hud :: proc(app: ^App_State) {
 	y += 18
 	rl.DrawText(fmt.ctprintf("Swords: %d", g.qty_sword), x + 8, y, 14, TEXT_BRIGHT)
 	y += 18
+	if g.qty_venom_sac > 0 {
+		rl.DrawText(fmt.ctprintf("Venom Sacs: %d", g.qty_venom_sac), x + 8, y, 14, {100, 220, 50, 255})
+		y += 18
+	}
 
 	if g.has_sword {
 		dur_color := TEXT_BRIGHT if g.sword_dur > 3 else BAR_HP_FG
@@ -140,6 +150,8 @@ draw_hud :: proc(app: ^App_State) {
 			if g.has_sword && g.sword_dur < g.sword_max_dur {
 				draw_action(x, &y, "[T]", fmt.ctprintf("Repair Sword (%dg)", qc.REPAIR_COST), g.gold >= qc.REPAIR_COST)
 			}
+			draw_action(x, &y, "[O]", fmt.ctprintf("Craft Venom (%di)", qc.CRAFT_VENOM_IRON_COST), g.qty_iron >= qc.CRAFT_VENOM_IRON_COST)
+			draw_action(x, &y, "[U]", fmt.ctprintf("Respec (%dg)", qc.RESPEC_COST), g.gold >= qc.RESPEC_COST)
 		}
 		// Forest
 		if qc.zone_has_wood(g.pos_x, g.pos_y) {
@@ -175,6 +187,36 @@ draw_hud :: proc(app: ^App_State) {
 		// Save/Load
 		draw_action(x, &y, "[F5]", "Save", true)
 		draw_action(x, &y, "[F9]", "Load", g.saved_exists)
+
+		// Skill unlocks (when points available)
+		if g.skill_points > 0 {
+			y += 4
+			rl.DrawLine(x, y, x + w, y, TILE_BORDER)
+			y += 6
+			rl.DrawText("Skills", x, y, 14, {255, 220, 50, 255})
+			y += 18
+			if !g.skill_combo {
+				draw_action(x, &y, "[1]", "Combo (1pt)", true)
+			}
+			if !g.skill_poison {
+				draw_action(x, &y, "[2]", "Poison (1pt)", true)
+			}
+			if !g.skill_shield_block {
+				draw_action(x, &y, "[3]", "Shield (1pt)", true)
+			}
+			if !g.skill_heavy_strike && g.skill_combo {
+				draw_action(x, &y, "[4]", "Heavy (1pt)", true)
+			}
+			if !g.skill_counter_attack && g.skill_shield_block {
+				draw_action(x, &y, "[5]", "Counter (1pt)", true)
+			}
+			if !g.skill_battle_cry && g.skill_heavy_strike && g.skill_points >= 2 {
+				draw_action(x, &y, "[6]", "Warcry (2pt)", true)
+			}
+			if !g.skill_fortify && g.skill_counter_attack && g.skill_points >= 2 {
+				draw_action(x, &y, "[7]", "Fortify (2pt)", true)
+			}
+		}
 
 		y += 4
 	}
