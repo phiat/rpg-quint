@@ -29,7 +29,6 @@ WEATHER_CYCLE :: 5
 STORM_MOVE_DMG :: 2
 FOG_ATK_PENALTY :: 2
 RAIN_GATHER_BONUS :: 1
-COMBO_WINDOW :: 3
 ATTACK_STAMINA :: 2
 COMBO_STAMINA :: 3
 HEAVY_STRIKE_STAMINA :: 5
@@ -37,7 +36,7 @@ BATTLE_CRY_STAMINA :: 3
 HEAVY_STRIKE_CD :: 3
 BATTLE_CRY_CD :: 4
 PITY_THRESHOLD :: 5
-STAMINA_REGEN :: 3
+SWORD_ATK_BONUS :: 5
 
 Save_Data :: struct {
 	hp:           int,
@@ -88,7 +87,6 @@ Game_State :: struct {
 	enemy_poison_dur:    int,
 	// Combo state
 	combo_count:         int,
-	combo_timer:         int,
 	// Stamina
 	stamina:             int,
 	max_stamina:         int,
@@ -121,7 +119,7 @@ zone_weather :: proc(x, y, turn: int) -> int {
 }
 
 attack_power :: proc(g: ^Game_State) -> int {
-	sword_bonus := 5 if (g.has_sword && g.sword_dur > 0) else 0
+	sword_bonus := SWORD_ATK_BONUS if (g.has_sword && g.sword_dur > 0) else 0
 	atk_buff := ATK_BUFF_BONUS if g.player_atk_buff_dur > 0 else 0
 	return g.base_attack + sword_bonus + atk_buff
 }
@@ -151,7 +149,7 @@ init_game :: proc(g: ^Game_State) {
 	g.player_def_buff_dur = 0
 	g.enemy_poison_dur = 0
 	g.combo_count = 0
-	g.combo_timer = 0
+
 	g.turn_count = 0
 	g.saved_exists = false
 	g.stamina = 10
@@ -180,6 +178,7 @@ move :: proc(g: ^Game_State, dx, dy: int) -> bool {
 enter_combat :: proc(g: ^Game_State) -> bool {
 	if g.in_combat || g.game_won || g.hp <= 0 do return false
 	zlvl := zone_level_req(g.pos_x, g.pos_y) - 1
+	if zlvl < 0 || zlvl > 2 do return false
 	g.turn_count += 1
 	g.in_combat = true
 	g.enemy_hp = ZONE_ENEMY_HP[zlvl]
@@ -189,7 +188,7 @@ enter_combat :: proc(g: ^Game_State) -> bool {
 	raw_atk := ZONE_ENEMY_ATK[zlvl] - fog_penalty
 	g.enemy_attack = max(raw_atk, 1)
 	g.combo_count = 0
-	g.combo_timer = 0
+
 	g.cd_heavy_strike = 0
 	g.cd_battle_cry = 0
 	g.last_drop = 0
@@ -277,7 +276,7 @@ resolve_combat_hit :: proc(g: ^Game_State, dmg: int) -> bool {
 
 	if new_enemy_hp <= 0 {
 		// Enemy defeated — rewards
-		zlvl := zone_level_req(g.pos_x, g.pos_y) - 1
+		zlvl := clamp(zone_level_req(g.pos_x, g.pos_y) - 1, 0, 2)
 		g.xp += ZONE_XP_REWARD[zlvl]
 		g.gold += ZONE_GOLD_REWARD[zlvl]
 		g.in_combat = false
@@ -306,7 +305,7 @@ combat_attack :: proc(g: ^Game_State) -> bool {
 	// Plain attack preserves combo (spec: combo_count' = combo_count)
 	if combat_ends {
 		g.combo_count = 0
-		g.combo_timer = 0
+	
 	}
 	return true
 }
@@ -317,7 +316,7 @@ combat_potion :: proc(g: ^Game_State) -> bool {
 	g.hp = min(g.hp + 20, g.max_hp)
 	g.qty_potion -= 1
 	g.combo_count = 0
-	g.combo_timer = 0
+
 	// Quick action: no stamina cost, no CD tick
 	return true
 }
@@ -334,7 +333,7 @@ flee_combat :: proc(g: ^Game_State) -> bool {
 	g.player_def_buff_dur = 0
 	g.enemy_poison_dur = 0
 	g.combo_count = 0
-	g.combo_timer = 0
+
 	reset_cooldowns(g)
 	return true
 }
@@ -417,7 +416,7 @@ use_antidote :: proc(g: ^Game_State) -> bool {
 	g.qty_potion -= 1
 	g.player_poison_dur = 0
 	g.combo_count = 0
-	g.combo_timer = 0
+
 	// Quick action: no stamina cost, no CD tick
 	return true
 }
@@ -446,7 +445,7 @@ poison_strike :: proc(g: ^Game_State) -> bool {
 		tick_cooldowns(g)
 	}
 	g.combo_count = 0
-	g.combo_timer = 0
+
 	return true
 }
 
@@ -474,10 +473,9 @@ combo_attack :: proc(g: ^Game_State) -> bool {
 	// Combo state: reset on combat end or chain complete, else advance
 	if combat_ends || next_combo >= 3 {
 		g.combo_count = 0
-		g.combo_timer = 0
+	
 	} else {
 		g.combo_count = next_combo
-		g.combo_timer = COMBO_WINDOW
 	}
 	return true
 }
@@ -505,7 +503,7 @@ heavy_strike :: proc(g: ^Game_State) -> bool {
 	}
 	// Heavy strike breaks combo
 	g.combo_count = 0
-	g.combo_timer = 0
+
 	return true
 }
 
@@ -550,7 +548,7 @@ battle_cry :: proc(g: ^Game_State) -> bool {
 		g.cd_battle_cry = BATTLE_CRY_CD
 	}
 	g.combo_count = 0
-	g.combo_timer = 0
+
 	return true
 }
 
@@ -613,7 +611,7 @@ load_game :: proc(g: ^Game_State) -> bool {
 	g.player_def_buff_dur = 0
 	g.enemy_poison_dur = 0
 	g.combo_count = 0
-	g.combo_timer = 0
+
 	g.cd_heavy_strike = 0
 	g.cd_battle_cry = 0
 	g.last_drop = 0

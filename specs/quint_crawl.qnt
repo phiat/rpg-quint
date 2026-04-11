@@ -35,7 +35,6 @@ module quint_crawl {
 
   // === Combo state ===
   var combo_count: int   // 0-3: current position in combo chain
-  var combo_timer: int   // turns remaining before combo resets
 
   // === Stamina ===
   var stamina: int       // current stamina (combat actions cost stamina)
@@ -65,7 +64,7 @@ module quint_crawl {
   val ATK_BUFF_BONUS = 5
   val DEF_BUFF_REDUCTION = 3
   val STATUS_DURATION = 3
-  val COMBO_WINDOW = 3   // turns before combo expires
+  val SWORD_ATK_BONUS = 5  // attack bonus from equipped sword
   val WEATHER_CYCLE = 5  // weather changes every 5 turns
   val STORM_MOVE_DMG = 2 // damage taken when moving in storm
   val FOG_ATK_PENALTY = 2 // enemy attack reduced in fog
@@ -77,7 +76,6 @@ module quint_crawl {
   val HEAVY_STRIKE_CD = 3   // cooldown turns for heavy strike
   val BATTLE_CRY_CD = 4     // cooldown turns for battle cry
   val PITY_THRESHOLD = 5    // kills without drop before guaranteed drop
-  val STAMINA_REGEN = 3     // stamina restored per rest tick
 
   // Weather types: 0=Clear, 1=Rain, 2=Fog, 3=Storm
   // Deterministic weather based on turn and zone
@@ -139,7 +137,7 @@ module quint_crawl {
     else 25
 
   // Total attack power (sword bonus only if equipped AND not broken, plus ATK buff)
-  val attack_power = base_attack + (if (has_sword and sword_dur > 0) 5 else 0) + (if (player_atk_buff_dur > 0) ATK_BUFF_BONUS else 0)
+  val attack_power = base_attack + (if (has_sword and sword_dur > 0) SWORD_ATK_BONUS else 0) + (if (player_atk_buff_dur > 0) ATK_BUFF_BONUS else 0)
 
   // --- Helpers ---
   pure def clamp_hp(v: int, mx: int): int =
@@ -171,7 +169,6 @@ module quint_crawl {
     player_def_buff_dur' = 0,
     enemy_poison_dur' = 0,
     combo_count' = 0,
-    combo_timer' = 0,
     turn_count' = 0,
     saved_exists' = false,
     stamina' = 10,
@@ -201,7 +198,7 @@ module quint_crawl {
       sword_dur' = sword_dur, sword_max_dur' = sword_max_dur,
       player_poison_dur' = 0, player_atk_buff_dur' = 0,
       player_def_buff_dur' = 0, enemy_poison_dur' = 0,
-      combo_count' = 0, combo_timer' = 0,
+      combo_count' = 0,
       saved_exists' = saved_exists,
       turn_count' = turn_count + 1,
       stamina' = stamina, max_stamina' = max_stamina,
@@ -227,7 +224,7 @@ module quint_crawl {
       sword_dur' = sword_dur, sword_max_dur' = sword_max_dur,
       player_poison_dur' = 0, player_atk_buff_dur' = 0,
       player_def_buff_dur' = 0, enemy_poison_dur' = 0,
-      combo_count' = 0, combo_timer' = 0,
+      combo_count' = 0,
       saved_exists' = saved_exists,
       turn_count' = turn_count + 1,
       stamina' = stamina, max_stamina' = max_stamina,
@@ -253,7 +250,7 @@ module quint_crawl {
       sword_dur' = sword_dur, sword_max_dur' = sword_max_dur,
       player_poison_dur' = 0, player_atk_buff_dur' = 0,
       player_def_buff_dur' = 0, enemy_poison_dur' = 0,
-      combo_count' = 0, combo_timer' = 0,
+      combo_count' = 0,
       saved_exists' = saved_exists,
       turn_count' = turn_count + 1,
       stamina' = stamina, max_stamina' = max_stamina,
@@ -279,7 +276,7 @@ module quint_crawl {
       sword_dur' = sword_dur, sword_max_dur' = sword_max_dur,
       player_poison_dur' = 0, player_atk_buff_dur' = 0,
       player_def_buff_dur' = 0, enemy_poison_dur' = 0,
-      combo_count' = 0, combo_timer' = 0,
+      combo_count' = 0,
       saved_exists' = saved_exists,
       turn_count' = turn_count + 1,
       stamina' = stamina, max_stamina' = max_stamina,
@@ -308,7 +305,7 @@ module quint_crawl {
       sword_dur' = sword_dur, sword_max_dur' = sword_max_dur,
       player_poison_dur' = 0, player_atk_buff_dur' = 0,
       player_def_buff_dur' = 0, enemy_poison_dur' = 0,
-      combo_count' = 0, combo_timer' = 0,
+      combo_count' = 0,
       saved_exists' = saved_exists,
       turn_count' = turn_count + 1,
       stamina' = stamina, max_stamina' = max_stamina,
@@ -375,7 +372,6 @@ module quint_crawl {
       player_def_buff_dur' = if (combat_ends) 0 else next_def_buff,
       enemy_poison_dur' = if (combat_ends) 0 else next_enemy_poison,
       combo_count' = if (combat_ends) 0 else combo_count,
-      combo_timer' = if (combat_ends) 0 else combo_timer,
       saved_exists' = saved_exists,
       turn_count' = turn_count + 1,
       stamina' = stamina - ATTACK_STAMINA,
@@ -402,7 +398,7 @@ module quint_crawl {
     sword_dur' = sword_dur, sword_max_dur' = sword_max_dur,
     player_poison_dur' = player_poison_dur, player_atk_buff_dur' = player_atk_buff_dur,
     player_def_buff_dur' = player_def_buff_dur, enemy_poison_dur' = enemy_poison_dur,
-    combo_count' = 0, combo_timer' = 0,
+    combo_count' = 0,
     saved_exists' = saved_exists,
     turn_count' = turn_count + 1,
     stamina' = stamina, max_stamina' = max_stamina,
@@ -426,7 +422,7 @@ module quint_crawl {
       sword_dur' = sword_dur, sword_max_dur' = sword_max_dur,
       player_poison_dur' = 0, player_atk_buff_dur' = 0,
       player_def_buff_dur' = 0, enemy_poison_dur' = 0,
-      combo_count' = 0, combo_timer' = 0,
+      combo_count' = 0,
       saved_exists' = saved_exists,
       turn_count' = turn_count + 1,
       stamina' = stamina, max_stamina' = max_stamina,
@@ -451,7 +447,7 @@ module quint_crawl {
     sword_dur' = sword_dur, sword_max_dur' = sword_max_dur,
     player_poison_dur' = 0, player_atk_buff_dur' = 0,
     player_def_buff_dur' = 0, enemy_poison_dur' = 0,
-    combo_count' = 0, combo_timer' = 0,
+    combo_count' = 0,
     saved_exists' = saved_exists,
     turn_count' = turn_count + 1,
     stamina' = max_stamina, max_stamina' = max_stamina,
@@ -475,7 +471,7 @@ module quint_crawl {
     sword_dur' = sword_dur, sword_max_dur' = sword_max_dur,
     player_poison_dur' = 0, player_atk_buff_dur' = 0,
     player_def_buff_dur' = 0, enemy_poison_dur' = 0,
-    combo_count' = 0, combo_timer' = 0,
+    combo_count' = 0,
     saved_exists' = saved_exists,
     turn_count' = turn_count + 1,
     stamina' = stamina, max_stamina' = max_stamina,
@@ -502,7 +498,7 @@ module quint_crawl {
     sword_max_dur' = sword_max_dur,
     player_poison_dur' = 0, player_atk_buff_dur' = 0,
     player_def_buff_dur' = 0, enemy_poison_dur' = 0,
-    combo_count' = 0, combo_timer' = 0,
+    combo_count' = 0,
     saved_exists' = saved_exists,
     turn_count' = turn_count + 1,
     stamina' = stamina, max_stamina' = max_stamina,
@@ -528,7 +524,7 @@ module quint_crawl {
       sword_dur' = sword_dur, sword_max_dur' = sword_max_dur,
       player_poison_dur' = 0, player_atk_buff_dur' = 0,
       player_def_buff_dur' = 0, enemy_poison_dur' = 0,
-      combo_count' = 0, combo_timer' = 0,
+      combo_count' = 0,
       saved_exists' = saved_exists,
       turn_count' = turn_count + 1,
       stamina' = stamina, max_stamina' = max_stamina,
@@ -555,7 +551,7 @@ module quint_crawl {
       sword_dur' = sword_dur, sword_max_dur' = sword_max_dur,
       player_poison_dur' = 0, player_atk_buff_dur' = 0,
       player_def_buff_dur' = 0, enemy_poison_dur' = 0,
-      combo_count' = 0, combo_timer' = 0,
+      combo_count' = 0,
       saved_exists' = saved_exists,
       turn_count' = turn_count + 1,
       stamina' = stamina, max_stamina' = max_stamina,
@@ -580,7 +576,7 @@ module quint_crawl {
     sword_dur' = sword_dur, sword_max_dur' = sword_max_dur,
     player_poison_dur' = 0, player_atk_buff_dur' = 0,
     player_def_buff_dur' = 0, enemy_poison_dur' = 0,
-    combo_count' = 0, combo_timer' = 0,
+    combo_count' = 0,
     saved_exists' = saved_exists,
     turn_count' = turn_count + 1,
     stamina' = stamina, max_stamina' = max_stamina,
@@ -603,7 +599,7 @@ module quint_crawl {
     sword_max_dur' = sword_max_dur,
     player_poison_dur' = 0, player_atk_buff_dur' = 0,
     player_def_buff_dur' = 0, enemy_poison_dur' = 0,
-    combo_count' = 0, combo_timer' = 0,
+    combo_count' = 0,
     saved_exists' = saved_exists,
     turn_count' = turn_count + 1,
     stamina' = stamina, max_stamina' = max_stamina,
@@ -628,7 +624,7 @@ module quint_crawl {
     player_atk_buff_dur' = player_atk_buff_dur,
     player_def_buff_dur' = player_def_buff_dur,
     enemy_poison_dur' = enemy_poison_dur,
-    combo_count' = 0, combo_timer' = 0,
+    combo_count' = 0,
     saved_exists' = saved_exists,
     turn_count' = turn_count + 1,
     stamina' = stamina, max_stamina' = max_stamina,
@@ -661,7 +657,7 @@ module quint_crawl {
       player_poison_dur' = if (combat_ends) 0 else player_poison_dur,
       player_atk_buff_dur' = if (combat_ends) 0 else player_atk_buff_dur,
       player_def_buff_dur' = if (combat_ends) 0 else player_def_buff_dur,
-      combo_count' = 0, combo_timer' = 0,
+      combo_count' = 0,
       saved_exists' = saved_exists,
       turn_count' = turn_count + 1,
       stamina' = stamina - ATTACK_STAMINA,
@@ -708,9 +704,6 @@ module quint_crawl {
     val new_combo_count = if (combat_ends) 0
                           else if (next_combo >= 3) 0
                           else next_combo
-    val new_combo_timer = if (combat_ends) 0
-                          else if (next_combo >= 3) 0
-                          else COMBO_WINDOW
     // Loot drop on enemy defeat
     val enemy_defeated_alive = (new_enemy_hp <= 0 and new_hp > 0)
     val drop_trigger = (pity_counter >= PITY_THRESHOLD or (turn_count % 3 == 0))
@@ -740,7 +733,6 @@ module quint_crawl {
       player_def_buff_dur' = if (combat_ends) 0 else next_def_buff,
       enemy_poison_dur' = if (combat_ends) 0 else next_enemy_poison,
       combo_count' = new_combo_count,
-      combo_timer' = new_combo_timer,
       saved_exists' = saved_exists,
       turn_count' = turn_count + 1,
       stamina' = stamina - COMBO_STAMINA,
@@ -808,7 +800,7 @@ module quint_crawl {
       player_atk_buff_dur' = if (combat_ends) 0 else next_atk_buff,
       player_def_buff_dur' = if (combat_ends) 0 else next_def_buff,
       enemy_poison_dur' = if (combat_ends) 0 else next_enemy_poison,
-      combo_count' = 0, combo_timer' = 0,  // heavy strike breaks combo
+      combo_count' = 0,  // heavy strike breaks combo
       saved_exists' = saved_exists,
       turn_count' = turn_count + 1,
       stamina' = stamina - HEAVY_STRIKE_STAMINA,
@@ -857,7 +849,7 @@ module quint_crawl {
       qty_sword' = qty_sword, has_sword' = has_sword,
       game_won' = game_won,
       sword_dur' = sword_dur, sword_max_dur' = sword_max_dur,
-      combo_count' = 0, combo_timer' = 0,  // battle cry breaks combo
+      combo_count' = 0,  // battle cry breaks combo
       saved_exists' = saved_exists,
       turn_count' = turn_count + 1,
       stamina' = stamina - BATTLE_CRY_STAMINA,
@@ -881,7 +873,7 @@ module quint_crawl {
     sword_dur' = sword_dur, sword_max_dur' = sword_max_dur,
     player_poison_dur' = player_poison_dur, player_atk_buff_dur' = player_atk_buff_dur,
     player_def_buff_dur' = player_def_buff_dur, enemy_poison_dur' = enemy_poison_dur,
-    combo_count' = combo_count, combo_timer' = combo_timer,
+    combo_count' = combo_count,
     saved_exists' = true,
     turn_count' = turn_count,
     stamina' = stamina, max_stamina' = max_stamina,
@@ -904,7 +896,7 @@ module quint_crawl {
     sword_dur' = sword_dur, sword_max_dur' = sword_max_dur,
     player_poison_dur' = player_poison_dur, player_atk_buff_dur' = player_atk_buff_dur,
     player_def_buff_dur' = player_def_buff_dur, enemy_poison_dur' = enemy_poison_dur,
-    combo_count' = combo_count, combo_timer' = combo_timer,
+    combo_count' = combo_count,
     saved_exists' = saved_exists,
     turn_count' = turn_count,
     stamina' = stamina, max_stamina' = max_stamina,
@@ -984,10 +976,10 @@ module quint_crawl {
   )
 
   /// Combo count bounded [0, 2] (0=none, 1=slash done, 2=thrust done; resets on 3rd hit)
-  val combo_bounded = combo_count >= 0 and combo_count <= 2 and combo_timer >= 0 and combo_timer <= COMBO_WINDOW
+  val combo_bounded = combo_count >= 0 and combo_count <= 2
 
   /// Combo only active in combat
-  val combo_only_in_combat = not(in_combat).implies(combo_count == 0 and combo_timer == 0)
+  val combo_only_in_combat = not(in_combat).implies(combo_count == 0)
 
   /// Turn count is monotonically increasing
   val turn_count_non_negative = turn_count >= 0

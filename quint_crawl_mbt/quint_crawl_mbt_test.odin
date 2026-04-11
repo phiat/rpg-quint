@@ -110,7 +110,7 @@ crawl_state :: proc(driver: rawptr) -> map[string]mbt.ITF_Value {
 	state["player_def_buff_dur"] = mbt.ITF_Int{g.player_def_buff_dur}
 	state["enemy_poison_dur"] = mbt.ITF_Int{g.enemy_poison_dur}
 	state["combo_count"] = mbt.ITF_Int{g.combo_count}
-	state["combo_timer"] = mbt.ITF_Int{g.combo_timer}
+
 	state["turn_count"] = mbt.ITF_Int{g.turn_count}
 	state["saved_exists"] = mbt.ITF_Bool{g.saved_exists}
 	state["stamina"] = mbt.ITF_Int{g.stamina}

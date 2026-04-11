@@ -111,7 +111,7 @@ draw_combat :: proc(app: ^App_State) {
 	if g.combo_count > 0 {
 		combo_names := [3]string{"Slash", "Thrust", "Finisher"}
 		next := min(g.combo_count + 1, 3)
-		rl.DrawText(fmt.ctprintf("COMBO %d/3 → %s (timer: %d)", g.combo_count, combo_names[next - 1], g.combo_timer),
+		rl.DrawText(fmt.ctprintf("COMBO %d/3 → %s", g.combo_count, combo_names[next - 1]),
 			60, status_y + 20, 16, {255, 220, 50, 255})
 	}
 
