@@ -122,26 +122,42 @@ crawl_state :: proc(driver: rawptr) -> map[string]mbt.ITF_Value {
 	return state
 }
 
+TRACE_FILES := [?]string{
+	"traces/quint_crawl_trace0.itf.json",
+	"traces/quint_crawl_trace1.itf.json",
+	"traces/quint_crawl_trace2.itf.json",
+	"traces/quint_crawl_trace3.itf.json",
+	"traces/quint_crawl_trace4.itf.json",
+}
+
 @(test)
 test_quint_crawl_trace_replay :: proc(t: ^testing.T) {
-	trace, err := mbt.parse_itf_file("traces/quint_crawl_trace.itf.json")
-	if err != .None {
-		log.errorf("Failed to parse ITF trace: %v", err)
-		testing.fail_now(t)
-	}
+	total_passed := 0
+	total_steps := 0
 
-	g: qc.Game_State
-	result := mbt.replay_trace(&trace, &g, crawl_step, crawl_state)
-
-	if result.failed > 0 {
-		mbt.print_result(&result)
-		for &e in result.errors {
-			log.errorf("Step %d, var '%s': expected %s, got %s",
-				e.step, e.var_name, e.expected, e.actual)
+	for file in TRACE_FILES {
+		trace, err := mbt.parse_itf_file(file)
+		if err != .None {
+			log.errorf("Failed to parse %s: %v", file, err)
+			testing.fail_now(t)
 		}
+
+		g: qc.Game_State
+		result := mbt.replay_trace(&trace, &g, crawl_step, crawl_state)
+
+		if result.failed > 0 {
+			mbt.print_result(&result)
+			for &e in result.errors {
+				log.errorf("[%s] Step %d, var '%s': expected %s, got %s",
+					file, e.step, e.var_name, e.expected, e.actual)
+			}
+		}
+
+		testing.expectf(t, result.failed == 0,
+			"%s: %d/%d steps failed", file, result.failed, result.total_steps)
+		total_passed += result.passed
+		total_steps += result.total_steps
 	}
 
-	testing.expectf(t, result.failed == 0,
-		"MBT replay: %d/%d steps failed", result.failed, result.total_steps)
-	log.infof("MBT replay: %d/%d steps passed", result.passed, result.total_steps)
+	log.infof("MBT replay: %d/%d steps passed across %d traces", total_passed, total_steps, len(TRACE_FILES))
 }

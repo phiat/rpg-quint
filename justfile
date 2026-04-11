@@ -68,12 +68,22 @@ traces:
         main="${spec##*:}"; \
         name=$(basename "$path"); \
         printf "%-20s" "$name"; \
-        if quint run --main="$main" --mbt --max-steps=8 \
-            --out-itf="traces/${name}_trace.itf.json" \
-            "specs/${path}.qnt" > /dev/null 2>&1; then \
-            echo "ok"; \
+        if [ "$name" = "quint_crawl" ]; then \
+            if quint run --main="$main" --mbt --max-samples=100000 --max-steps=20 --n-traces=5 \
+                --out-itf="traces/${name}_trace.itf.json" \
+                "specs/${path}.qnt" > /dev/null 2>&1; then \
+                echo "ok (100k samples, 5 traces)"; \
+            else \
+                echo "FAIL"; \
+            fi; \
         else \
-            echo "FAIL"; \
+            if quint run --main="$main" --mbt --max-steps=8 \
+                --out-itf="traces/${name}_trace.itf.json" \
+                "specs/${path}.qnt" > /dev/null 2>&1; then \
+                echo "ok"; \
+            else \
+                echo "FAIL"; \
+            fi; \
         fi; \
     done
 
@@ -120,11 +130,11 @@ test-one name:
 
 # --- Invariant verification ---
 
-# Verify invariants for a spec (10k traces, 20 steps)
+# Verify invariants for a spec (100k traces, 20 steps)
 verify name main invariant:
     @f=$(find specs/ -name "{{name}}.qnt" | head -1); \
     if [ -z "$f" ]; then echo "Not found: {{name}}.qnt"; exit 1; fi; \
-    quint run --main={{main}} --max-steps=20 --max-samples=10000 \
+    quint run --main={{main}} --max-steps=20 --max-samples=100000 \
         --invariant="{{invariant}}" "$f"
 
 # --- Game ---
