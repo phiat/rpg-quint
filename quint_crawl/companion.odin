@@ -64,6 +64,20 @@ dismiss_companion :: proc(g: ^Game_State) -> bool {
 	return true
 }
 
+train_companion :: proc(g: ^Game_State) -> bool {
+	if !can_act_map(g) do return false
+	if !zone_has_services(g.pos_x, g.pos_y) do return false
+	if !g.comp_active do return false
+	if g.comp_rarity >= COMP_RARITY_COUNT - 1 do return false
+	new_rarity := g.comp_rarity + 1
+	cost := (new_rarity + 1) * TRAIN_COST
+	if g.qty_wood < cost do return false
+	g.turn_count += 1
+	g.qty_wood -= cost
+	g.comp_rarity = new_rarity
+	return true
+}
+
 companion_command :: proc(g: ^Game_State) -> bool {
 	if !can_act_combat(g) do return false
 	if !g.comp_active do return false

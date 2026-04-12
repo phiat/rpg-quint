@@ -174,6 +174,9 @@ crawl_step :: proc(driver: rawptr, action: string, picks: map[string]mbt.ITF_Val
 	case "feed_companion":
 		qc.feed_companion(g)
 		return true
+	case "train_companion":
+		qc.train_companion(g)
+		return true
 	case "dismiss_companion":
 		qc.dismiss_companion(g)
 		return true

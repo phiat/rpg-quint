@@ -53,6 +53,8 @@ INITIAL_LOYALTY :: 50
 LOYALTY_GAIN :: 10
 LOYALTY_COMBAT_COST :: 5
 HIGH_LOYALTY :: 75
+LOW_LOYALTY :: 25
+TRAIN_COST :: 3
 // Companion trait base effects (scaled by rarity tier+1)
 COMP_ATK_BASE_ATTACKER :: 2
 COMP_ATK_BASE_SCOUT    :: 1
@@ -494,7 +496,7 @@ species_def :: proc(idx: int) -> (Species_Def, bool) {
 }
 
 comp_active :: proc(g: ^Game_State) -> bool {
-	return g.comp_active && g.comp_loyalty > 0
+	return g.comp_active && g.comp_loyalty >= LOW_LOYALTY
 }
 
 comp_atk_bonus :: proc(g: ^Game_State) -> int {

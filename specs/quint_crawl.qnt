@@ -112,6 +112,11 @@ module quint_crawl {
   val LOYALTY_GAIN = 10
   val LOYALTY_COMBAT_COST = 5
   val HIGH_LOYALTY = 75
+  // Minimum loyalty for a companion to contribute combat bonuses at all.
+  // Below this, the pet is present but too dispirited to help.
+  val LOW_LOYALTY = 25
+  // Training cost (wood) per target rarity: (new_rarity + 1) * TRAIN_COST
+  val TRAIN_COST = 3
   // Companion trait effect multipliers (scaled by rarity tier)
   //   Attacker(0): atk bonus    | Defender(1): dmg reduction
   //   Scout(2):    small atk    | Support(3):  small dmg reduction
@@ -299,7 +304,7 @@ module quint_crawl {
       def_for(eqp.enchant_slot_1) + def_for(eqp.enchant_slot_2) + def_for(eqp.enchant_slot_3)
     else 0
   // Companion passives
-  val comp_active = comp.active and comp.loyalty > 0
+  val comp_active = comp.active and comp.loyalty >= LOW_LOYALTY
   // Rarity scale: common=1, rare=2, legendary=3
   val comp_rarity_scale = comp.rarity + 1
   // Attacker(0)/Scout(2) contribute to atk; Defender(1)/Support(3) contribute to dmg reduction
@@ -1704,6 +1709,26 @@ module quint_crawl {
     }
   }
 
+  // Train companion — at a village, consume wood to raise rarity by 1.
+  // Cost scales with target rarity: (new_rarity + 1) * TRAIN_COST.
+  // Legendary is the cap.
+  action train_companion = all {
+    not(cb.in_combat), not(meta.game_won), ch.hp > 0,
+    zone_has_services(w.pos_x, w.pos_y),
+    comp.active,
+    comp.rarity < COMP_RARITY_COUNT - 1,
+    val new_rarity = comp.rarity + 1
+    val cost = (new_rarity + 1) * TRAIN_COST
+    all {
+      inv.qty_wood >= cost,
+      inv' = { ...inv, qty_wood: inv.qty_wood - cost },
+      comp' = { ...comp, rarity: new_rarity },
+      ch' = ch, eqp' = eqp, cb' = cb,
+      w' = { ...w, turn_count: w.turn_count + 1 },
+      meta' = meta,
+    }
+  }
+
   // Dismiss companion at village (no cost, returns to none)
   action dismiss_companion = all {
     not(cb.in_combat), not(meta.game_won), ch.hp > 0,
@@ -1746,7 +1771,7 @@ module quint_crawl {
     salvage_sword, upgrade_salvage,
     apply_enchant, remove_enchant,
     adopt_companion,
-    feed_companion, dismiss_companion, companion_command,
+    feed_companion, dismiss_companion, companion_command, train_companion,
     save_game, load_game, claim_victory,
     claim_quest_reward,
     cast_heal, cast_fireball,
