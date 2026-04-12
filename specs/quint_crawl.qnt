@@ -54,6 +54,16 @@ module quint_crawl {
     command_used: bool, // resets on enter_combat
   }
 
+  // Result of the shared loot-drop helper (see compute_loot). Callers
+  // add potion_inc / venom_inc to inv and store new_pity / new_last_drop
+  // in meta directly.
+  type LootDrop = {
+    potion_inc: int,
+    venom_inc: int,
+    new_pity: int,
+    new_last_drop: int,
+  }
+
   // === State variables ===
   var ch: CharState
   var inv: InvState
@@ -296,6 +306,24 @@ module quint_crawl {
   // override a specific field (battle_cry sets atk_buff, shield_block/
   // counter_attack/fortify set def_buff) simply assign over the ticked value
   // in their cb' record.
+  // Shared loot-drop + pity logic used by every killing combat action.
+  // Returns inventory increments (potion vs venom sac) and updated pity
+  // counter / last_drop marker. Kill-on-hit actions simply add the
+  // increments to inv' and copy new_pity / new_last_drop into meta'.
+  pure def compute_loot(m: MetaState, tot: int, defeated_alive: bool, turn_count: int, zone_tier: int): LootDrop = {
+    val drop_trigger = (m.pity_counter >= PITY_THRESHOLD or (turn_count % LOOT_DROP_MODULO == 0))
+    val should_drop = defeated_alive and drop_trigger and tot < MAX_INVENTORY
+    val drops_venom = should_drop and zone_tier >= POISON_APPLY_TIER
+    {
+      potion_inc: if (should_drop and not(drops_venom)) 1 else 0,
+      venom_inc: if (drops_venom) 1 else 0,
+      new_pity: if (should_drop) 0
+                else if (defeated_alive) m.pity_counter + 1
+                else m.pity_counter,
+      new_last_drop: if (drops_venom) 2 else if (should_drop) 1 else 0,
+    }
+  }
+
   pure def tick_statuses(c: CombatState, apply_poison_now: bool): CombatState = {
     ...c,
     player_poison_dur: if (apply_poison_now) STATUS_DURATION
@@ -496,13 +524,7 @@ module quint_crawl {
     val combat_ends = (new_enemy_hp <= 0 or new_hp <= 0)
     // Loot drop on enemy defeat
     val enemy_defeated_alive = (new_enemy_hp <= 0 and new_hp > 0)
-    val drop_trigger = (meta.pity_counter >= PITY_THRESHOLD or (w.turn_count % LOOT_DROP_MODULO == 0))
-    val should_drop = enemy_defeated_alive and drop_trigger and total_items < MAX_INVENTORY
-    val new_pity = if (should_drop) 0
-                   else if (enemy_defeated_alive) meta.pity_counter + 1
-                   else meta.pity_counter
-    val drops_venom = should_drop and zone_tier >= POISON_APPLY_TIER
-    val new_last_drop = if (drops_venom) 2 else if (should_drop) 1 else 0
+    val loot = compute_loot(meta, total_items, enemy_defeated_alive, w.turn_count, zone_tier)
     all {
       ch' = { ...ch,
               hp: if (new_hp < 0) 0 else new_hp,
@@ -533,11 +555,11 @@ module quint_crawl {
                { ...eqp, sword_dur: 0, enchant_slot_1: 0, enchant_slot_2: 0, enchant_slot_3: 0 }
              else { ...eqp, sword_dur: new_sword_dur },
       inv' = { ...inv,
-               qty_potion: if (should_drop and not(drops_venom)) inv.qty_potion + 1 else inv.qty_potion,
-               qty_venom_sac: if (drops_venom) inv.qty_venom_sac + 1 else inv.qty_venom_sac,
+               qty_potion: inv.qty_potion + loot.potion_inc,
+               qty_venom_sac: inv.qty_venom_sac + loot.venom_inc,
       },
       w' = { ...w, turn_count: w.turn_count + 1 },
-      meta' = { ...meta, pity_counter: new_pity, last_drop: new_last_drop,
+      meta' = { ...meta, pity_counter: loot.new_pity, last_drop: loot.new_last_drop,
                last_kill_turn: if (enemy_defeated_alive) w.turn_count else meta.last_kill_turn,
                q1_kills: if (enemy_defeated_alive and zone_tier == 1 and meta.q1_kills < Q1_TARGET) meta.q1_kills + 1 else meta.q1_kills,
                q3_kills: if (enemy_defeated_alive and zone_tier == MAX_LEVEL and meta.q3_kills < Q3_TARGET) meta.q3_kills + 1 else meta.q3_kills,
@@ -772,13 +794,7 @@ module quint_crawl {
                           else next_combo
     // Loot drop on enemy defeat
     val enemy_defeated_alive = (new_enemy_hp <= 0 and new_hp > 0)
-    val drop_trigger = (meta.pity_counter >= PITY_THRESHOLD or (w.turn_count % LOOT_DROP_MODULO == 0))
-    val should_drop = enemy_defeated_alive and drop_trigger and total_items < MAX_INVENTORY
-    val new_pity = if (should_drop) 0
-                   else if (enemy_defeated_alive) meta.pity_counter + 1
-                   else meta.pity_counter
-    val drops_venom = should_drop and zone_tier >= POISON_APPLY_TIER
-    val new_last_drop = if (drops_venom) 2 else if (should_drop) 1 else 0
+    val loot = compute_loot(meta, total_items, enemy_defeated_alive, w.turn_count, zone_tier)
     all {
       ch' = { ...ch,
               hp: if (new_hp < 0) 0 else new_hp,
@@ -809,11 +825,11 @@ module quint_crawl {
                { ...eqp, sword_dur: 0, enchant_slot_1: 0, enchant_slot_2: 0, enchant_slot_3: 0 }
              else { ...eqp, sword_dur: new_sword_dur },
       inv' = { ...inv,
-               qty_potion: if (should_drop and not(drops_venom)) inv.qty_potion + 1 else inv.qty_potion,
-               qty_venom_sac: if (drops_venom) inv.qty_venom_sac + 1 else inv.qty_venom_sac,
+               qty_potion: inv.qty_potion + loot.potion_inc,
+               qty_venom_sac: inv.qty_venom_sac + loot.venom_inc,
       },
       w' = { ...w, turn_count: w.turn_count + 1 },
-      meta' = { ...meta, pity_counter: new_pity, last_drop: new_last_drop,
+      meta' = { ...meta, pity_counter: loot.new_pity, last_drop: loot.new_last_drop,
                last_kill_turn: if (enemy_defeated_alive) w.turn_count else meta.last_kill_turn,
                q1_kills: if (enemy_defeated_alive and zone_tier == 1 and meta.q1_kills < Q1_TARGET) meta.q1_kills + 1 else meta.q1_kills,
                q3_kills: if (enemy_defeated_alive and zone_tier == MAX_LEVEL and meta.q3_kills < Q3_TARGET) meta.q3_kills + 1 else meta.q3_kills,
@@ -842,13 +858,7 @@ module quint_crawl {
     val ticked = tick_statuses(cb, apply_poison)
     val combat_ends = (new_enemy_hp <= 0 or new_hp <= 0)
     val enemy_defeated_alive = (new_enemy_hp <= 0 and new_hp > 0)
-    val drop_trigger = (meta.pity_counter >= PITY_THRESHOLD or (w.turn_count % LOOT_DROP_MODULO == 0))
-    val should_drop = enemy_defeated_alive and drop_trigger and total_items < MAX_INVENTORY
-    val new_pity = if (should_drop) 0
-                   else if (enemy_defeated_alive) meta.pity_counter + 1
-                   else meta.pity_counter
-    val drops_venom = should_drop and zone_tier >= POISON_APPLY_TIER
-    val new_last_drop = if (drops_venom) 2 else if (should_drop) 1 else 0
+    val loot = compute_loot(meta, total_items, enemy_defeated_alive, w.turn_count, zone_tier)
     all {
       ch' = { ...ch,
               hp: if (new_hp < 0) 0 else new_hp,
@@ -879,11 +889,11 @@ module quint_crawl {
                { ...eqp, sword_dur: 0, enchant_slot_1: 0, enchant_slot_2: 0, enchant_slot_3: 0 }
              else { ...eqp, sword_dur: new_sword_dur },
       inv' = { ...inv,
-               qty_potion: if (should_drop and not(drops_venom)) inv.qty_potion + 1 else inv.qty_potion,
-               qty_venom_sac: if (drops_venom) inv.qty_venom_sac + 1 else inv.qty_venom_sac,
+               qty_potion: inv.qty_potion + loot.potion_inc,
+               qty_venom_sac: inv.qty_venom_sac + loot.venom_inc,
       },
       w' = { ...w, turn_count: w.turn_count + 1 },
-      meta' = { ...meta, pity_counter: new_pity, last_drop: new_last_drop,
+      meta' = { ...meta, pity_counter: loot.new_pity, last_drop: loot.new_last_drop,
                last_kill_turn: if (enemy_defeated_alive) w.turn_count else meta.last_kill_turn,
                q1_kills: if (enemy_defeated_alive and zone_tier == 1 and meta.q1_kills < Q1_TARGET) meta.q1_kills + 1 else meta.q1_kills,
                q3_kills: if (enemy_defeated_alive and zone_tier == MAX_LEVEL and meta.q3_kills < Q3_TARGET) meta.q3_kills + 1 else meta.q3_kills,
@@ -1079,13 +1089,7 @@ module quint_crawl {
     val ticked = tick_statuses(cb, apply_poison)
     val dur_cost = if (inv.has_sword and eqp.sword_dur > 0) 1 else 0
     val enemy_defeated_alive = (final_enemy_hp <= 0 and new_hp > 0)
-    val drop_trigger = (meta.pity_counter >= PITY_THRESHOLD or (w.turn_count % LOOT_DROP_MODULO == 0))
-    val should_drop = enemy_defeated_alive and drop_trigger and total_items < MAX_INVENTORY
-    val new_pity = if (should_drop) 0
-                   else if (enemy_defeated_alive) meta.pity_counter + 1
-                   else meta.pity_counter
-    val drops_venom = should_drop and zone_tier >= POISON_APPLY_TIER
-    val new_last_drop = if (drops_venom) 2 else if (should_drop) 1 else 0
+    val loot = compute_loot(meta, total_items, enemy_defeated_alive, w.turn_count, zone_tier)
     all {
       ch' = { ...ch,
               hp: if (new_hp < 0) 0 else new_hp,
@@ -1115,11 +1119,11 @@ module quint_crawl {
                { ...eqp, sword_dur: 0, enchant_slot_1: 0, enchant_slot_2: 0, enchant_slot_3: 0 }
              else { ...eqp, sword_dur: eqp.sword_dur - dur_cost },
       inv' = { ...inv,
-               qty_potion: if (should_drop and not(drops_venom)) inv.qty_potion + 1 else inv.qty_potion,
-               qty_venom_sac: if (drops_venom) inv.qty_venom_sac + 1 else inv.qty_venom_sac,
+               qty_potion: inv.qty_potion + loot.potion_inc,
+               qty_venom_sac: inv.qty_venom_sac + loot.venom_inc,
       },
       w' = { ...w, turn_count: w.turn_count + 1 },
-      meta' = { ...meta, pity_counter: new_pity, last_drop: new_last_drop,
+      meta' = { ...meta, pity_counter: loot.new_pity, last_drop: loot.new_last_drop,
                last_kill_turn: if (enemy_defeated_alive) w.turn_count else meta.last_kill_turn,
                q1_kills: if (enemy_defeated_alive and zone_tier == 1 and meta.q1_kills < Q1_TARGET) meta.q1_kills + 1 else meta.q1_kills,
                q3_kills: if (enemy_defeated_alive and zone_tier == MAX_LEVEL and meta.q3_kills < Q3_TARGET) meta.q3_kills + 1 else meta.q3_kills,
@@ -1178,13 +1182,7 @@ module quint_crawl {
     val ticked = tick_statuses(cb, apply_poison)
     val combat_ends = (new_enemy_hp <= 0 or new_hp <= 0)
     val enemy_defeated_alive = (new_enemy_hp <= 0 and new_hp > 0)
-    val drop_trigger = (meta.pity_counter >= PITY_THRESHOLD or (w.turn_count % LOOT_DROP_MODULO == 0))
-    val should_drop = enemy_defeated_alive and drop_trigger and total_items < MAX_INVENTORY
-    val new_pity = if (should_drop) 0
-                   else if (enemy_defeated_alive) meta.pity_counter + 1
-                   else meta.pity_counter
-    val drops_venom = should_drop and zone_tier >= POISON_APPLY_TIER
-    val new_last_drop = if (drops_venom) 2 else if (should_drop) 1 else 0
+    val loot = compute_loot(meta, total_items, enemy_defeated_alive, w.turn_count, zone_tier)
     all {
       ch' = { ...ch,
               hp: if (new_hp < 0) 0 else new_hp,
@@ -1213,11 +1211,11 @@ module quint_crawl {
       eqp' = eqp,
       inv' = { ...inv,
                qty_battery: inv.qty_battery - 1,
-               qty_potion: if (should_drop and not(drops_venom)) inv.qty_potion + 1 else inv.qty_potion,
-               qty_venom_sac: if (drops_venom) inv.qty_venom_sac + 1 else inv.qty_venom_sac,
+               qty_potion: inv.qty_potion + loot.potion_inc,
+               qty_venom_sac: inv.qty_venom_sac + loot.venom_inc,
       },
       w' = { ...w, turn_count: w.turn_count + 1 },
-      meta' = { ...meta, pity_counter: new_pity, last_drop: new_last_drop,
+      meta' = { ...meta, pity_counter: loot.new_pity, last_drop: loot.new_last_drop,
                last_kill_turn: if (enemy_defeated_alive) w.turn_count else meta.last_kill_turn,
                q1_kills: if (enemy_defeated_alive and zone_tier == 1 and meta.q1_kills < Q1_TARGET) meta.q1_kills + 1 else meta.q1_kills,
                q3_kills: if (enemy_defeated_alive and zone_tier == MAX_LEVEL and meta.q3_kills < Q3_TARGET) meta.q3_kills + 1 else meta.q3_kills,
