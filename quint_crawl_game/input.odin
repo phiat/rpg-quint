@@ -107,8 +107,10 @@ handle_map_input :: proc(app: ^App_State) {
 
 	// Companion: dismiss (village)
 	if rl.IsKeyPressed(.SEMICOLON) {
+		old_rarity := g.comp_rarity
 		if qc.dismiss_companion(g) {
-			add_message(app, "Dismissed companion.", TEXT_DIM)
+			refund := qc.comp_adopt_cost(old_rarity)
+			add_message(app, fmt.tprintf("Dismissed companion. +%d wood refunded.", refund), TEXT_DIM)
 		}
 	}
 
@@ -290,6 +292,13 @@ handle_map_input :: proc(app: ^App_State) {
 	if rl.IsKeyPressed(.K) {
 		if qc.buy_shield(g) {
 			add_message(app, fmt.tprintf("Bought Shield (%dg).", qc.SHIELD_COST), TEXT_GOLD)
+		}
+	}
+
+	// Buy armor (village)
+	if rl.IsKeyPressed(.H) {
+		if qc.buy_armor(g) {
+			add_message(app, fmt.tprintf("Bought Armor (%dg). %d fights of +%d DEF.", qc.ARMOR_COST, qc.ARMOR_MAX_DUR, qc.ARMOR_DEF), TEXT_GOLD)
 		}
 	}
 

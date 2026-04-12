@@ -55,6 +55,8 @@ dismiss_companion :: proc(g: ^Game_State) -> bool {
 	if !can_act_map(g) do return false
 	if !zone_has_services(g.pos_x, g.pos_y) do return false
 	if !g.comp_active do return false
+	refund := comp_adopt_cost(g.comp_rarity)
+	g.qty_wood += refund
 	g.comp_active = false
 	g.comp_species = -1
 	g.comp_trait = 0

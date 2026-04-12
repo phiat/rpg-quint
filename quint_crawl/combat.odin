@@ -34,6 +34,14 @@ enter_combat :: proc(g: ^Game_State) -> bool {
 		}
 		g.comp_command_used = false
 	}
+	// Armor wear: one point per fight engaged. Breaks at 0.
+	if g.has_armor {
+		g.armor_dur -= 1
+		if g.armor_dur <= 0 {
+			g.has_armor = false
+			g.armor_dur = 0
+		}
+	}
 	return true
 }
 
@@ -73,7 +81,8 @@ maybe_level_up :: proc(g: ^Game_State) {
 // DEF buff + companion reduction).
 enemy_free_hit_damage :: proc(g: ^Game_State, enchant_def: int) -> int {
 	shield_def := SHIELD_DEF if g.has_shield else 0
-	d := g.enemy_attack - enchant_def - def_reduction_active(g) - comp_dmg_reduction(g) - shield_def
+	armor_def := ARMOR_DEF if g.has_armor else 0
+	d := g.enemy_attack - enchant_def - def_reduction_active(g) - comp_dmg_reduction(g) - shield_def - armor_def
 	return max(d, 1)
 }
 

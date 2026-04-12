@@ -23,6 +23,8 @@ save_game :: proc(g: ^Game_State) -> bool {
 		trinket      = g.trinket,
 		has_shield   = g.has_shield,
 		shield_dur   = g.shield_dur,
+		has_armor    = g.has_armor,
+		armor_dur    = g.armor_dur,
 		turn_count   = g.turn_count,
 		stamina      = g.stamina,
 		max_stamina  = g.max_stamina,
@@ -96,6 +98,8 @@ load_game :: proc(g: ^Game_State) -> bool {
 	g.trinket = s.trinket
 	g.has_shield = s.has_shield
 	g.shield_dur = s.shield_dur
+	g.has_armor = s.has_armor
+	g.armor_dur = s.armor_dur
 	g.turn_count = s.turn_count
 	g.stamina = s.stamina
 	g.max_stamina = s.max_stamina

@@ -153,6 +153,13 @@ draw_hud :: proc(app: ^App_State) {
 		y += 18
 	}
 
+	// Armor slot
+	if g.has_armor {
+		dur_color := TEXT_BRIGHT if g.armor_dur > 3 else BAR_HP_FG
+		rl.DrawText(fmt.ctprintf("Armor: %d/%d dur", g.armor_dur, qc.ARMOR_MAX_DUR), x + 8, y, 14, dur_color)
+		y += 18
+	}
+
 	// Trinket slot
 	if g.trinket == 1 {
 		rl.DrawText("Trinket: Vitality (+HP)", x + 8, y, 14, {220, 200, 255, 255})
@@ -296,6 +303,9 @@ draw_hud :: proc(app: ^App_State) {
 			}
 			if !g.has_shield {
 				draw_action(x, &y, "[K]", fmt.ctprintf("Buy Shield (%dg)", qc.SHIELD_COST), g.gold >= qc.SHIELD_COST)
+			}
+			if !g.has_armor {
+				draw_action(x, &y, "[H]", fmt.ctprintf("Buy Armor (%dg)", qc.ARMOR_COST), g.gold >= qc.ARMOR_COST)
 			}
 			if g.trinket == 0 {
 				draw_action(x, &y, "[N]", fmt.ctprintf("Buy Trinket (%dg)", qc.TRINKET_COST), g.gold >= qc.TRINKET_COST)

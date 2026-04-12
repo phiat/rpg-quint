@@ -114,6 +114,9 @@ TRINKET_VITALITY_HP :: 5
 SHIELD_COST :: 30
 SHIELD_MAX_DUR :: 5
 SHIELD_DEF :: 2
+ARMOR_COST :: 40
+ARMOR_MAX_DUR :: 8
+ARMOR_DEF :: 1
 PISTOL_STAMINA :: 2
 PISTOL_BASE_BONUS :: 4
 CRAFT_LEVEL_REQ :: 2
@@ -156,6 +159,8 @@ Save_Data :: struct {
 	trinket:      int,
 	has_shield:   bool,
 	shield_dur:   int,
+	has_armor:    bool,
+	armor_dur:    int,
 	turn_count:   int,
 	stamina:      int,
 	max_stamina:  int,
@@ -225,6 +230,8 @@ Game_State :: struct {
 	trinket:      int,
 	has_shield:   bool,
 	shield_dur:   int,
+	has_armor:    bool,
+	armor_dur:    int,
 	in_combat:    bool,
 	enemy_hp:     int,
 	enemy_attack: int,
@@ -579,6 +586,8 @@ init_game :: proc(g: ^Game_State) {
 	g.trinket = 0
 	g.has_shield = false
 	g.shield_dur = 0
+	g.has_armor = false
+	g.armor_dur = 0
 	g.in_combat = false
 	g.enemy_hp = 0
 	g.enemy_attack = 0

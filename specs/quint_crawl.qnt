@@ -24,6 +24,7 @@ module quint_crawl {
     weapon_type: int, // 0=sword, 1=pistol, 2=staff
     trinket: int,     // 0=none, 1=vitality(+max_hp)
     has_shield: bool, shield_dur: int,
+    has_armor: bool, armor_dur: int,
   }
 
   type CombatState = {
@@ -194,6 +195,10 @@ module quint_crawl {
   val SHIELD_COST = 30
   val SHIELD_MAX_DUR = 5
   val SHIELD_DEF = 2
+  // Armor: passive flat DEF, durability ticks at enter_combat (lasts N fights).
+  val ARMOR_COST = 40
+  val ARMOR_MAX_DUR = 8
+  val ARMOR_DEF = 1
   val PISTOL_STAMINA = 2
   val PISTOL_BASE_BONUS = 4
   val CRAFT_LEVEL_REQ = 2
@@ -349,8 +354,9 @@ module quint_crawl {
     else if (cb.player_def_buff_dur > 0) DEF_BUFF_REDUCTION
     else 0
   val shield_def_bonus = if (eqp.has_shield) SHIELD_DEF else 0
+  val armor_def_bonus = if (eqp.has_armor) ARMOR_DEF else 0
   val incoming_enemy_dmg = {
-    val raw = cb.enemy_attack - enchant_def_bonus - def_reduction_active - comp_dmg_reduction - shield_def_bonus
+    val raw = cb.enemy_attack - enchant_def_bonus - def_reduction_active - comp_dmg_reduction - shield_def_bonus - armor_def_bonus
     if (raw < 1) 1 else raw
   }
   val player_poison_tick = if (cb.player_poison_dur > 0) POISON_DMG else 0
@@ -463,6 +469,7 @@ module quint_crawl {
       weapon_type: 0,
       trinket: 0,
       has_shield: false, shield_dur: 0,
+      has_armor: false, armor_dur: 0,
     },
     cb' = {
       in_combat: false, enemy_hp: 0, enemy_attack: 0, enemy_element: 0,
@@ -574,6 +581,8 @@ module quint_crawl {
     val base_atk = if (is_boss) BOSS_ATK else zone_enemy_attack(w.pos_x, w.pos_y)
     val base_elem = if (is_boss) BOSS_ELEMENT else zone_element(w.pos_x, w.pos_y)
     val raw_atk = base_atk - fog_penalty
+    val new_armor_dur = if (eqp.has_armor) eqp.armor_dur - 1 else 0
+    val armor_broken = eqp.has_armor and new_armor_dur <= 0
     all {
       cb' = { in_combat: true,
               enemy_hp: base_hp,
@@ -583,7 +592,10 @@ module quint_crawl {
               player_def_buff_dur: 0, enemy_poison_dur: 0,
               cd_heavy_strike: 0, cd_battle_cry: 0, cd_fortify: 0 },
       w' = { ...w, turn_count: w.turn_count + 1 },
-      ch' = ch, inv' = inv, eqp' = eqp,
+      ch' = ch, inv' = inv,
+      eqp' = { ...eqp,
+               has_armor: if (armor_broken) false else eqp.has_armor,
+               armor_dur: if (armor_broken) 0 else new_armor_dur },
       meta' = { ...meta, last_drop: 0 },
       // Loyalty tick: departure zeroes trait/rarity to match dismiss_companion
       // (keeps comp_inactive_zeroed invariant tight).
@@ -740,6 +752,20 @@ module quint_crawl {
     ch' = { ...ch, gold: ch.gold - POTION_COST },
     inv' = { ...inv, qty_potion: inv.qty_potion + 1 },
     eqp' = eqp,
+    cb' = cb,
+    w' = { ...w, turn_count: w.turn_count + 1 },
+    meta' = meta, comp' = comp,
+  }
+
+  // === Buy armor (village; passive flat DEF, durability decrements per fight) ===
+  action buy_armor = all {
+    not(cb.in_combat), not(meta.game_won), ch.hp > 0,
+    zone_has_services(w.pos_x, w.pos_y),
+    not(eqp.has_armor),
+    ch.gold >= ARMOR_COST,
+    ch' = { ...ch, gold: ch.gold - ARMOR_COST },
+    inv' = inv,
+    eqp' = { ...eqp, has_armor: true, armor_dur: ARMOR_MAX_DUR },
     cb' = cb,
     w' = { ...w, turn_count: w.turn_count + 1 },
     meta' = meta, comp' = comp,
@@ -1874,13 +1900,18 @@ module quint_crawl {
     }
   }
 
-  // Dismiss companion at village (no cost, returns to none)
+  // Dismiss companion at village. Refunds (rarity+1)*ADOPT_BASE_COST in wood
+  // — scales with current rarity so trained companions yield more on release.
   action dismiss_companion = all {
     not(cb.in_combat), not(meta.game_won), ch.hp > 0,
     zone_has_services(w.pos_x, w.pos_y),
     comp.active,
-    comp' = { active: false, trait: 0, rarity: 0, loyalty: 0, command_used: false },
-    ch' = ch, inv' = inv, eqp' = eqp, cb' = cb, w' = w, meta' = meta,
+    val refund = (comp.rarity + 1) * ADOPT_BASE_COST
+    all {
+      comp' = { active: false, trait: 0, rarity: 0, loyalty: 0, command_used: false },
+      inv' = { ...inv, qty_wood: inv.qty_wood + refund },
+      ch' = ch, eqp' = eqp, cb' = cb, w' = w, meta' = meta,
+    }
   }
 
   // Companion command (in-combat, high loyalty, one per combat)
@@ -1904,7 +1935,7 @@ module quint_crawl {
   action step = any {
     move_up, move_down, move_left, move_right, fast_travel,
     enter_combat, combat_attack, combat_potion, flee_combat,
-    rest_at_village, buy_potion, buy_shield, repair_sword, buy_spellbook,
+    rest_at_village, buy_potion, buy_shield, buy_armor, repair_sword, buy_spellbook,
     gather_wood, mine_iron, craft_sword, equip_sword, equip_pistol, equip_staff,
     buy_trinket, remove_trinket,
     use_antidote, poison_strike, combo_attack,
@@ -2082,6 +2113,8 @@ module quint_crawl {
   val trinket_bounded = eqp.trinket >= 0 and eqp.trinket <= 1
   val shield_dur_bounded = eqp.shield_dur >= 0 and eqp.shield_dur <= SHIELD_MAX_DUR
   val shield_consistent = eqp.has_shield.implies(eqp.shield_dur > 0)
+  val armor_dur_bounded = eqp.armor_dur >= 0 and eqp.armor_dur <= ARMOR_MAX_DUR
+  val armor_consistent = eqp.has_armor.implies(eqp.armor_dur > 0)
 
   /// Battery quantity bounded [0, BATTERY_CAP]
   val qty_battery_bounded = inv.qty_battery >= 0 and inv.qty_battery <= BATTERY_CAP
