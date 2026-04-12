@@ -264,10 +264,9 @@ draw_hud :: proc(app: ^App_State) {
 		y += 22
 
 		draw_action :: proc(x: i32, y: ^i32, key: cstring, label: cstring, available: bool) {
-			color := KEY_HIGHLIGHT if available else rl.Color{60, 60, 70, 255}
-			text_color := TEXT_BRIGHT if available else rl.Color{60, 60, 70, 255}
-			rl.DrawText(key, x, y^, 14, color)
-			rl.DrawText(label, x + 28, y^, 14, text_color)
+			if !available do return
+			rl.DrawText(key, x, y^, 14, KEY_HIGHLIGHT)
+			rl.DrawText(label, x + 28, y^, 14, TEXT_BRIGHT)
 			y^ += 18
 		}
 
@@ -276,7 +275,8 @@ draw_hud :: proc(app: ^App_State) {
 			draw_action(x, &y, "[E]", "Fight", true)
 		} else {
 			remaining := qc.RESPAWN_TURNS - (g.turn_count - g.last_kill_turn)
-			draw_action(x, &y, "[E]", fmt.ctprintf("Respawn in %d turns", remaining), false)
+			rl.DrawText(fmt.ctprintf("[E] Respawn in %d turns", remaining), x, y, 14, TEXT_DIM)
+			y += 18
 		}
 
 		// Town actions
