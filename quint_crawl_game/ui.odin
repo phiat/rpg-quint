@@ -235,7 +235,7 @@ draw_hud :: proc(app: ^App_State) {
 				draw_action(x, &y, "[T]", fmt.ctprintf("Repair Sword (%dg)", qc.REPAIR_COST), g.gold >= qc.REPAIR_COST)
 			}
 			draw_action(x, &y, "[O]", fmt.ctprintf("Craft Venom (%di)", qc.CRAFT_VENOM_IRON_COST), g.qty_iron >= qc.CRAFT_VENOM_IRON_COST)
-			draw_action(x, &y, "[U]", fmt.ctprintf("Respec (%dg)", qc.RESPEC_COST), g.gold >= qc.RESPEC_COST)
+			draw_action(x, &y, "[U]", fmt.ctprintf("Respec (%dg)", qc.respec_cost(g)), g.gold >= qc.respec_cost(g))
 			if g.qty_sword >= 1 {
 				draw_action(x, &y, "[\\]", fmt.ctprintf("Salvage (Lv%d)", g.salvage_level), true)
 			}

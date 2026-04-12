@@ -6,6 +6,7 @@ module quint_crawl {
     skill_combo: bool, skill_poison: bool, skill_shield_block: bool,
     skill_heavy_strike: bool, skill_counter_attack: bool,
     skill_battle_cry: bool, skill_fortify: bool,
+    respec_count: int,
   }
 
   type InvState = {
@@ -64,8 +65,9 @@ module quint_crawl {
   val SWORD_MAX_DUR = 10
   val REPAIR_COST = 5
   val POISON_DMG = 7
-  val ATK_BUFF_BONUS = 5
+  val ATK_BUFF_BONUS = 8
   val DEF_BUFF_REDUCTION = 3
+  val FORTIFY_DEF_REDUCTION = 5
   val STATUS_DURATION = 3
   val SWORD_ATK_BONUS = 5
   val WEATHER_CYCLE = 5
@@ -120,14 +122,16 @@ module quint_crawl {
   val LOOT_DROP_MODULO = 3
   val MAX_COMBO_CHAIN = 3
   val SKILL_POINTS_PER_LEVEL = 1
-  val RESPEC_COST = 25
+  val RESPEC_BASE_COST = 25
   val COUNTER_STAMINA = 3
   val SHIELD_BLOCK_STAMINA = 3
   val FORTIFY_STAMINA = 4
   val FORTIFY_CD = 5
-  val FORTIFY_DURATION = 6
+  val FORTIFY_DURATION = 8
   val CRAFT_VENOM_IRON_COST = 2
-  val ENCHANT_COST = 10
+  val ENCHANT_COST = 25
+  val ENCHANT_IRON_COST = 1
+  val ENCHANT_VENOM_COST = 1
   val MAX_INVENTORY = 30
   val CRAFT_LEVEL_REQ = 2
   val SALVAGE_WOOD_BASE = 0
@@ -267,8 +271,15 @@ module quint_crawl {
     else 0
 
   // Damage-taken helpers (used across all combat actions)
+  // Fortify grants a stronger reduction than shield_block; disambiguated by
+  // buff duration (shield_block sets STATUS_DURATION=3, fortify sets
+  // FORTIFY_DURATION=8, so any duration > STATUS_DURATION implies fortify).
+  val def_reduction_active =
+    if (cb.player_def_buff_dur > STATUS_DURATION) FORTIFY_DEF_REDUCTION
+    else if (cb.player_def_buff_dur > 0) DEF_BUFF_REDUCTION
+    else 0
   val incoming_enemy_dmg = {
-    val raw = cb.enemy_attack - enchant_def_bonus - (if (cb.player_def_buff_dur > 0) DEF_BUFF_REDUCTION else 0) - comp_dmg_reduction
+    val raw = cb.enemy_attack - enchant_def_bonus - def_reduction_active - comp_dmg_reduction
     if (raw < 1) 1 else raw
   }
   val player_poison_tick = if (cb.player_poison_dur > 0) POISON_DMG else 0
@@ -311,6 +322,7 @@ module quint_crawl {
       skill_combo: false, skill_poison: false, skill_shield_block: false,
       skill_heavy_strike: false, skill_counter_attack: false,
       skill_battle_cry: false, skill_fortify: false,
+      respec_count: 0,
     },
     inv' = {
       qty_potion: INITIAL_POTIONS, qty_wood: 0, qty_iron: 0, qty_sword: 0,
@@ -492,7 +504,10 @@ module quint_crawl {
               cd_battle_cry: if (combat_ends) 0 else (if (cb.cd_battle_cry > 0) cb.cd_battle_cry - 1 else 0),
               cd_fortify: if (combat_ends) 0 else (if (cb.cd_fortify > 0) cb.cd_fortify - 1 else 0),
       },
-      eqp' = { ...eqp, sword_dur: new_sword_dur },
+      // If durability hits 0 this strike, enchants are lost with the broken sword.
+      eqp' = if (eqp.sword_dur > 0 and new_sword_dur == 0)
+               { ...eqp, sword_dur: 0, enchant_slot_1: 0, enchant_slot_2: 0, enchant_slot_3: 0 }
+             else { ...eqp, sword_dur: new_sword_dur },
       inv' = { ...inv,
                qty_potion: if (should_drop and not(drops_venom)) inv.qty_potion + 1 else inv.qty_potion,
                qty_venom_sac: if (drops_venom) inv.qty_venom_sac + 1 else inv.qty_venom_sac,
@@ -750,7 +765,10 @@ module quint_crawl {
               cd_battle_cry: if (combat_ends) 0 else (if (cb.cd_battle_cry > 0) cb.cd_battle_cry - 1 else 0),
               cd_fortify: if (combat_ends) 0 else (if (cb.cd_fortify > 0) cb.cd_fortify - 1 else 0),
       },
-      eqp' = { ...eqp, sword_dur: new_sword_dur },
+      // If durability hits 0 this strike, enchants are lost with the broken sword.
+      eqp' = if (eqp.sword_dur > 0 and new_sword_dur == 0)
+               { ...eqp, sword_dur: 0, enchant_slot_1: 0, enchant_slot_2: 0, enchant_slot_3: 0 }
+             else { ...eqp, sword_dur: new_sword_dur },
       inv' = { ...inv,
                qty_potion: if (should_drop and not(drops_venom)) inv.qty_potion + 1 else inv.qty_potion,
                qty_venom_sac: if (drops_venom) inv.qty_venom_sac + 1 else inv.qty_venom_sac,
@@ -821,7 +839,10 @@ module quint_crawl {
               cd_battle_cry: if (combat_ends) 0 else (if (cb.cd_battle_cry > 0) cb.cd_battle_cry - 1 else 0),
               cd_fortify: if (combat_ends) 0 else (if (cb.cd_fortify > 0) cb.cd_fortify - 1 else 0),
       },
-      eqp' = { ...eqp, sword_dur: new_sword_dur },
+      // If durability hits 0 this strike, enchants are lost with the broken sword.
+      eqp' = if (eqp.sword_dur > 0 and new_sword_dur == 0)
+               { ...eqp, sword_dur: 0, enchant_slot_1: 0, enchant_slot_2: 0, enchant_slot_3: 0 }
+             else { ...eqp, sword_dur: new_sword_dur },
       inv' = { ...inv,
                qty_potion: if (should_drop and not(drops_venom)) inv.qty_potion + 1 else inv.qty_potion,
                qty_venom_sac: if (drops_venom) inv.qty_venom_sac + 1 else inv.qty_venom_sac,
@@ -843,7 +864,8 @@ module quint_crawl {
     ch.skill_battle_cry,
     cb.cd_battle_cry == 0,
     ch.stamina >= BATTLE_CRY_STAMINA,
-    val new_hp = ch.hp - incoming_enemy_dmg - player_poison_tick
+    // Battle cry is a pure setup move — enemy does NOT retaliate. Only poison ticks.
+    val new_hp = ch.hp - player_poison_tick
     val combat_ends = (new_hp <= 0)
     val zone_tier = zone_level(w.pos_x, w.pos_y)
     val apply_poison = (zone_tier >= POISON_APPLY_TIER and cb.player_poison_dur == 0)
@@ -982,19 +1004,21 @@ module quint_crawl {
   action respec = all {
     not(cb.in_combat), not(meta.game_won), ch.hp > 0,
     zone_has_services(w.pos_x, w.pos_y),
-    ch.gold >= RESPEC_COST,
+    val respec_cost = RESPEC_BASE_COST * (ch.respec_count + 1)
     val spent = (if (ch.skill_combo) 1 else 0) + (if (ch.skill_poison) 1 else 0) +
                 (if (ch.skill_shield_block) 1 else 0) + (if (ch.skill_heavy_strike) 1 else 0) +
                 (if (ch.skill_counter_attack) 1 else 0) + (if (ch.skill_battle_cry) 2 else 0) +
                 (if (ch.skill_fortify) 2 else 0)
     all {
       spent > 0,
+      ch.gold >= respec_cost,
       ch' = { ...ch,
-              gold: ch.gold - RESPEC_COST,
+              gold: ch.gold - respec_cost,
               skill_points: ch.skill_points + spent,
               skill_combo: false, skill_poison: false, skill_shield_block: false,
               skill_heavy_strike: false, skill_counter_attack: false,
               skill_battle_cry: false, skill_fortify: false,
+              respec_count: ch.respec_count + 1,
       },
       inv' = inv, eqp' = eqp, cb' = cb,
       w' = { ...w, turn_count: w.turn_count + 1 },
@@ -1007,7 +1031,10 @@ module quint_crawl {
     cb.in_combat, not(meta.game_won), ch.hp > 0, cb.enemy_hp > 0,
     ch.skill_counter_attack,
     ch.stamina >= COUNTER_STAMINA,
-    val player_dmg = effective_damage(attack_power, player_elem_mult)
+    // Counter-attack is a retaliatory strike — deals HALF attack power (rounded down, min 1).
+    // No longer a strict upgrade to combat_attack.
+    val counter_base = if (attack_power / 2 < 1) 1 else attack_power / 2
+    val player_dmg = effective_damage(counter_base, player_elem_mult)
     val new_enemy_hp = if (cb.enemy_hp - player_dmg < 0) 0 else cb.enemy_hp - player_dmg
     val enemy_poison_dmg = if (cb.enemy_poison_dur > 0) POISON_DMG else 0
     val final_enemy_hp = if (new_enemy_hp - enemy_poison_dmg < 0) 0 else new_enemy_hp - enemy_poison_dmg
@@ -1057,7 +1084,10 @@ module quint_crawl {
               cd_battle_cry: if (combat_ends) 0 else (if (cb.cd_battle_cry > 0) cb.cd_battle_cry - 1 else 0),
               cd_fortify: if (combat_ends) 0 else (if (cb.cd_fortify > 0) cb.cd_fortify - 1 else 0),
       },
-      eqp' = { ...eqp, sword_dur: eqp.sword_dur - dur_cost },
+      // If this counter breaks the sword, enchants go with it.
+      eqp' = if (eqp.sword_dur > 0 and eqp.sword_dur - dur_cost == 0)
+               { ...eqp, sword_dur: 0, enchant_slot_1: 0, enchant_slot_2: 0, enchant_slot_3: 0 }
+             else { ...eqp, sword_dur: eqp.sword_dur - dur_cost },
       inv' = { ...inv,
                qty_potion: if (should_drop and not(drops_venom)) inv.qty_potion + 1 else inv.qty_potion,
                qty_venom_sac: if (drops_venom) inv.qty_venom_sac + 1 else inv.qty_venom_sac,
@@ -1124,16 +1154,24 @@ module quint_crawl {
   action apply_enchant = {
     nondet slot = Set(1, 2, 3).oneOf()
     nondet etype = Set(1, 2, 3, 4).oneOf()
+    // Vampiric (etype=3) costs 1 venom_sac; other elements cost 1 iron.
+    val needs_venom = (etype == 3)
     all {
       not(cb.in_combat), not(meta.game_won), ch.hp > 0,
       zone_has_services(w.pos_x, w.pos_y),
       inv.has_sword,
       ch.gold >= ENCHANT_COST,
+      if (needs_venom) inv.qty_venom_sac >= ENCHANT_VENOM_COST
+      else inv.qty_iron >= ENCHANT_IRON_COST,
       not(etype == 1 and has_ice_enchant),
       not(etype == 2 and has_fire_enchant),
       ch' = { ...ch, gold: ch.gold - ENCHANT_COST },
       eqp' = set_enchant_slot(eqp, slot, etype),
-      inv' = inv, cb' = cb,
+      inv' = { ...inv,
+               qty_iron: if (needs_venom) inv.qty_iron else inv.qty_iron - ENCHANT_IRON_COST,
+               qty_venom_sac: if (needs_venom) inv.qty_venom_sac - ENCHANT_VENOM_COST else inv.qty_venom_sac,
+      },
+      cb' = cb,
       w' = { ...w, turn_count: w.turn_count + 1 },
       meta' = meta, comp' = comp,
     }
@@ -1166,7 +1204,10 @@ module quint_crawl {
              qty_iron: inv.qty_iron + salvage_iron_yield(inv.salvage_level),
              qty_sword: inv.qty_sword - 1,
     },
-    ch' = ch, eqp' = eqp,
+    ch' = ch,
+    // Salvaging destroys a sword — enchants are lost when the sword breaks.
+    // Zeros the equipped sword's enchant slots (they're tied to has_sword).
+    eqp' = { ...eqp, enchant_slot_1: 0, enchant_slot_2: 0, enchant_slot_3: 0 },
     cb' = cb,
     w' = { ...w, turn_count: w.turn_count + 1 },
     meta' = meta, comp' = comp,
@@ -1428,6 +1469,9 @@ module quint_crawl {
 
   /// Skill points are non-negative
   val skill_points_non_negative = ch.skill_points >= 0
+
+  /// Respec count is non-negative
+  val respec_count_non_negative = ch.respec_count >= 0
 
   /// Skill prerequisites are respected
   val skill_prereqs_respected = and {

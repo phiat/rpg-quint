@@ -197,8 +197,10 @@ handle_map_input :: proc(app: ^App_State) {
 
 	// Respec skills (at village)
 	if rl.IsKeyPressed(.U) {
+		// Compute cost BEFORE respec since respec_count bumps on success.
+		pre_cost := qc.respec_cost(g)
 		if qc.respec(g) {
-			add_message(app, fmt.tprintf("Skills reset! %d points refunded. (%d gold)", g.skill_points, qc.RESPEC_COST), TEXT_GOLD)
+			add_message(app, fmt.tprintf("Skills reset! %d points refunded. (%d gold)", g.skill_points, pre_cost), TEXT_GOLD)
 		}
 	}
 

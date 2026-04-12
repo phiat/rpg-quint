@@ -23,8 +23,9 @@ GOLD_PER_LEVEL :: 3    // gold reward per level
 SWORD_MAX_DUR :: 10
 REPAIR_COST :: 5
 POISON_DMG :: 7
-ATK_BUFF_BONUS :: 5
+ATK_BUFF_BONUS :: 8
 DEF_BUFF_REDUCTION :: 3
+FORTIFY_DEF_REDUCTION :: 5
 STATUS_DURATION :: 3
 WEATHER_CYCLE :: 5
 STORM_MOVE_DMG :: 2
@@ -75,14 +76,16 @@ POISON_APPLY_TIER :: 2
 LOOT_DROP_MODULO :: 3
 MAX_COMBO_CHAIN :: 3
 SKILL_POINTS_PER_LEVEL :: 1
-RESPEC_COST :: 25
+RESPEC_BASE_COST :: 25
 COUNTER_STAMINA :: 3
 SHIELD_BLOCK_STAMINA :: 3
 FORTIFY_STAMINA :: 4
 FORTIFY_CD :: 5
-FORTIFY_DURATION :: 6
+FORTIFY_DURATION :: 8
 CRAFT_VENOM_IRON_COST :: 2
-ENCHANT_COST :: 10
+ENCHANT_COST :: 25
+ENCHANT_IRON_COST :: 1
+ENCHANT_VENOM_COST :: 1
 MAX_INVENTORY :: 30
 CRAFT_LEVEL_REQ :: 2
 SALVAGE_WOOD_BASE :: 0
@@ -128,6 +131,7 @@ Save_Data :: struct {
 	skill_counter_attack: bool,
 	skill_battle_cry: bool,
 	skill_fortify: bool,
+	respec_count: int,
 	qty_venom_sac: int,
 	enemy_element: int,
 	enchant_slot_1: int,
@@ -200,6 +204,8 @@ Game_State :: struct {
 	skill_counter_attack: bool,
 	skill_battle_cry:    bool,
 	skill_fortify:       bool,
+	// Respec escalation (scales cost with uses)
+	respec_count:        int,
 	// Venom sac
 	qty_venom_sac:       int,
 	// Elemental & Enchantment
@@ -436,6 +442,15 @@ comp_dmg_reduction :: proc(g: ^Game_State) -> int {
 	return comp_def_from(g.comp_trait, g.comp_rarity)
 }
 
+// Fortify grants a stronger DEF reduction than shield_block; disambiguated
+// by buff duration (shield_block sets STATUS_DURATION=3, fortify sets
+// FORTIFY_DURATION=8, so any duration > STATUS_DURATION implies fortify).
+def_reduction_active :: proc(g: ^Game_State) -> int {
+	if g.player_def_buff_dur > STATUS_DURATION do return FORTIFY_DEF_REDUCTION
+	if g.player_def_buff_dur > 0 do return DEF_BUFF_REDUCTION
+	return 0
+}
+
 attack_power :: proc(g: ^Game_State) -> int {
 	sword_bonus := SWORD_ATK_BONUS if (g.has_sword && g.sword_dur > 0) else 0
 	atk_buff := ATK_BUFF_BONUS if g.player_atk_buff_dur > 0 else 0
@@ -497,6 +512,7 @@ init_game :: proc(g: ^Game_State) {
 	g.skill_counter_attack = false
 	g.skill_battle_cry = false
 	g.skill_fortify = false
+	g.respec_count = 0
 	g.qty_venom_sac = 0
 	g.enemy_element = 0
 	g.enchant_slot_1 = 0
@@ -658,20 +674,28 @@ resolve_loot :: proc(g: ^Game_State) {
 // Shared combat hit resolution: applies damage, ticks statuses, resolves combat end.
 // Returns true if combat ended.
 resolve_combat_hit :: proc(g: ^Game_State, dmg: int) -> bool {
-	// Degrade sword on attack
+	// Capture pre-state enchant-derived values before any sword-break zeroing.
+	pre_elem_mult := damage_multiplier(player_element(g), g.enemy_element)
+	pre_enchant_def := enchant_def_bonus(g)
+	// Degrade sword on attack. If it breaks (dur hits 0), lose enchants.
 	if g.has_sword && g.sword_dur > 0 {
 		g.sword_dur -= 1
+		if g.sword_dur == 0 {
+			g.enchant_slot_1 = 0
+			g.enchant_slot_2 = 0
+			g.enchant_slot_3 = 0
+		}
 	}
 	// Enemy takes elemental-modified hit + poison damage
 	enemy_poison_dmg := POISON_DMG if g.enemy_poison_dur > 0 else 0
-	elem_dmg := effective_damage(dmg, damage_multiplier(player_element(g), g.enemy_element))
+	elem_dmg := effective_damage(dmg, pre_elem_mult)
 	new_enemy_hp := g.enemy_hp - elem_dmg - enemy_poison_dmg
 
 	// Player takes enemy hit (reduced by enchant DEF + DEF buff) + poison damage
 	poison_dmg := POISON_DMG if g.player_poison_dur > 0 else 0
 	new_hp := g.hp - poison_dmg
 	if new_enemy_hp > 0 {
-		enemy_dmg := g.enemy_attack - enchant_def_bonus(g) - (DEF_BUFF_REDUCTION if g.player_def_buff_dur > 0 else 0) - comp_dmg_reduction(g)
+		enemy_dmg := g.enemy_attack - pre_enchant_def - def_reduction_active(g) - comp_dmg_reduction(g)
 		if enemy_dmg < 1 do enemy_dmg = 1
 		new_hp -= enemy_dmg
 	}
@@ -901,7 +925,7 @@ poison_strike :: proc(g: ^Game_State) -> bool {
 	g.stamina -= ATTACK_STAMINA
 	g.qty_venom_sac -= 1
 	// Enemy hits back (reduced by enchant DEF + DEF buff)
-	enemy_dmg := g.enemy_attack - enchant_def_bonus(g) - (DEF_BUFF_REDUCTION if g.player_def_buff_dur > 0 else 0)
+	enemy_dmg := g.enemy_attack - enchant_def_bonus(g) - def_reduction_active(g)
 	if enemy_dmg < 1 do enemy_dmg = 1
 	g.hp = max(g.hp - enemy_dmg, 0)
 	if g.hp <= 0 {
@@ -992,11 +1016,9 @@ battle_cry :: proc(g: ^Game_State) -> bool {
 	g.turn_count += 1
 	g.stamina -= BATTLE_CRY_STAMINA
 
-	// Enemy hits back (reduced by enchant DEF + DEF buff)
-	enemy_dmg := g.enemy_attack - enchant_def_bonus(g) - (DEF_BUFF_REDUCTION if g.player_def_buff_dur > 0 else 0)
-	if enemy_dmg < 1 do enemy_dmg = 1
+	// Battle cry is a pure setup move — enemy does NOT retaliate (only poison ticks).
 	poison_dmg := POISON_DMG if g.player_poison_dur > 0 else 0
-	g.hp = max(g.hp - enemy_dmg - poison_dmg, 0)
+	g.hp = max(g.hp - poison_dmg, 0)
 
 	combat_ends := (g.hp <= 0)
 
@@ -1039,7 +1061,7 @@ shield_block :: proc(g: ^Game_State) -> bool {
 	g.stamina -= SHIELD_BLOCK_STAMINA
 
 	// Enemy hits back (reduced by enchant DEF + DEF buff)
-	enemy_dmg := g.enemy_attack - enchant_def_bonus(g) - (DEF_BUFF_REDUCTION if g.player_def_buff_dur > 0 else 0)
+	enemy_dmg := g.enemy_attack - enchant_def_bonus(g) - def_reduction_active(g)
 	if enemy_dmg < 1 do enemy_dmg = 1
 	poison_dmg := POISON_DMG if g.player_poison_dur > 0 else 0
 	g.hp = max(g.hp - enemy_dmg - poison_dmg, 0)
@@ -1151,10 +1173,16 @@ unlock_fortify :: proc(g: ^Game_State) -> bool {
 	return true
 }
 
+// Escalating respec cost: RESPEC_BASE_COST * (respec_count + 1)
+respec_cost :: proc(g: ^Game_State) -> int {
+	return RESPEC_BASE_COST * (g.respec_count + 1)
+}
+
 respec :: proc(g: ^Game_State) -> bool {
 	if !can_act_map(g) do return false
 	if !zone_has_services(g.pos_x, g.pos_y) do return false
-	if g.gold < RESPEC_COST do return false
+	cost := respec_cost(g)
+	if g.gold < cost do return false
 	spent := 0
 	if g.skill_combo do spent += 1
 	if g.skill_poison do spent += 1
@@ -1165,7 +1193,7 @@ respec :: proc(g: ^Game_State) -> bool {
 	if g.skill_fortify do spent += 2
 	if spent == 0 do return false
 	g.turn_count += 1
-	g.gold -= RESPEC_COST
+	g.gold -= cost
 	g.skill_points += spent
 	g.skill_combo = false
 	g.skill_poison = false
@@ -1174,6 +1202,7 @@ respec :: proc(g: ^Game_State) -> bool {
 	g.skill_counter_attack = false
 	g.skill_battle_cry = false
 	g.skill_fortify = false
+	g.respec_count += 1
 	return true
 }
 
@@ -1184,20 +1213,29 @@ counter_attack :: proc(g: ^Game_State) -> bool {
 	g.turn_count += 1
 	g.stamina -= COUNTER_STAMINA
 
-	// Player deals base damage + sword durability cost
-	dmg := attack_power(g)
+	// Counter-attack is a retaliatory strike — deals HALF attack power (min 1).
+	// Compute elemental multiplier BEFORE sword break, matching spec's pre-state read.
+	dmg := attack_power(g) / 2
+	if dmg < 1 do dmg = 1
+	elem_mult := damage_multiplier(player_element(g), g.enemy_element)
+	pre_enchant_def := enchant_def_bonus(g)
 	if g.has_sword && g.sword_dur > 0 {
 		g.sword_dur -= 1
+		if g.sword_dur == 0 {
+			g.enchant_slot_1 = 0
+			g.enchant_slot_2 = 0
+			g.enchant_slot_3 = 0
+		}
 	}
 
 	// Enemy takes elemental-modified hit + poison
 	enemy_poison_dmg := POISON_DMG if g.enemy_poison_dur > 0 else 0
-	elem_dmg := effective_damage(dmg, damage_multiplier(player_element(g), g.enemy_element))
+	elem_dmg := effective_damage(dmg, elem_mult)
 	new_enemy_hp := g.enemy_hp - elem_dmg - enemy_poison_dmg
 	g.enemy_hp = max(new_enemy_hp, 0)
 
 	// Enemy hits player (reduced by enchant DEF + DEF buff)
-	enemy_dmg := g.enemy_attack - enchant_def_bonus(g) - (DEF_BUFF_REDUCTION if g.player_def_buff_dur > 0 else 0)
+	enemy_dmg := g.enemy_attack - pre_enchant_def - def_reduction_active(g)
 	if enemy_dmg < 1 do enemy_dmg = 1
 	poison_dmg := POISON_DMG if g.player_poison_dur > 0 else 0
 	g.hp = max(g.hp - enemy_dmg - poison_dmg, 0)
@@ -1267,7 +1305,7 @@ fortify :: proc(g: ^Game_State) -> bool {
 	g.stamina -= FORTIFY_STAMINA
 
 	// Enemy hits back (reduced by enchant DEF + DEF buff)
-	enemy_dmg := g.enemy_attack - enchant_def_bonus(g) - (DEF_BUFF_REDUCTION if g.player_def_buff_dur > 0 else 0)
+	enemy_dmg := g.enemy_attack - enchant_def_bonus(g) - def_reduction_active(g)
 	if enemy_dmg < 1 do enemy_dmg = 1
 	poison_dmg := POISON_DMG if g.player_poison_dur > 0 else 0
 	g.hp = max(g.hp - enemy_dmg - poison_dmg, 0)
@@ -1416,6 +1454,10 @@ salvage_sword :: proc(g: ^Game_State) -> bool {
 	g.qty_sword -= 1
 	g.qty_wood += salvage_wood_yield(g.salvage_level)
 	g.qty_iron += salvage_iron_yield(g.salvage_level)
+	// Salvaging destroys a sword — enchants are lost with the broken sword.
+	g.enchant_slot_1 = 0
+	g.enchant_slot_2 = 0
+	g.enchant_slot_3 = 0
 	return true
 }
 
@@ -1438,16 +1480,29 @@ apply_enchant :: proc(g: ^Game_State, slot: int, etype: int) -> bool {
 	if !g.has_sword do return false
 	if g.gold < ENCHANT_COST do return false
 	if etype < 1 || etype > 4 do return false
+	// Vampiric (etype=3) costs 1 venom_sac; other elements cost 1 iron.
+	needs_venom := etype == 3
+	if needs_venom {
+		if g.qty_venom_sac < ENCHANT_VENOM_COST do return false
+	} else {
+		if g.qty_iron < ENCHANT_IRON_COST do return false
+	}
 	// Fire/Ice incompatibility
 	if etype == 1 && has_ice_enchant(g) do return false
 	if etype == 2 && has_fire_enchant(g) do return false
+	// Validate slot before spending any resources
+	if slot < 1 || slot > 3 do return false
 	g.turn_count += 1
 	g.gold -= ENCHANT_COST
+	if needs_venom {
+		g.qty_venom_sac -= ENCHANT_VENOM_COST
+	} else {
+		g.qty_iron -= ENCHANT_IRON_COST
+	}
 	switch slot {
 	case 1: g.enchant_slot_1 = etype
 	case 2: g.enchant_slot_2 = etype
 	case 3: g.enchant_slot_3 = etype
-	case: return false
 	}
 	return true
 }
@@ -1506,6 +1561,7 @@ save_game :: proc(g: ^Game_State) -> bool {
 		skill_counter_attack = g.skill_counter_attack,
 		skill_battle_cry = g.skill_battle_cry,
 		skill_fortify = g.skill_fortify,
+		respec_count = g.respec_count,
 		qty_venom_sac = g.qty_venom_sac,
 		enemy_element = g.enemy_element,
 		enchant_slot_1 = g.enchant_slot_1,
@@ -1558,6 +1614,7 @@ load_game :: proc(g: ^Game_State) -> bool {
 	g.skill_counter_attack = s.skill_counter_attack
 	g.skill_battle_cry = s.skill_battle_cry
 	g.skill_fortify = s.skill_fortify
+	g.respec_count = s.respec_count
 	g.qty_venom_sac = s.qty_venom_sac
 	g.enemy_element = s.enemy_element
 	g.enchant_slot_1 = s.enchant_slot_1
