@@ -1205,9 +1205,9 @@ module quint_crawl {
              qty_sword: inv.qty_sword - 1,
     },
     ch' = ch,
-    // Salvaging destroys a sword — enchants are lost when the sword breaks.
-    // Zeros the equipped sword's enchant slots (they're tied to has_sword).
-    eqp' = { ...eqp, enchant_slot_1: 0, enchant_slot_2: 0, enchant_slot_3: 0 },
+    // Salvage destroys an inventory sword; the equipped sword (and its enchants)
+    // is untouched.
+    eqp' = eqp,
     cb' = cb,
     w' = { ...w, turn_count: w.turn_count + 1 },
     meta' = meta, comp' = comp,

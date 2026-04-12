@@ -1454,10 +1454,7 @@ salvage_sword :: proc(g: ^Game_State) -> bool {
 	g.qty_sword -= 1
 	g.qty_wood += salvage_wood_yield(g.salvage_level)
 	g.qty_iron += salvage_iron_yield(g.salvage_level)
-	// Salvaging destroys a sword — enchants are lost with the broken sword.
-	g.enchant_slot_1 = 0
-	g.enchant_slot_2 = 0
-	g.enchant_slot_3 = 0
+	// Salvage destroys an inventory sword; equipped sword + its enchants untouched.
 	return true
 }
 
