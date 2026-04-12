@@ -117,6 +117,8 @@ SHIELD_DEF :: 2
 ARMOR_COST :: 40
 ARMOR_MAX_DUR :: 8
 ARMOR_DEF :: 1
+CHEST_GOLD_BASE :: 15
+CHEST_GOLD_PER_TIER :: 10
 PISTOL_STAMINA :: 2
 PISTOL_BASE_BONUS :: 4
 CRAFT_LEVEL_REQ :: 2
@@ -205,6 +207,7 @@ Save_Data :: struct {
 	boss_defeated: bool,
 	visited:      [WORLD_SIZE][WORLD_SIZE]bool,
 	waypoints:    [WORLD_SIZE][WORLD_SIZE]bool,
+	chests_opened: [WORLD_SIZE][WORLD_SIZE]bool,
 	skill_magic:  bool,
 	mana:         int,
 	max_mana:     int,
@@ -263,6 +266,8 @@ Game_State :: struct {
 	visited:             [WORLD_SIZE][WORLD_SIZE]bool,
 	// Fast travel
 	waypoints:           [WORLD_SIZE][WORLD_SIZE]bool,
+	// Treasure chests: which chest zones have been looted
+	chests_opened:       [WORLD_SIZE][WORLD_SIZE]bool,
 	// Skill tree
 	skill_points:        int,
 	skill_combo:         bool,
@@ -369,6 +374,15 @@ zone_has_wood :: proc(x, y: int) -> bool {
 
 zone_has_iron :: proc(x, y: int) -> bool {
 	return x % 3 == 2 && y % 3 == 1
+}
+
+chest_present :: proc(x, y: int) -> bool {
+	if x == 0 && y == 0 do return false
+	return (x * 7 + y * 3) % 5 == 0
+}
+
+chest_gold :: proc(x, y: int) -> int {
+	return CHEST_GOLD_BASE + CHEST_GOLD_PER_TIER * zone_level(x, y)
 }
 
 // Weather: 0=Clear, 1=Rain, 2=Fog, 3=Storm

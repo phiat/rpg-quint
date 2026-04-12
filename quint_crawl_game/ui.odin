@@ -277,6 +277,11 @@ draw_hud :: proc(app: ^App_State) {
 			y^ += 18
 		}
 
+		// Treasure chest (one-time per chest zone)
+		if qc.chest_present(g.pos_x, g.pos_y) && !g.chests_opened[g.pos_x][g.pos_y] {
+			draw_action(x, &y, "[Z]", fmt.ctprintf("Open Chest (+%dg)", qc.chest_gold(g.pos_x, g.pos_y)), true)
+		}
+
 		can_fight := g.last_kill_turn == 0 || g.turn_count - g.last_kill_turn >= qc.RESPAWN_TURNS
 		if can_fight {
 			draw_action(x, &y, "[E]", "Fight", true)

@@ -80,6 +80,12 @@ draw_tile :: proc(x, y: int, g: ^qc.Game_State) {
 		rl.DrawPoly({wp_x, wp_y}, 4, 4, 45, {100, 200, 255, 180})
 	}
 
+	// Chest marker (small square, dims when looted)
+	if qc.chest_present(x, y) {
+		ch_color := rl.Color{230, 190, 60, 220} if !g.chests_opened[x][y] else rl.Color{90, 80, 50, 140}
+		rl.DrawRectangle(px + 4, py + TILE_SIZE - 10, 6, 6, ch_color)
+	}
+
 	// Locked overlay
 	if locked {
 		rl.DrawRectangle(px, py, TILE_SIZE, TILE_SIZE, {0, 0, 0, 160})

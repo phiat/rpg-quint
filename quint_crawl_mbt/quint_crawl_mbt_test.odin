@@ -48,6 +48,9 @@ crawl_step :: proc(driver: rawptr, action: string, picks: map[string]mbt.ITF_Val
 	case "buy_armor":
 		qc.buy_armor(g)
 		return true
+	case "open_chest":
+		qc.open_chest(g)
+		return true
 	case "buy_spellbook":
 		qc.buy_spellbook(g)
 		return true
@@ -299,6 +302,7 @@ crawl_state :: proc(driver: rawptr) -> map[string]mbt.ITF_Value {
 	w["turn_count"] = mbt.ITF_Int{g.turn_count}
 	visited_items := make([dynamic]mbt.ITF_Value)
 	waypoint_items := make([dynamic]mbt.ITF_Value)
+	chest_items := make([dynamic]mbt.ITF_Value)
 	for x in 0 ..< qc.WORLD_SIZE {
 		for y in 0 ..< qc.WORLD_SIZE {
 			if g.visited[x][y] {
@@ -313,10 +317,17 @@ crawl_state :: proc(driver: rawptr) -> map[string]mbt.ITF_Value {
 				append(&pair, mbt.ITF_Int{y})
 				append(&waypoint_items, mbt.ITF_List{pair})
 			}
+			if g.chests_opened[x][y] {
+				pair := make([dynamic]mbt.ITF_Value)
+				append(&pair, mbt.ITF_Int{x})
+				append(&pair, mbt.ITF_Int{y})
+				append(&chest_items, mbt.ITF_List{pair})
+			}
 		}
 	}
 	w["visited"] = mbt.ITF_Set{visited_items}
 	w["waypoints"] = mbt.ITF_Set{waypoint_items}
+	w["chests_opened"] = mbt.ITF_Set{chest_items}
 	state["w"] = mbt.ITF_Record{w}
 
 	// meta: MetaState

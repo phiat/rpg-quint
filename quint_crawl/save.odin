@@ -69,6 +69,7 @@ save_game :: proc(g: ^Game_State) -> bool {
 		boss_defeated = g.boss_defeated,
 		visited   = g.visited,
 		waypoints = g.waypoints,
+		chests_opened = g.chests_opened,
 		skill_magic = g.skill_magic,
 		mana = g.mana,
 		max_mana = g.max_mana,
@@ -145,6 +146,7 @@ load_game :: proc(g: ^Game_State) -> bool {
 	g.boss_defeated = s.boss_defeated
 	g.visited = s.visited
 	g.waypoints = s.waypoints
+	g.chests_opened = s.chests_opened
 	g.visited[s.pos_x][s.pos_y] = true
 	g.skill_magic = s.skill_magic
 	g.mana = s.mana

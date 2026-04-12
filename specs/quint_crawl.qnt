@@ -38,6 +38,7 @@ module quint_crawl {
     pos_x: int, pos_y: int, turn_count: int,
     visited: Set[(int, int)],
     waypoints: Set[(int, int)],
+    chests_opened: Set[(int, int)],
   }
 
   type MetaState = {
@@ -199,6 +200,9 @@ module quint_crawl {
   val ARMOR_COST = 40
   val ARMOR_MAX_DUR = 8
   val ARMOR_DEF = 1
+  // Treasure chests: deterministic placement, one-time gold reward per chest.
+  val CHEST_GOLD_BASE = 15
+  val CHEST_GOLD_PER_TIER = 10
   val PISTOL_STAMINA = 2
   val PISTOL_BASE_BONUS = 4
   val CRAFT_LEVEL_REQ = 2
@@ -264,6 +268,11 @@ module quint_crawl {
   pure def zone_gold_reward(x: int, y: int): int = BASE_GOLD + GOLD_PER_LEVEL * zone_level(x, y)
 
   pure def zone_has_services(x: int, y: int): bool = (x % 3 == 0 and y % 3 == 0)
+  // Deterministic chest placement, skipping the spawn zone (0,0).
+  pure def chest_present(x: int, y: int): bool =
+    ((x * 7 + y * 3) % 5 == 0) and not(x == 0 and y == 0)
+  pure def chest_gold(x: int, y: int): int =
+    CHEST_GOLD_BASE + CHEST_GOLD_PER_TIER * zone_level(x, y)
   pure def is_castle_zone(x: int, y: int): bool =
     zone_biome_x(x) == 2 and zone_biome_y(y) == 2 and zone_level(x, y) >= MAX_LEVEL
   pure def zone_has_wood(x: int, y: int): bool = (x % 3 == 1 and y % 3 == 0)
@@ -478,7 +487,8 @@ module quint_crawl {
       cd_heavy_strike: 0, cd_battle_cry: 0, cd_fortify: 0,
     },
     w' = { pos_x: 0, pos_y: 0, turn_count: 0,
-           visited: Set((0, 0)), waypoints: Set((0, 0)) },
+           visited: Set((0, 0)), waypoints: Set((0, 0)),
+           chests_opened: Set() },
     meta' = { game_won: false, saved_exists: false, pity_counter: 0, last_drop: 0, last_kill_turn: 0,
               q1_kills: 0, q2_zones: 0, q3_kills: 0,
               cq1_adopted: 0, cq2_maxed: 0, cq3_wins: 0,
@@ -1682,6 +1692,17 @@ module quint_crawl {
     meta' = meta, comp' = comp,
   }
 
+  // === Open treasure chest (out-of-combat, awards gold, one-shot) ===
+  action open_chest = all {
+    not(cb.in_combat), not(meta.game_won), ch.hp > 0,
+    chest_present(w.pos_x, w.pos_y),
+    not(w.chests_opened.contains((w.pos_x, w.pos_y))),
+    ch' = { ...ch, gold: ch.gold + chest_gold(w.pos_x, w.pos_y) },
+    w' = { ...w, turn_count: w.turn_count + 1,
+           chests_opened: w.chests_opened.union(Set((w.pos_x, w.pos_y))) },
+    inv' = inv, eqp' = eqp, cb' = cb, meta' = meta, comp' = comp,
+  }
+
   // === Use holy water (out-of-combat full heal) ===
   action use_holy_water = all {
     not(cb.in_combat), not(meta.game_won), ch.hp > 0,
@@ -1956,6 +1977,7 @@ module quint_crawl {
     nondet sid = oneOf(Set(SPELL_HEAL, SPELL_FIRE)) cast_spell(sid),
     buy_scroll_fire, use_scroll_fire,
     craft_holy_water, use_holy_water,
+    open_chest,
   }
 
   // === Invariants ===
@@ -1977,6 +1999,10 @@ module quint_crawl {
   /// All visited cells are on the grid
   val visited_in_bounds = w.visited.forall(p =>
     p._1 >= 0 and p._1 < WORLD_SIZE and p._2 >= 0 and p._2 < WORLD_SIZE)
+  /// Opened chests are on the grid and correspond to actual chest zones
+  val chests_opened_valid = w.chests_opened.forall(p =>
+    p._1 >= 0 and p._1 < WORLD_SIZE and p._2 >= 0 and p._2 < WORLD_SIZE
+    and chest_present(p._1, p._2))
   /// Every waypoint is a service zone (fast travel assumes this)
   val waypoint_is_service_zone = w.waypoints.forall(p => zone_has_services(p._1, p._2))
 

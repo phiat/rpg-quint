@@ -302,6 +302,16 @@ handle_map_input :: proc(app: ^App_State) {
 		}
 	}
 
+	// Open treasure chest (chest zones, one-time)
+	if rl.IsKeyPressed(.Z) {
+		if qc.chest_present(g.pos_x, g.pos_y) && !g.chests_opened[g.pos_x][g.pos_y] {
+			gold_before := g.gold
+			if qc.open_chest(g) {
+				add_message(app, fmt.tprintf("Opened treasure chest! +%dg", g.gold - gold_before), TEXT_GOLD)
+			}
+		}
+	}
+
 	// Buy / remove trinket (village)
 	if rl.IsKeyPressed(.N) {
 		if qc.buy_trinket(g) {

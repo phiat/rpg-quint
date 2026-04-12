@@ -63,3 +63,13 @@ move :: proc(g: ^Game_State, dx, dy: int) -> bool {
 	return true
 }
 
+
+open_chest :: proc(g: ^Game_State) -> bool {
+	if !can_act_map(g) do return false
+	if !chest_present(g.pos_x, g.pos_y) do return false
+	if g.chests_opened[g.pos_x][g.pos_y] do return false
+	g.turn_count += 1
+	g.gold += chest_gold(g.pos_x, g.pos_y)
+	g.chests_opened[g.pos_x][g.pos_y] = true
+	return true
+}
