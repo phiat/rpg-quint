@@ -7,6 +7,7 @@ module quint_crawl {
     skill_heavy_strike: bool, skill_counter_attack: bool,
     skill_battle_cry: bool, skill_fortify: bool,
     respec_count: int,
+    skill_magic: bool, mana: int, max_mana: int,
   }
 
   type InvState = {
@@ -127,6 +128,10 @@ module quint_crawl {
   val ATK_PER_LEVEL_UP = 2
   val STAMINA_PER_LEVEL = 2
   val STAMINA_REGEN_PER_MOVE = 1 // passive out-of-combat regen on every move
+  // Mana is inert until skill_magic is unlocked. Once unlocked, spellbook/scroll
+  // purchases raise max_mana and mana regens on move like stamina.
+  val MANA_PER_LEVEL = 3
+  val MANA_REGEN_PER_MOVE = 1
   val INITIAL_HP = 50
   val INITIAL_ATTACK = 10
   val INITIAL_POTIONS = 2
@@ -398,6 +403,7 @@ module quint_crawl {
       skill_heavy_strike: false, skill_counter_attack: false,
       skill_battle_cry: false, skill_fortify: false,
       respec_count: 0,
+      skill_magic: false, mana: 0, max_mana: 0,
     },
     inv' = {
       qty_potion: INITIAL_POTIONS, qty_wood: 0, qty_iron: 0, qty_sword: 0,
@@ -438,7 +444,8 @@ module quint_crawl {
              waypoints: if (zone_has_services(w.pos_x, w.pos_y - 1)) w.waypoints.union(Set((w.pos_x, w.pos_y - 1))) else w.waypoints },
       ch' = { ...ch,
               hp: if (ch.hp - storm_dmg < 1) 1 else ch.hp - storm_dmg,
-              stamina: if (ch.stamina + STAMINA_REGEN_PER_MOVE > ch.max_stamina) ch.max_stamina else ch.stamina + STAMINA_REGEN_PER_MOVE },
+              stamina: if (ch.stamina + STAMINA_REGEN_PER_MOVE > ch.max_stamina) ch.max_stamina else ch.stamina + STAMINA_REGEN_PER_MOVE,
+              mana: if (ch.max_mana == 0) ch.mana else if (ch.mana + MANA_REGEN_PER_MOVE > ch.max_mana) ch.max_mana else ch.mana + MANA_REGEN_PER_MOVE },
       inv' = inv, eqp' = eqp,
       cb' = cb,
       meta' = { ...meta, q2_zones: if (quest1_complete and zone_level(w.pos_x, w.pos_y - 1) >= 2 and not(w.visited.contains((w.pos_x, w.pos_y - 1))) and meta.q2_zones < Q2_TARGET) meta.q2_zones + 1 else meta.q2_zones },
@@ -457,7 +464,8 @@ module quint_crawl {
              waypoints: if (zone_has_services(w.pos_x, w.pos_y + 1)) w.waypoints.union(Set((w.pos_x, w.pos_y + 1))) else w.waypoints },
       ch' = { ...ch,
               hp: if (ch.hp - storm_dmg < 1) 1 else ch.hp - storm_dmg,
-              stamina: if (ch.stamina + STAMINA_REGEN_PER_MOVE > ch.max_stamina) ch.max_stamina else ch.stamina + STAMINA_REGEN_PER_MOVE },
+              stamina: if (ch.stamina + STAMINA_REGEN_PER_MOVE > ch.max_stamina) ch.max_stamina else ch.stamina + STAMINA_REGEN_PER_MOVE,
+              mana: if (ch.max_mana == 0) ch.mana else if (ch.mana + MANA_REGEN_PER_MOVE > ch.max_mana) ch.max_mana else ch.mana + MANA_REGEN_PER_MOVE },
       inv' = inv, eqp' = eqp,
       cb' = cb,
       meta' = { ...meta, q2_zones: if (quest1_complete and zone_level(w.pos_x, w.pos_y + 1) >= 2 and not(w.visited.contains((w.pos_x, w.pos_y + 1))) and meta.q2_zones < Q2_TARGET) meta.q2_zones + 1 else meta.q2_zones },
@@ -476,7 +484,8 @@ module quint_crawl {
              waypoints: if (zone_has_services(w.pos_x - 1, w.pos_y)) w.waypoints.union(Set((w.pos_x - 1, w.pos_y))) else w.waypoints },
       ch' = { ...ch,
               hp: if (ch.hp - storm_dmg < 1) 1 else ch.hp - storm_dmg,
-              stamina: if (ch.stamina + STAMINA_REGEN_PER_MOVE > ch.max_stamina) ch.max_stamina else ch.stamina + STAMINA_REGEN_PER_MOVE },
+              stamina: if (ch.stamina + STAMINA_REGEN_PER_MOVE > ch.max_stamina) ch.max_stamina else ch.stamina + STAMINA_REGEN_PER_MOVE,
+              mana: if (ch.max_mana == 0) ch.mana else if (ch.mana + MANA_REGEN_PER_MOVE > ch.max_mana) ch.max_mana else ch.mana + MANA_REGEN_PER_MOVE },
       inv' = inv, eqp' = eqp,
       cb' = cb,
       meta' = { ...meta, q2_zones: if (quest1_complete and zone_level(w.pos_x - 1, w.pos_y) >= 2 and not(w.visited.contains((w.pos_x - 1, w.pos_y))) and meta.q2_zones < Q2_TARGET) meta.q2_zones + 1 else meta.q2_zones },
@@ -495,7 +504,8 @@ module quint_crawl {
              waypoints: if (zone_has_services(w.pos_x + 1, w.pos_y)) w.waypoints.union(Set((w.pos_x + 1, w.pos_y))) else w.waypoints },
       ch' = { ...ch,
               hp: if (ch.hp - storm_dmg < 1) 1 else ch.hp - storm_dmg,
-              stamina: if (ch.stamina + STAMINA_REGEN_PER_MOVE > ch.max_stamina) ch.max_stamina else ch.stamina + STAMINA_REGEN_PER_MOVE },
+              stamina: if (ch.stamina + STAMINA_REGEN_PER_MOVE > ch.max_stamina) ch.max_stamina else ch.stamina + STAMINA_REGEN_PER_MOVE,
+              mana: if (ch.max_mana == 0) ch.mana else if (ch.mana + MANA_REGEN_PER_MOVE > ch.max_mana) ch.max_mana else ch.mana + MANA_REGEN_PER_MOVE },
       inv' = inv, eqp' = eqp,
       cb' = cb,
       meta' = { ...meta, q2_zones: if (quest1_complete and zone_level(w.pos_x + 1, w.pos_y) >= 2 and not(w.visited.contains((w.pos_x + 1, w.pos_y))) and meta.q2_zones < Q2_TARGET) meta.q2_zones + 1 else meta.q2_zones },
@@ -570,6 +580,7 @@ module quint_crawl {
               base_attack: if (new_level > ch.level) ch.base_attack + ATK_PER_LEVEL_UP else ch.base_attack,
               stamina: ch.stamina - ATTACK_STAMINA,
               max_stamina: if (new_level > ch.level) ch.max_stamina + STAMINA_PER_LEVEL else ch.max_stamina,
+              max_mana: if (new_level > ch.level and ch.skill_magic) ch.max_mana + MANA_PER_LEVEL else ch.max_mana,
               skill_points: if (new_level > ch.level) ch.skill_points + SKILL_POINTS_PER_LEVEL else ch.skill_points,
       },
       cb' = { in_combat: if (combat_ends) false else true,
@@ -661,7 +672,7 @@ module quint_crawl {
                       else if (comp.active) comp.loyalty + LOYALTY_GAIN
                       else comp.loyalty
     all {
-      ch' = { ...ch, hp: ch.max_hp, stamina: ch.max_stamina },
+      ch' = { ...ch, hp: ch.max_hp, stamina: ch.max_stamina, mana: ch.max_mana },
       inv' = inv, eqp' = eqp,
       cb' = cb,
       w' = { ...w, turn_count: w.turn_count + 1 },
@@ -881,6 +892,7 @@ module quint_crawl {
               base_attack: if (new_level > ch.level) ch.base_attack + ATK_PER_LEVEL_UP else ch.base_attack,
               stamina: ch.stamina - COMBO_STAMINA,
               max_stamina: if (new_level > ch.level) ch.max_stamina + STAMINA_PER_LEVEL else ch.max_stamina,
+              max_mana: if (new_level > ch.level and ch.skill_magic) ch.max_mana + MANA_PER_LEVEL else ch.max_mana,
               skill_points: if (new_level > ch.level) ch.skill_points + SKILL_POINTS_PER_LEVEL else ch.skill_points,
       },
       cb' = { in_combat: if (combat_ends) false else true,
@@ -948,6 +960,7 @@ module quint_crawl {
               base_attack: if (new_level > ch.level) ch.base_attack + ATK_PER_LEVEL_UP else ch.base_attack,
               stamina: ch.stamina - HEAVY_STRIKE_STAMINA,
               max_stamina: if (new_level > ch.level) ch.max_stamina + STAMINA_PER_LEVEL else ch.max_stamina,
+              max_mana: if (new_level > ch.level and ch.skill_magic) ch.max_mana + MANA_PER_LEVEL else ch.max_mana,
               skill_points: if (new_level > ch.level) ch.skill_points + SKILL_POINTS_PER_LEVEL else ch.skill_points,
       },
       cb' = { in_combat: if (combat_ends) false else true,
@@ -1179,6 +1192,7 @@ module quint_crawl {
               base_attack: if (new_level > ch.level) ch.base_attack + ATK_PER_LEVEL_UP else ch.base_attack,
               stamina: ch.stamina - COUNTER_STAMINA,
               max_stamina: if (new_level > ch.level) ch.max_stamina + STAMINA_PER_LEVEL else ch.max_stamina,
+              max_mana: if (new_level > ch.level and ch.skill_magic) ch.max_mana + MANA_PER_LEVEL else ch.max_mana,
               skill_points: if (new_level > ch.level) ch.skill_points + SKILL_POINTS_PER_LEVEL else ch.skill_points,
       },
       cb' = { in_combat: if (combat_ends) false else true,
@@ -1274,6 +1288,7 @@ module quint_crawl {
               base_attack: if (new_level > ch.level) ch.base_attack + ATK_PER_LEVEL_UP else ch.base_attack,
               stamina: ch.stamina - PISTOL_STAMINA,
               max_stamina: if (new_level > ch.level) ch.max_stamina + STAMINA_PER_LEVEL else ch.max_stamina,
+              max_mana: if (new_level > ch.level and ch.skill_magic) ch.max_mana + MANA_PER_LEVEL else ch.max_mana,
               skill_points: if (new_level > ch.level) ch.skill_points + SKILL_POINTS_PER_LEVEL else ch.skill_points,
       },
       cb' = { in_combat: if (combat_ends) false else true,
@@ -1629,6 +1644,10 @@ module quint_crawl {
 
   /// Stamina bounded [0, max_stamina]
   val stamina_bounded = ch.stamina >= 0 and ch.stamina <= ch.max_stamina
+
+  /// Mana bounded [0, max_mana]; inert until skill_magic unlocks.
+  val mana_bounded = ch.mana >= 0 and ch.mana <= ch.max_mana and ch.max_mana >= 0
+  val mana_requires_magic = not(ch.skill_magic).implies(ch.mana == 0 and ch.max_mana == 0)
 
   /// Cooldowns are non-negative and bounded
   val cooldowns_bounded = and {

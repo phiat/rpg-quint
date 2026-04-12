@@ -67,6 +67,8 @@ HP_PER_LEVEL :: 15
 ATK_PER_LEVEL_UP :: 2
 STAMINA_PER_LEVEL :: 2
 STAMINA_REGEN_PER_MOVE :: 1
+MANA_PER_LEVEL :: 3
+MANA_REGEN_PER_MOVE :: 1
 INITIAL_HP :: 50
 INITIAL_ATTACK :: 10
 INITIAL_POTIONS :: 2
@@ -172,6 +174,9 @@ Save_Data :: struct {
 	boss_defeated: bool,
 	visited:      [WORLD_SIZE][WORLD_SIZE]bool,
 	waypoints:    [WORLD_SIZE][WORLD_SIZE]bool,
+	skill_magic:  bool,
+	mana:         int,
+	max_mana:     int,
 }
 
 Game_State :: struct {
@@ -205,6 +210,10 @@ Game_State :: struct {
 	// Stamina
 	stamina:             int,
 	max_stamina:         int,
+	// Magic / Mana (inert until skill_magic = true)
+	skill_magic:         bool,
+	mana:                int,
+	max_mana:            int,
 	// Cooldowns
 	cd_heavy_strike:     int,
 	cd_battle_cry:       int,
@@ -548,6 +557,9 @@ init_game :: proc(g: ^Game_State) {
 	g.saved_exists = false
 	g.stamina = INITIAL_STAMINA
 	g.max_stamina = INITIAL_STAMINA
+	g.skill_magic = false
+	g.mana = 0
+	g.max_mana = 0
 	g.cd_heavy_strike = 0
 	g.cd_battle_cry = 0
 	g.pity_counter = 0
@@ -662,6 +674,7 @@ move :: proc(g: ^Game_State, dx, dy: int) -> bool {
 		g.hp = max(g.hp - STORM_MOVE_DMG, 1)
 	}
 	g.stamina = min(g.stamina + STAMINA_REGEN_PER_MOVE, g.max_stamina)
+	if g.max_mana > 0 do g.mana = min(g.mana + MANA_REGEN_PER_MOVE, g.max_mana)
 	return true
 }
 
@@ -851,6 +864,7 @@ resolve_combat_hit :: proc(g: ^Game_State, dmg: int) -> bool {
 			g.max_hp += HP_PER_LEVEL
 			g.base_attack += ATK_PER_LEVEL_UP
 			g.max_stamina += STAMINA_PER_LEVEL
+			if g.skill_magic do g.max_mana += MANA_PER_LEVEL
 			g.skill_points += SKILL_POINTS_PER_LEVEL
 		}
 	}
@@ -952,6 +966,7 @@ rest_at_village :: proc(g: ^Game_State) -> bool {
 	g.turn_count += 1
 	g.hp = g.max_hp
 	g.stamina = g.max_stamina
+	g.mana = g.max_mana
 	if g.comp_active {
 		g.comp_loyalty = min(g.comp_loyalty + LOYALTY_GAIN, MAX_LOYALTY)
 		if g.comp_loyalty == MAX_LOYALTY && g.cq2_maxed < CQ2_TARGET do g.cq2_maxed += 1
@@ -1489,6 +1504,7 @@ counter_attack :: proc(g: ^Game_State) -> bool {
 				g.max_hp += HP_PER_LEVEL
 				g.base_attack += ATK_PER_LEVEL_UP
 				g.max_stamina += STAMINA_PER_LEVEL
+			if g.skill_magic do g.max_mana += MANA_PER_LEVEL
 				g.skill_points += SKILL_POINTS_PER_LEVEL
 			}
 		}
@@ -1805,6 +1821,9 @@ save_game :: proc(g: ^Game_State) -> bool {
 		boss_defeated = g.boss_defeated,
 		visited   = g.visited,
 		waypoints = g.waypoints,
+		skill_magic = g.skill_magic,
+		mana = g.mana,
+		max_mana = g.max_mana,
 	}
 	return true
 }
@@ -1872,6 +1891,9 @@ load_game :: proc(g: ^Game_State) -> bool {
 	g.visited = s.visited
 	g.waypoints = s.waypoints
 	g.visited[s.pos_x][s.pos_y] = true
+	g.skill_magic = s.skill_magic
+	g.mana = s.mana
+	g.max_mana = s.max_mana
 	// Clear combat/status state (save is only outside combat)
 	g.in_combat = false
 	g.enemy_hp = 0

@@ -198,6 +198,9 @@ crawl_state :: proc(driver: rawptr) -> map[string]mbt.ITF_Value {
 	ch["skill_battle_cry"] = mbt.ITF_Bool{g.skill_battle_cry}
 	ch["skill_fortify"] = mbt.ITF_Bool{g.skill_fortify}
 	ch["respec_count"] = mbt.ITF_Int{g.respec_count}
+	ch["skill_magic"] = mbt.ITF_Bool{g.skill_magic}
+	ch["mana"] = mbt.ITF_Int{g.mana}
+	ch["max_mana"] = mbt.ITF_Int{g.max_mana}
 	state["ch"] = mbt.ITF_Record{ch}
 
 	// inv: InvState
