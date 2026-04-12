@@ -1081,6 +1081,7 @@ unlock_combo :: proc(g: ^Game_State) -> bool {
 	if !can_act_map(g) do return false
 	if g.skill_combo do return false
 	if g.skill_points < 1 do return false
+	g.turn_count += 1
 	g.skill_combo = true
 	g.skill_points -= 1
 	return true
@@ -1090,6 +1091,7 @@ unlock_poison :: proc(g: ^Game_State) -> bool {
 	if !can_act_map(g) do return false
 	if g.skill_poison do return false
 	if g.skill_points < 1 do return false
+	g.turn_count += 1
 	g.skill_poison = true
 	g.skill_points -= 1
 	return true
@@ -1099,6 +1101,7 @@ unlock_shield_block :: proc(g: ^Game_State) -> bool {
 	if !can_act_map(g) do return false
 	if g.skill_shield_block do return false
 	if g.skill_points < 1 do return false
+	g.turn_count += 1
 	g.skill_shield_block = true
 	g.skill_points -= 1
 	return true
@@ -1109,6 +1112,7 @@ unlock_heavy_strike :: proc(g: ^Game_State) -> bool {
 	if g.skill_heavy_strike do return false
 	if !g.skill_combo do return false  // prereq
 	if g.skill_points < 1 do return false
+	g.turn_count += 1
 	g.skill_heavy_strike = true
 	g.skill_points -= 1
 	return true
@@ -1119,6 +1123,7 @@ unlock_counter_attack :: proc(g: ^Game_State) -> bool {
 	if g.skill_counter_attack do return false
 	if !g.skill_shield_block do return false  // prereq
 	if g.skill_points < 1 do return false
+	g.turn_count += 1
 	g.skill_counter_attack = true
 	g.skill_points -= 1
 	return true
@@ -1129,6 +1134,7 @@ unlock_battle_cry :: proc(g: ^Game_State) -> bool {
 	if g.skill_battle_cry do return false
 	if !g.skill_heavy_strike do return false  // prereq
 	if g.skill_points < 2 do return false
+	g.turn_count += 1
 	g.skill_battle_cry = true
 	g.skill_points -= 2
 	return true
@@ -1139,6 +1145,7 @@ unlock_fortify :: proc(g: ^Game_State) -> bool {
 	if g.skill_fortify do return false
 	if !g.skill_counter_attack do return false  // prereq
 	if g.skill_points < 2 do return false
+	g.turn_count += 1
 	g.skill_fortify = true
 	g.skill_points -= 2
 	return true
@@ -1157,6 +1164,7 @@ respec :: proc(g: ^Game_State) -> bool {
 	if g.skill_battle_cry do spent += 2
 	if g.skill_fortify do spent += 2
 	if spent == 0 do return false
+	g.turn_count += 1
 	g.gold -= RESPEC_COST
 	g.skill_points += spent
 	g.skill_combo = false
@@ -1299,6 +1307,7 @@ craft_venom_sac :: proc(g: ^Game_State) -> bool {
 	if !can_act_map(g) do return false
 	if !zone_has_services(g.pos_x, g.pos_y) do return false
 	if g.qty_iron < CRAFT_VENOM_IRON_COST do return false
+	g.turn_count += 1
 	g.qty_iron -= CRAFT_VENOM_IRON_COST
 	g.qty_venom_sac += 1
 	return true
@@ -1432,6 +1441,7 @@ apply_enchant :: proc(g: ^Game_State, slot: int, etype: int) -> bool {
 	// Fire/Ice incompatibility
 	if etype == 1 && has_ice_enchant(g) do return false
 	if etype == 2 && has_fire_enchant(g) do return false
+	g.turn_count += 1
 	g.gold -= ENCHANT_COST
 	switch slot {
 	case 1: g.enchant_slot_1 = etype
@@ -1449,12 +1459,15 @@ remove_enchant :: proc(g: ^Game_State, slot: int) -> bool {
 	switch slot {
 	case 1:
 		if g.enchant_slot_1 == 0 do return false
+		g.turn_count += 1
 		g.enchant_slot_1 = 0
 	case 2:
 		if g.enchant_slot_2 == 0 do return false
+		g.turn_count += 1
 		g.enchant_slot_2 = 0
 	case 3:
 		if g.enchant_slot_3 == 0 do return false
+		g.turn_count += 1
 		g.enchant_slot_3 = 0
 	case:
 		return false

@@ -913,7 +913,9 @@ module quint_crawl {
     not(cb.in_combat), not(meta.game_won), ch.hp > 0,
     not(ch.skill_combo), ch.skill_points >= 1,
     ch' = { ...ch, skill_combo: true, skill_points: ch.skill_points - 1 },
-    inv' = inv, eqp' = eqp, cb' = cb, w' = w, meta' = meta, comp' = comp,
+    inv' = inv, eqp' = eqp, cb' = cb,
+    w' = { ...w, turn_count: w.turn_count + 1 },
+    meta' = meta, comp' = comp,
   }
 
   // === Skill unlock: Poison Strike (tier 1 utility, no prereq) ===
@@ -921,7 +923,9 @@ module quint_crawl {
     not(cb.in_combat), not(meta.game_won), ch.hp > 0,
     not(ch.skill_poison), ch.skill_points >= 1,
     ch' = { ...ch, skill_poison: true, skill_points: ch.skill_points - 1 },
-    inv' = inv, eqp' = eqp, cb' = cb, w' = w, meta' = meta, comp' = comp,
+    inv' = inv, eqp' = eqp, cb' = cb,
+    w' = { ...w, turn_count: w.turn_count + 1 },
+    meta' = meta, comp' = comp,
   }
 
   // === Skill unlock: Shield Block (tier 1 defense, no prereq) ===
@@ -929,7 +933,9 @@ module quint_crawl {
     not(cb.in_combat), not(meta.game_won), ch.hp > 0,
     not(ch.skill_shield_block), ch.skill_points >= 1,
     ch' = { ...ch, skill_shield_block: true, skill_points: ch.skill_points - 1 },
-    inv' = inv, eqp' = eqp, cb' = cb, w' = w, meta' = meta, comp' = comp,
+    inv' = inv, eqp' = eqp, cb' = cb,
+    w' = { ...w, turn_count: w.turn_count + 1 },
+    meta' = meta, comp' = comp,
   }
 
   // === Skill unlock: Heavy Strike (tier 2 offense, requires Combo) ===
@@ -937,7 +943,9 @@ module quint_crawl {
     not(cb.in_combat), not(meta.game_won), ch.hp > 0,
     not(ch.skill_heavy_strike), ch.skill_combo, ch.skill_points >= 1,
     ch' = { ...ch, skill_heavy_strike: true, skill_points: ch.skill_points - 1 },
-    inv' = inv, eqp' = eqp, cb' = cb, w' = w, meta' = meta, comp' = comp,
+    inv' = inv, eqp' = eqp, cb' = cb,
+    w' = { ...w, turn_count: w.turn_count + 1 },
+    meta' = meta, comp' = comp,
   }
 
   // === Skill unlock: Counter-Attack (tier 2 defense, requires Shield Block) ===
@@ -945,7 +953,9 @@ module quint_crawl {
     not(cb.in_combat), not(meta.game_won), ch.hp > 0,
     not(ch.skill_counter_attack), ch.skill_shield_block, ch.skill_points >= 1,
     ch' = { ...ch, skill_counter_attack: true, skill_points: ch.skill_points - 1 },
-    inv' = inv, eqp' = eqp, cb' = cb, w' = w, meta' = meta, comp' = comp,
+    inv' = inv, eqp' = eqp, cb' = cb,
+    w' = { ...w, turn_count: w.turn_count + 1 },
+    meta' = meta, comp' = comp,
   }
 
   // === Skill unlock: Battle Cry (tier 3 offense, requires Heavy Strike, costs 2pt) ===
@@ -953,7 +963,9 @@ module quint_crawl {
     not(cb.in_combat), not(meta.game_won), ch.hp > 0,
     not(ch.skill_battle_cry), ch.skill_heavy_strike, ch.skill_points >= 2,
     ch' = { ...ch, skill_battle_cry: true, skill_points: ch.skill_points - 2 },
-    inv' = inv, eqp' = eqp, cb' = cb, w' = w, meta' = meta, comp' = comp,
+    inv' = inv, eqp' = eqp, cb' = cb,
+    w' = { ...w, turn_count: w.turn_count + 1 },
+    meta' = meta, comp' = comp,
   }
 
   // === Skill unlock: Fortify (tier 3 defense, requires Counter-Attack, costs 2pt) ===
@@ -961,7 +973,9 @@ module quint_crawl {
     not(cb.in_combat), not(meta.game_won), ch.hp > 0,
     not(ch.skill_fortify), ch.skill_counter_attack, ch.skill_points >= 2,
     ch' = { ...ch, skill_fortify: true, skill_points: ch.skill_points - 2 },
-    inv' = inv, eqp' = eqp, cb' = cb, w' = w, meta' = meta, comp' = comp,
+    inv' = inv, eqp' = eqp, cb' = cb,
+    w' = { ...w, turn_count: w.turn_count + 1 },
+    meta' = meta, comp' = comp,
   }
 
   // === Respec skills (at village, costs gold) ===
@@ -982,7 +996,9 @@ module quint_crawl {
               skill_heavy_strike: false, skill_counter_attack: false,
               skill_battle_cry: false, skill_fortify: false,
       },
-      inv' = inv, eqp' = eqp, cb' = cb, w' = w, meta' = meta, comp' = comp,
+      inv' = inv, eqp' = eqp, cb' = cb,
+      w' = { ...w, turn_count: w.turn_count + 1 },
+      meta' = meta, comp' = comp,
     }
   }
 
@@ -1098,7 +1114,9 @@ module quint_crawl {
     zone_has_services(w.pos_x, w.pos_y),
     inv.qty_iron >= CRAFT_VENOM_IRON_COST,
     inv' = { ...inv, qty_iron: inv.qty_iron - CRAFT_VENOM_IRON_COST, qty_venom_sac: inv.qty_venom_sac + 1 },
-    ch' = ch, eqp' = eqp, cb' = cb, w' = w, meta' = meta, comp' = comp,
+    ch' = ch, eqp' = eqp, cb' = cb,
+    w' = { ...w, turn_count: w.turn_count + 1 },
+    meta' = meta, comp' = comp,
   }
 
   // === Apply enchantment to slot 1 (at village, costs gold, requires sword) ===
@@ -1115,7 +1133,9 @@ module quint_crawl {
       not(etype == 2 and has_fire_enchant),
       ch' = { ...ch, gold: ch.gold - ENCHANT_COST },
       eqp' = set_enchant_slot(eqp, slot, etype),
-      inv' = inv, cb' = cb, w' = w, meta' = meta, comp' = comp,
+      inv' = inv, cb' = cb,
+      w' = { ...w, turn_count: w.turn_count + 1 },
+      meta' = meta, comp' = comp,
     }
   }
 
@@ -1128,7 +1148,9 @@ module quint_crawl {
       inv.has_sword,
       get_enchant_slot(eqp, slot) != 0,
       eqp' = set_enchant_slot(eqp, slot, 0),
-      ch' = ch, inv' = inv, cb' = cb, w' = w, meta' = meta, comp' = comp,
+      ch' = ch, inv' = inv, cb' = cb,
+      w' = { ...w, turn_count: w.turn_count + 1 },
+      meta' = meta, comp' = comp,
     }
   }
 
