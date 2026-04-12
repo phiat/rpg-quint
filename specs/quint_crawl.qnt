@@ -136,6 +136,7 @@ module quint_crawl {
   val ENCHANT_VENOM_COST = 1
   val MAX_INVENTORY = 30
   val BATTERY_CAP = 20
+  val PISTOL_UNLOCK_COST = 50
   val CRAFT_LEVEL_REQ = 2
   val SALVAGE_WOOD_BASE = 0
   val SALVAGE_IRON_BASE = 1
@@ -665,6 +666,24 @@ module quint_crawl {
     meta' = meta, comp' = comp,
   }
 
+  // === Equip pistol (village, trades in sword for future-tech weapon) ===
+  // Converts the equipped sword into a Service Pistol: the sword is consumed
+  // (with its enchantments), weapon_type flips to 1, and the player now uses
+  // battery-powered pistol shots instead of blade attacks.
+  action equip_pistol = all {
+    not(cb.in_combat), not(meta.game_won), ch.hp > 0,
+    zone_has_services(w.pos_x, w.pos_y),
+    inv.has_sword, eqp.weapon_type == 0,
+    ch.gold >= PISTOL_UNLOCK_COST,
+    ch' = { ...ch, gold: ch.gold - PISTOL_UNLOCK_COST },
+    inv' = { ...inv, has_sword: false },
+    eqp' = { ...eqp, weapon_type: 1, sword_dur: 0,
+             enchant_slot_1: 0, enchant_slot_2: 0, enchant_slot_3: 0 },
+    cb' = cb,
+    w' = { ...w, turn_count: w.turn_count + 1 },
+    meta' = meta, comp' = comp,
+  }
+
   // === Use antidote (quick action -- costs 1 potion, clears player poison, no CD tick) ===
   action use_antidote = all {
     cb.in_combat, not(meta.game_won), ch.hp > 0,
@@ -1169,6 +1188,7 @@ module quint_crawl {
       not(cb.in_combat), not(meta.game_won), ch.hp > 0,
       zone_has_services(w.pos_x, w.pos_y),
       inv.has_sword,
+      eqp.weapon_type == 0,
       ch.gold >= ENCHANT_COST,
       if (needs_venom) inv.qty_venom_sac >= ENCHANT_VENOM_COST
       else inv.qty_iron >= ENCHANT_IRON_COST,
@@ -1358,7 +1378,7 @@ module quint_crawl {
     move_up, move_down, move_left, move_right, fast_travel,
     enter_combat, combat_attack, combat_potion, flee_combat,
     rest_at_village, buy_potion, repair_sword,
-    gather_wood, mine_iron, craft_sword, equip_sword,
+    gather_wood, mine_iron, craft_sword, equip_sword, equip_pistol,
     use_antidote, poison_strike, combo_attack,
     heavy_strike, battle_cry, shield_block,
     counter_attack, fortify,

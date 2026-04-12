@@ -54,6 +54,9 @@ crawl_step :: proc(driver: rawptr, action: string, picks: map[string]mbt.ITF_Val
 	case "equip_sword":
 		qc.equip_sword(g)
 		return true
+	case "equip_pistol":
+		qc.equip_pistol(g)
+		return true
 	case "repair_sword":
 		qc.repair_sword(g)
 		return true

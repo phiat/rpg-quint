@@ -88,6 +88,7 @@ ENCHANT_IRON_COST :: 1
 ENCHANT_VENOM_COST :: 1
 MAX_INVENTORY :: 30
 BATTERY_CAP :: 20
+PISTOL_UNLOCK_COST :: 50
 CRAFT_LEVEL_REQ :: 2
 SALVAGE_WOOD_BASE :: 0
 SALVAGE_IRON_BASE :: 1
@@ -941,6 +942,22 @@ equip_sword :: proc(g: ^Game_State) -> bool {
 	return true
 }
 
+equip_pistol :: proc(g: ^Game_State) -> bool {
+	if !can_act_map(g) do return false
+	if !zone_has_services(g.pos_x, g.pos_y) do return false
+	if !g.has_sword || g.weapon_type != 0 do return false
+	if g.gold < PISTOL_UNLOCK_COST do return false
+	g.turn_count += 1
+	g.gold -= PISTOL_UNLOCK_COST
+	g.has_sword = false
+	g.sword_dur = 0
+	g.weapon_type = 1
+	g.enchant_slot_1 = 0
+	g.enchant_slot_2 = 0
+	g.enchant_slot_3 = 0
+	return true
+}
+
 repair_sword :: proc(g: ^Game_State) -> bool {
 	if !can_act_map(g) do return false
 	if !zone_has_services(g.pos_x, g.pos_y) do return false
@@ -1534,6 +1551,7 @@ apply_enchant :: proc(g: ^Game_State, slot: int, etype: int) -> bool {
 	if !can_act_map(g) do return false
 	if !zone_has_services(g.pos_x, g.pos_y) do return false
 	if !g.has_sword do return false
+	if g.weapon_type != 0 do return false
 	if g.gold < ENCHANT_COST do return false
 	if etype < 1 || etype > 4 do return false
 	// Vampiric (etype=3) costs 1 venom_sac; other elements cost 1 iron.
