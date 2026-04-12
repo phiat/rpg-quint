@@ -28,7 +28,7 @@ DEF_BUFF_REDUCTION :: 3
 FORTIFY_DEF_REDUCTION :: 5
 STATUS_DURATION :: 3
 WEATHER_CYCLE :: 5
-STORM_MOVE_DMG :: 2
+STORM_MOVE_DMG :: 4
 FOG_ATK_PENALTY :: 2
 RAIN_GATHER_BONUS :: 1
 ATTACK_STAMINA :: 2
@@ -496,7 +496,10 @@ def_reduction_active :: proc(g: ^Game_State) -> int {
 attack_power :: proc(g: ^Game_State) -> int {
 	sword_bonus := SWORD_ATK_BONUS if (g.has_sword && g.sword_dur > 0) else 0
 	atk_buff := ATK_BUFF_BONUS if g.player_atk_buff_dur > 0 else 0
-	return g.base_attack + sword_bonus + atk_buff + enchant_atk_bonus(g) + comp_atk_bonus(g)
+	// Fog cuts the player's visibility as much as the enemy's — offense takes a hit too.
+	fog_penalty := FOG_ATK_PENALTY if zone_weather(g.pos_x, g.pos_y, g.turn_count) == 2 else 0
+	raw := g.base_attack + sword_bonus + atk_buff + enchant_atk_bonus(g) + comp_atk_bonus(g) - fog_penalty
+	return max(raw, 1)
 }
 
 total_items :: proc(g: ^Game_State) -> int {
@@ -1152,12 +1155,20 @@ combo_attack :: proc(g: ^Game_State) -> bool {
 		combo_dmg = base_dmg * 2
 	}
 
+	pre_venom := g.qty_venom_sac
+	pre_skill_poison := g.skill_poison
 	combat_ends := resolve_combat_hit(g, combo_dmg)
+
+	// Passive venom infusion: skill_poison turns combos into a venom carrier.
+	if !combat_ends && pre_skill_poison && pre_venom > 0 {
+		g.enemy_poison_dur = STATUS_DURATION
+		g.qty_venom_sac -= 1
+	}
 
 	// Combo state: reset on combat end or chain complete, else advance
 	if combat_ends || next_combo >= MAX_COMBO_CHAIN {
 		g.combo_count = 0
-	
+
 	} else {
 		g.combo_count = next_combo
 	}
@@ -1181,7 +1192,15 @@ heavy_strike :: proc(g: ^Game_State) -> bool {
 	// - resolve_combat_hit handles normal ticking
 	// - we override cd_heavy_strike after
 
+	pre_venom := g.qty_venom_sac
+	pre_skill_poison := g.skill_poison
 	combat_ends := resolve_combat_hit(g, heavy_dmg)
+
+	// Passive venom infusion: skill_poison turns heavy into a venom carrier.
+	if !combat_ends && pre_skill_poison && pre_venom > 0 {
+		g.enemy_poison_dur = STATUS_DURATION
+		g.qty_venom_sac -= 1
+	}
 
 	// Override CD: resolve already ticked/reset it, but we want to SET it
 	if !combat_ends {

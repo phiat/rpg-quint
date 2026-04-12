@@ -85,7 +85,7 @@ module quint_crawl {
   val STATUS_DURATION = 3
   val SWORD_ATK_BONUS = 5
   val WEATHER_CYCLE = 5
-  val STORM_MOVE_DMG = 2
+  val STORM_MOVE_DMG = 4
   val FOG_ATK_PENALTY = 2
   val RAIN_GATHER_BONUS = 1
   val ATTACK_STAMINA = 2
@@ -365,8 +365,12 @@ module quint_crawl {
                        else if (eqp.enchant_slot_1 == 4 or eqp.enchant_slot_2 == 4 or eqp.enchant_slot_3 == 4) 3
                        else 0
 
-  // Total attack power (sword bonus only if equipped AND not broken, plus ATK buff, plus enchant bonus)
-  val attack_power = ch.base_attack + (if (inv.has_sword and eqp.sword_dur > 0) SWORD_ATK_BONUS else 0) + (if (cb.player_atk_buff_dur > 0) ATK_BUFF_BONUS else 0) + enchant_atk_bonus + comp_atk_bonus
+  // Total attack power (sword bonus only if equipped AND not broken, plus ATK buff, plus enchant bonus).
+  // Fog reduces player visibility — the same FOG_ATK_PENALTY that was already cutting the enemy now
+  // also bites the player's offense, so fog becomes a real trade rather than a free upside.
+  val fog_penalty_now = if (zone_weather(w.pos_x, w.pos_y, w.turn_count + 1) == 2) FOG_ATK_PENALTY else 0
+  val attack_power_raw = ch.base_attack + (if (inv.has_sword and eqp.sword_dur > 0) SWORD_ATK_BONUS else 0) + (if (cb.player_atk_buff_dur > 0) ATK_BUFF_BONUS else 0) + enchant_atk_bonus + comp_atk_bonus - fog_penalty_now
+  val attack_power = if (attack_power_raw < 1) 1 else attack_power_raw
   val player_elem_mult = damage_multiplier(player_element, cb.enemy_element)
 
   // --- Inventory helpers ---
@@ -865,6 +869,8 @@ module quint_crawl {
     // Loot drop on enemy defeat
     val enemy_defeated_alive = (new_enemy_hp <= 0 and new_hp > 0)
     val loot = compute_loot(meta, total_items, enemy_defeated_alive, w.turn_count, zone_tier, ch.xp)
+    // Passive venom infusion: skill_poison turns your combo into a venom carrier.
+    val auto_poison = ch.skill_poison and inv.qty_venom_sac > 0 and new_enemy_hp > 0
     all {
       ch' = { ...ch,
               hp: if (new_hp < 0) 0 else new_hp,
@@ -885,7 +891,7 @@ module quint_crawl {
               player_poison_dur: if (combat_ends) 0 else ticked.player_poison_dur,
               player_atk_buff_dur: if (combat_ends) 0 else ticked.player_atk_buff_dur,
               player_def_buff_dur: if (combat_ends) 0 else ticked.player_def_buff_dur,
-              enemy_poison_dur: if (combat_ends) 0 else ticked.enemy_poison_dur,
+              enemy_poison_dur: if (combat_ends) 0 else if (auto_poison) STATUS_DURATION else ticked.enemy_poison_dur,
               cd_heavy_strike: if (combat_ends) 0 else ticked.cd_heavy_strike,
               cd_battle_cry: if (combat_ends) 0 else ticked.cd_battle_cry,
               cd_fortify: if (combat_ends) 0 else ticked.cd_fortify,
@@ -896,7 +902,7 @@ module quint_crawl {
              else { ...eqp, sword_dur: new_sword_dur },
       inv' = { ...inv,
                qty_potion: inv.qty_potion + loot.potion_inc,
-               qty_venom_sac: inv.qty_venom_sac + loot.venom_inc,
+               qty_venom_sac: inv.qty_venom_sac + loot.venom_inc - (if (auto_poison) 1 else 0),
       },
       w' = { ...w, turn_count: w.turn_count + 1 },
       meta' = { ...meta, pity_counter: loot.new_pity, last_drop: loot.new_last_drop,
@@ -930,6 +936,8 @@ module quint_crawl {
     val combat_ends = (new_enemy_hp <= 0 or new_hp <= 0)
     val enemy_defeated_alive = (new_enemy_hp <= 0 and new_hp > 0)
     val loot = compute_loot(meta, total_items, enemy_defeated_alive, w.turn_count, zone_tier, ch.xp)
+    // Passive venom infusion: skill_poison turns your heavy into a venom carrier.
+    val auto_poison = ch.skill_poison and inv.qty_venom_sac > 0 and new_enemy_hp > 0
     all {
       ch' = { ...ch,
               hp: if (new_hp < 0) 0 else new_hp,
@@ -950,7 +958,7 @@ module quint_crawl {
               player_poison_dur: if (combat_ends) 0 else ticked.player_poison_dur,
               player_atk_buff_dur: if (combat_ends) 0 else ticked.player_atk_buff_dur,
               player_def_buff_dur: if (combat_ends) 0 else ticked.player_def_buff_dur,
-              enemy_poison_dur: if (combat_ends) 0 else ticked.enemy_poison_dur,
+              enemy_poison_dur: if (combat_ends) 0 else if (auto_poison) STATUS_DURATION else ticked.enemy_poison_dur,
               cd_heavy_strike: if (combat_ends) 0 else HEAVY_STRIKE_CD,
               cd_battle_cry: if (combat_ends) 0 else ticked.cd_battle_cry,
               cd_fortify: if (combat_ends) 0 else ticked.cd_fortify,
@@ -961,7 +969,7 @@ module quint_crawl {
              else { ...eqp, sword_dur: new_sword_dur },
       inv' = { ...inv,
                qty_potion: inv.qty_potion + loot.potion_inc,
-               qty_venom_sac: inv.qty_venom_sac + loot.venom_inc,
+               qty_venom_sac: inv.qty_venom_sac + loot.venom_inc - (if (auto_poison) 1 else 0),
       },
       w' = { ...w, turn_count: w.turn_count + 1 },
       meta' = { ...meta, pity_counter: loot.new_pity, last_drop: loot.new_last_drop,
