@@ -40,6 +40,7 @@ module quint_crawl {
     q1_kills: int, q2_zones: int, q3_kills: int,
     cq1_adopted: int, cq2_maxed: int, cq3_wins: int,
     quest_rewards_claimed: int,
+    boss_defeated: bool,
   }
 
   // Companion is represented abstractly by its trait + rarity.
@@ -157,6 +158,11 @@ module quint_crawl {
   val UPGRADE_SALVAGE_COST = 15
   val MAX_SALVAGE_LEVEL = 3
   val RESPAWN_TURNS = 5           // turns after kill before combat available again
+  // Castle boss encounter — replaces the generic tier-5 enemy at the Castle
+  // zone until it's killed. Roughly 2x a top-tier mob so the fight has weight.
+  val BOSS_HP = 80
+  val BOSS_ATK = 12
+  val BOSS_ELEMENT = 1
 
   // --- World scaling constants ---
   val WORLD_SIZE = 9
@@ -209,6 +215,8 @@ module quint_crawl {
   pure def zone_gold_reward(x: int, y: int): int = BASE_GOLD + GOLD_PER_LEVEL * zone_level(x, y)
 
   pure def zone_has_services(x: int, y: int): bool = (x % 3 == 0 and y % 3 == 0)
+  pure def is_castle_zone(x: int, y: int): bool =
+    zone_biome_x(x) == 2 and zone_biome_y(y) == 2 and zone_level(x, y) >= MAX_LEVEL
   pure def zone_has_wood(x: int, y: int): bool = (x % 3 == 1 and y % 3 == 0)
   pure def zone_has_iron(x: int, y: int): bool = (x % 3 == 2 and y % 3 == 1)
 
@@ -407,7 +415,8 @@ module quint_crawl {
     meta' = { game_won: false, saved_exists: false, pity_counter: 0, last_drop: 0, last_kill_turn: 0,
               q1_kills: 0, q2_zones: 0, q3_kills: 0,
               cq1_adopted: 0, cq2_maxed: 0, cq3_wins: 0,
-              quest_rewards_claimed: 0 },
+              quest_rewards_claimed: 0,
+              boss_defeated: false },
     comp' = { active: false, trait: 0, rarity: 0, loyalty: 0, command_used: false },
   }
 
@@ -488,12 +497,16 @@ module quint_crawl {
     (meta.last_kill_turn == 0 or w.turn_count - meta.last_kill_turn >= RESPAWN_TURNS),
     val weather = zone_weather(w.pos_x, w.pos_y, w.turn_count + 1)
     val fog_penalty = if (weather == 2) FOG_ATK_PENALTY else 0
-    val raw_atk = zone_enemy_attack(w.pos_x, w.pos_y) - fog_penalty
+    val is_boss = is_castle_zone(w.pos_x, w.pos_y) and not(meta.boss_defeated)
+    val base_hp = if (is_boss) BOSS_HP else zone_enemy_hp(w.pos_x, w.pos_y)
+    val base_atk = if (is_boss) BOSS_ATK else zone_enemy_attack(w.pos_x, w.pos_y)
+    val base_elem = if (is_boss) BOSS_ELEMENT else zone_element(w.pos_x, w.pos_y)
+    val raw_atk = base_atk - fog_penalty
     all {
       cb' = { in_combat: true,
-              enemy_hp: zone_enemy_hp(w.pos_x, w.pos_y),
+              enemy_hp: base_hp,
               enemy_attack: if (raw_atk < 1) 1 else raw_atk,
-              enemy_element: zone_element(w.pos_x, w.pos_y),
+              enemy_element: base_elem,
               combo_count: 0, player_poison_dur: 0, player_atk_buff_dur: 0,
               player_def_buff_dur: 0, enemy_poison_dur: 0,
               cd_heavy_strike: 0, cd_battle_cry: 0, cd_fortify: 0 },
@@ -572,7 +585,8 @@ module quint_crawl {
                last_kill_turn: if (enemy_defeated_alive) w.turn_count else meta.last_kill_turn,
                q1_kills: if (enemy_defeated_alive and zone_tier == 1 and meta.q1_kills < Q1_TARGET) meta.q1_kills + 1 else meta.q1_kills,
                q3_kills: if (enemy_defeated_alive and zone_tier == MAX_LEVEL and meta.q3_kills < Q3_TARGET) meta.q3_kills + 1 else meta.q3_kills,
-               cq3_wins: if (enemy_defeated_alive and comp_active and meta.cq3_wins < CQ3_TARGET) meta.cq3_wins + 1 else meta.cq3_wins },
+               cq3_wins: if (enemy_defeated_alive and comp_active and meta.cq3_wins < CQ3_TARGET) meta.cq3_wins + 1 else meta.cq3_wins,
+               boss_defeated: if (enemy_defeated_alive and is_castle_zone(w.pos_x, w.pos_y)) true else meta.boss_defeated },
       comp' = comp,
     }
   }
@@ -880,7 +894,8 @@ module quint_crawl {
                last_kill_turn: if (enemy_defeated_alive) w.turn_count else meta.last_kill_turn,
                q1_kills: if (enemy_defeated_alive and zone_tier == 1 and meta.q1_kills < Q1_TARGET) meta.q1_kills + 1 else meta.q1_kills,
                q3_kills: if (enemy_defeated_alive and zone_tier == MAX_LEVEL and meta.q3_kills < Q3_TARGET) meta.q3_kills + 1 else meta.q3_kills,
-               cq3_wins: if (enemy_defeated_alive and comp_active and meta.cq3_wins < CQ3_TARGET) meta.cq3_wins + 1 else meta.cq3_wins },
+               cq3_wins: if (enemy_defeated_alive and comp_active and meta.cq3_wins < CQ3_TARGET) meta.cq3_wins + 1 else meta.cq3_wins,
+               boss_defeated: if (enemy_defeated_alive and is_castle_zone(w.pos_x, w.pos_y)) true else meta.boss_defeated },
       comp' = comp,
     }
   }
@@ -944,7 +959,8 @@ module quint_crawl {
                last_kill_turn: if (enemy_defeated_alive) w.turn_count else meta.last_kill_turn,
                q1_kills: if (enemy_defeated_alive and zone_tier == 1 and meta.q1_kills < Q1_TARGET) meta.q1_kills + 1 else meta.q1_kills,
                q3_kills: if (enemy_defeated_alive and zone_tier == MAX_LEVEL and meta.q3_kills < Q3_TARGET) meta.q3_kills + 1 else meta.q3_kills,
-               cq3_wins: if (enemy_defeated_alive and comp_active and meta.cq3_wins < CQ3_TARGET) meta.cq3_wins + 1 else meta.cq3_wins },
+               cq3_wins: if (enemy_defeated_alive and comp_active and meta.cq3_wins < CQ3_TARGET) meta.cq3_wins + 1 else meta.cq3_wins,
+               boss_defeated: if (enemy_defeated_alive and is_castle_zone(w.pos_x, w.pos_y)) true else meta.boss_defeated },
       comp' = comp,
     }
   }
@@ -1174,7 +1190,8 @@ module quint_crawl {
                last_kill_turn: if (enemy_defeated_alive) w.turn_count else meta.last_kill_turn,
                q1_kills: if (enemy_defeated_alive and zone_tier == 1 and meta.q1_kills < Q1_TARGET) meta.q1_kills + 1 else meta.q1_kills,
                q3_kills: if (enemy_defeated_alive and zone_tier == MAX_LEVEL and meta.q3_kills < Q3_TARGET) meta.q3_kills + 1 else meta.q3_kills,
-               cq3_wins: if (enemy_defeated_alive and comp_active and meta.cq3_wins < CQ3_TARGET) meta.cq3_wins + 1 else meta.cq3_wins },
+               cq3_wins: if (enemy_defeated_alive and comp_active and meta.cq3_wins < CQ3_TARGET) meta.cq3_wins + 1 else meta.cq3_wins,
+               boss_defeated: if (enemy_defeated_alive and is_castle_zone(w.pos_x, w.pos_y)) true else meta.boss_defeated },
       comp' = comp,
     }
   }
@@ -1266,7 +1283,8 @@ module quint_crawl {
                last_kill_turn: if (enemy_defeated_alive) w.turn_count else meta.last_kill_turn,
                q1_kills: if (enemy_defeated_alive and zone_tier == 1 and meta.q1_kills < Q1_TARGET) meta.q1_kills + 1 else meta.q1_kills,
                q3_kills: if (enemy_defeated_alive and zone_tier == MAX_LEVEL and meta.q3_kills < Q3_TARGET) meta.q3_kills + 1 else meta.q3_kills,
-               cq3_wins: if (enemy_defeated_alive and comp_active and meta.cq3_wins < CQ3_TARGET) meta.cq3_wins + 1 else meta.cq3_wins },
+               cq3_wins: if (enemy_defeated_alive and comp_active and meta.cq3_wins < CQ3_TARGET) meta.cq3_wins + 1 else meta.cq3_wins,
+               boss_defeated: if (enemy_defeated_alive and is_castle_zone(w.pos_x, w.pos_y)) true else meta.boss_defeated },
       comp' = comp,
     }
   }
@@ -1402,6 +1420,7 @@ module quint_crawl {
     ch.level >= MAX_LEVEL,
     zone_biome_x(w.pos_x) == 2, zone_biome_y(w.pos_y) == 2,
     zone_level(w.pos_x, w.pos_y) >= MAX_LEVEL,
+    meta.boss_defeated,
     meta' = { ...meta, game_won: true },
     comp' = comp,
     ch' = ch, inv' = inv, eqp' = eqp,
@@ -1619,7 +1638,10 @@ module quint_crawl {
 
   /// Victory only set under valid claim_victory guards (safety form of liveness)
   val victory_preconditions = meta.game_won.implies(
-    ch.level >= MAX_LEVEL and zone_level(w.pos_x, w.pos_y) >= MAX_LEVEL)
+    ch.level >= MAX_LEVEL and zone_level(w.pos_x, w.pos_y) >= MAX_LEVEL and meta.boss_defeated)
+
+  /// Victory requires the castle boss has been defeated
+  val win_requires_boss_defeated = meta.game_won.implies(meta.boss_defeated)
 
   /// Win condition requires Castle position
   val win_requires_castle = meta.game_won.implies(

@@ -321,7 +321,7 @@ draw_title :: proc(app: ^App_State) {
 
 	// Controls hint
 	rl.DrawText("WASD: Move   E: Fight   R: Rest", cx - 160, cy + 150, 16, TEXT_DIM)
-	rl.DrawText("Goal: Reach Level 5, then claim victory at a Castle!", cx - 240, cy + 180, 16, TEXT_GOLD)
+	rl.DrawText("Goal: Reach Level 5, slay the Castle Boss, claim victory!", cx - 260, cy + 180, 16, TEXT_GOLD)
 }
 
 // --- Victory screen ---

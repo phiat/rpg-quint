@@ -279,6 +279,7 @@ crawl_state :: proc(driver: rawptr) -> map[string]mbt.ITF_Value {
 	mt["cq2_maxed"] = mbt.ITF_Int{g.cq2_maxed}
 	mt["cq3_wins"] = mbt.ITF_Int{g.cq3_wins}
 	mt["quest_rewards_claimed"] = mbt.ITF_Int{g.quest_rewards_claimed}
+	mt["boss_defeated"] = mbt.ITF_Bool{g.boss_defeated}
 	state["meta"] = mbt.ITF_Record{mt}
 
 	// comp: CompState (abstract — trait+rarity, no species)

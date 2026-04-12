@@ -98,6 +98,10 @@ SALVAGE_IRON_BASE :: 1
 UPGRADE_SALVAGE_COST :: 15
 MAX_SALVAGE_LEVEL :: 3
 RESPAWN_TURNS :: 5
+// Castle boss — replaces the tier-5 Castle-zone enemy until defeated
+BOSS_HP :: 80
+BOSS_ATK :: 12
+BOSS_ELEMENT :: 1
 
 // Common guard checks
 can_act_map :: proc(g: ^Game_State) -> bool {
@@ -164,6 +168,7 @@ Save_Data :: struct {
 	cq2_maxed:    int,
 	cq3_wins:     int,
 	quest_rewards_claimed: int,
+	boss_defeated: bool,
 }
 
 Game_State :: struct {
@@ -262,6 +267,8 @@ Game_State :: struct {
 	cq2_maxed:           int,  // 0..CQ2_TARGET
 	cq3_wins:            int,  // 0..CQ3_TARGET
 	quest_rewards_claimed: int, // 0..3, stackable claim counter
+	// Castle boss kill flag — gates claim_victory
+	boss_defeated:       bool,
 	// Save/Load
 	saved_exists:        bool,
 	save_data:           Save_Data,
@@ -299,6 +306,10 @@ zone_gold_reward :: proc(x, y: int) -> int {
 // Zone feature predicates — which zones have which facilities
 zone_has_services :: proc(x, y: int) -> bool {
 	return x % 3 == 0 && y % 3 == 0
+}
+
+is_castle_zone :: proc(x, y: int) -> bool {
+	return x % 3 == 2 && y % 3 == 2 && zone_level(x, y) >= MAX_LEVEL
 }
 
 zone_has_wood :: proc(x, y: int) -> bool {
@@ -573,6 +584,7 @@ init_game :: proc(g: ^Game_State) {
 	g.cq2_maxed = 0
 	g.cq3_wins = 0
 	g.quest_rewards_claimed = 0
+	g.boss_defeated = false
 	// Fog of war: clear all, mark starting zone + neighbors as revealed
 	for x in 0 ..< WORLD_SIZE {
 		for y in 0 ..< WORLD_SIZE {
@@ -651,11 +663,15 @@ enter_combat :: proc(g: ^Game_State) -> bool {
 	if g.last_kill_turn != 0 && g.turn_count - g.last_kill_turn < RESPAWN_TURNS do return false
 	g.turn_count += 1
 	g.in_combat = true
-	g.enemy_hp = zone_enemy_hp(g.pos_x, g.pos_y)
+	is_boss := is_castle_zone(g.pos_x, g.pos_y) && !g.boss_defeated
+	base_hp := BOSS_HP if is_boss else zone_enemy_hp(g.pos_x, g.pos_y)
+	base_atk := BOSS_ATK if is_boss else zone_enemy_atk(g.pos_x, g.pos_y)
+	base_elem := BOSS_ELEMENT if is_boss else zone_element(g.pos_x, g.pos_y)
+	g.enemy_hp = base_hp
 	// Fog reduces enemy attack
 	weather := zone_weather(g.pos_x, g.pos_y, g.turn_count)
 	fog_penalty := FOG_ATK_PENALTY if weather == 2 else 0
-	raw_atk := zone_enemy_atk(g.pos_x, g.pos_y) - fog_penalty
+	raw_atk := base_atk - fog_penalty
 	g.enemy_attack = max(raw_atk, 1)
 	g.combo_count = 0
 
@@ -663,7 +679,7 @@ enter_combat :: proc(g: ^Game_State) -> bool {
 	g.cd_battle_cry = 0
 	g.cd_fortify = 0
 	g.last_drop = 0
-	g.enemy_element = zone_element(g.pos_x, g.pos_y)
+	g.enemy_element = base_elem
 	// Companion loyalty tick: pays to be brought into combat
 	if g.comp_active {
 		g.comp_loyalty -= LOYALTY_COMBAT_COST
@@ -816,6 +832,7 @@ resolve_combat_hit :: proc(g: ^Game_State, dmg: int) -> bool {
 		zone_tier := zone_level(g.pos_x, g.pos_y)
 		if zone_tier == 1 && g.q1_kills < Q1_TARGET do g.q1_kills += 1
 		if zone_tier == MAX_LEVEL && g.q3_kills < Q3_TARGET do g.q3_kills += 1
+		if is_castle_zone(g.pos_x, g.pos_y) do g.boss_defeated = true
 		// Companion Quest 3: count wins with active companion
 		if comp_active(g) && g.cq3_wins < CQ3_TARGET do g.cq3_wins += 1
 		g.in_combat = false
@@ -1025,6 +1042,7 @@ claim_victory :: proc(g: ^Game_State) -> bool {
 	// Must be on a Castle biome (x%3==2, y%3==2) at zone level >= MAX_LEVEL
 	if g.pos_x % 3 != 2 || g.pos_y % 3 != 2 do return false
 	if zone_level(g.pos_x, g.pos_y) < MAX_LEVEL do return false
+	if !g.boss_defeated do return false
 	g.game_won = true
 	return true
 }
@@ -1429,6 +1447,7 @@ counter_attack :: proc(g: ^Game_State) -> bool {
 			// Enemy defeated, player alive
 			g.last_kill_turn = g.turn_count - 1
 			g.xp += zone_xp_reward(g.pos_x, g.pos_y)
+			if is_castle_zone(g.pos_x, g.pos_y) do g.boss_defeated = true
 			g.in_combat = false
 			g.enemy_attack = 0
 			g.enemy_element = 0
@@ -1756,6 +1775,7 @@ save_game :: proc(g: ^Game_State) -> bool {
 		cq2_maxed = g.cq2_maxed,
 		cq3_wins = g.cq3_wins,
 		quest_rewards_claimed = g.quest_rewards_claimed,
+		boss_defeated = g.boss_defeated,
 	}
 	return true
 }
@@ -1819,6 +1839,7 @@ load_game :: proc(g: ^Game_State) -> bool {
 	g.cq2_maxed = s.cq2_maxed
 	g.cq3_wins = s.cq3_wins
 	g.quest_rewards_claimed = s.quest_rewards_claimed
+	g.boss_defeated = s.boss_defeated
 	// Clear combat/status state (save is only outside combat)
 	g.in_combat = false
 	g.enemy_hp = 0

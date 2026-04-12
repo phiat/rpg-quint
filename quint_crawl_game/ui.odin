@@ -286,9 +286,13 @@ draw_hud :: proc(app: ^App_State) {
 			draw_action(x, &y, "[Q]", "Equip Sword", true)
 		}
 
-		// Claim Victory (on Castle biome at max level)
-		if g.level >= qc.MAX_LEVEL && g.pos_x % 3 == 2 && g.pos_y % 3 == 2 && qc.zone_level(g.pos_x, g.pos_y) >= qc.MAX_LEVEL {
-			draw_action(x, &y, "[L]", "Claim Victory!", true)
+		// Castle: fight boss first, then claim victory
+		if qc.is_castle_zone(g.pos_x, g.pos_y) && g.level >= qc.MAX_LEVEL {
+			if !g.boss_defeated {
+				draw_action(x, &y, "[E]", "Face the Castle Boss", true)
+			} else {
+				draw_action(x, &y, "[L]", "Claim Victory!", true)
+			}
 		}
 
 		// Fast travel (if any waypoints besides current)

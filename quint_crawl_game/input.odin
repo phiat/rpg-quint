@@ -41,6 +41,9 @@ handle_map_input :: proc(app: ^App_State) {
 
 	// Enter combat
 	if rl.IsKeyPressed(.E) {
+		// Snapshot the boss flag before enter_combat runs so we can pick
+		// the right flavor message for what actually spawned.
+		boss_pending := qc.is_castle_zone(g.pos_x, g.pos_y) && !g.boss_defeated
 		if qc.enter_combat(g) {
 			// Pick a named enemy from the data-driven catalog. Seed from
 			// turn_count so re-encounters at the same tile vary.
@@ -52,7 +55,11 @@ handle_map_input :: proc(app: ^App_State) {
 			// branch on it without the spec contract learning about traits.
 			g.enemy_trait = qc.ENEMY_ARCHETYPES[arch].trait
 			trait_tag := TRAIT_NAMES[int(g.enemy_trait)]
-			add_message(app, fmt.tprintf("A %s [%s] appears!", name, trait_tag), BAR_HP_FG)
+			if boss_pending {
+				add_message(app, "The Castle Boss rises to meet you!", TEXT_GOLD)
+			} else {
+				add_message(app, fmt.tprintf("A %s [%s] appears!", name, trait_tag), BAR_HP_FG)
+			}
 		} else if !g.in_combat && g.last_kill_turn != 0 && g.turn_count - g.last_kill_turn < qc.RESPAWN_TURNS {
 			remaining := qc.RESPAWN_TURNS - (g.turn_count - g.last_kill_turn)
 			add_message(app, fmt.tprintf("No enemies yet... %d turns until respawn.", remaining), TEXT_DIM)
