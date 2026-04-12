@@ -83,7 +83,9 @@ FORTIFY_STAMINA :: 4
 FORTIFY_CD :: 5
 FORTIFY_DURATION :: 8
 CRAFT_VENOM_IRON_COST :: 2
-ENCHANT_COST :: 10
+ENCHANT_COST :: 25
+ENCHANT_IRON_COST :: 1
+ENCHANT_VENOM_COST :: 1
 MAX_INVENTORY :: 30
 CRAFT_LEVEL_REQ :: 2
 SALVAGE_WOOD_BASE :: 0
@@ -661,20 +663,28 @@ resolve_loot :: proc(g: ^Game_State) {
 // Shared combat hit resolution: applies damage, ticks statuses, resolves combat end.
 // Returns true if combat ended.
 resolve_combat_hit :: proc(g: ^Game_State, dmg: int) -> bool {
-	// Degrade sword on attack
+	// Capture pre-state enchant-derived values before any sword-break zeroing.
+	pre_elem_mult := damage_multiplier(player_element(g), g.enemy_element)
+	pre_enchant_def := enchant_def_bonus(g)
+	// Degrade sword on attack. If it breaks (dur hits 0), lose enchants.
 	if g.has_sword && g.sword_dur > 0 {
 		g.sword_dur -= 1
+		if g.sword_dur == 0 {
+			g.enchant_slot_1 = 0
+			g.enchant_slot_2 = 0
+			g.enchant_slot_3 = 0
+		}
 	}
 	// Enemy takes elemental-modified hit + poison damage
 	enemy_poison_dmg := POISON_DMG if g.enemy_poison_dur > 0 else 0
-	elem_dmg := effective_damage(dmg, damage_multiplier(player_element(g), g.enemy_element))
+	elem_dmg := effective_damage(dmg, pre_elem_mult)
 	new_enemy_hp := g.enemy_hp - elem_dmg - enemy_poison_dmg
 
 	// Player takes enemy hit (reduced by enchant DEF + DEF buff) + poison damage
 	poison_dmg := POISON_DMG if g.player_poison_dur > 0 else 0
 	new_hp := g.hp - poison_dmg
 	if new_enemy_hp > 0 {
-		enemy_dmg := g.enemy_attack - enchant_def_bonus(g) - def_reduction_active(g) - comp_dmg_reduction(g)
+		enemy_dmg := g.enemy_attack - pre_enchant_def - def_reduction_active(g) - comp_dmg_reduction(g)
 		if enemy_dmg < 1 do enemy_dmg = 1
 		new_hp -= enemy_dmg
 	}
@@ -1174,20 +1184,28 @@ counter_attack :: proc(g: ^Game_State) -> bool {
 	g.stamina -= COUNTER_STAMINA
 
 	// Counter-attack is a retaliatory strike — deals HALF attack power (min 1).
+	// Compute elemental multiplier BEFORE sword break, matching spec's pre-state read.
 	dmg := attack_power(g) / 2
 	if dmg < 1 do dmg = 1
+	elem_mult := damage_multiplier(player_element(g), g.enemy_element)
+	pre_enchant_def := enchant_def_bonus(g)
 	if g.has_sword && g.sword_dur > 0 {
 		g.sword_dur -= 1
+		if g.sword_dur == 0 {
+			g.enchant_slot_1 = 0
+			g.enchant_slot_2 = 0
+			g.enchant_slot_3 = 0
+		}
 	}
 
 	// Enemy takes elemental-modified hit + poison
 	enemy_poison_dmg := POISON_DMG if g.enemy_poison_dur > 0 else 0
-	elem_dmg := effective_damage(dmg, damage_multiplier(player_element(g), g.enemy_element))
+	elem_dmg := effective_damage(dmg, elem_mult)
 	new_enemy_hp := g.enemy_hp - elem_dmg - enemy_poison_dmg
 	g.enemy_hp = max(new_enemy_hp, 0)
 
 	// Enemy hits player (reduced by enchant DEF + DEF buff)
-	enemy_dmg := g.enemy_attack - enchant_def_bonus(g) - def_reduction_active(g)
+	enemy_dmg := g.enemy_attack - pre_enchant_def - def_reduction_active(g)
 	if enemy_dmg < 1 do enemy_dmg = 1
 	poison_dmg := POISON_DMG if g.player_poison_dur > 0 else 0
 	g.hp = max(g.hp - enemy_dmg - poison_dmg, 0)
@@ -1403,6 +1421,10 @@ salvage_sword :: proc(g: ^Game_State) -> bool {
 	g.qty_sword -= 1
 	g.qty_wood += salvage_wood_yield(g.salvage_level)
 	g.qty_iron += salvage_iron_yield(g.salvage_level)
+	// Salvaging destroys a sword — enchants are lost with the broken sword.
+	g.enchant_slot_1 = 0
+	g.enchant_slot_2 = 0
+	g.enchant_slot_3 = 0
 	return true
 }
 
@@ -1425,15 +1447,28 @@ apply_enchant :: proc(g: ^Game_State, slot: int, etype: int) -> bool {
 	if !g.has_sword do return false
 	if g.gold < ENCHANT_COST do return false
 	if etype < 1 || etype > 4 do return false
+	// Vampiric (etype=3) costs 1 venom_sac; other elements cost 1 iron.
+	needs_venom := etype == 3
+	if needs_venom {
+		if g.qty_venom_sac < ENCHANT_VENOM_COST do return false
+	} else {
+		if g.qty_iron < ENCHANT_IRON_COST do return false
+	}
 	// Fire/Ice incompatibility
 	if etype == 1 && has_ice_enchant(g) do return false
 	if etype == 2 && has_fire_enchant(g) do return false
+	// Validate slot before spending any resources
+	if slot < 1 || slot > 3 do return false
 	g.gold -= ENCHANT_COST
+	if needs_venom {
+		g.qty_venom_sac -= ENCHANT_VENOM_COST
+	} else {
+		g.qty_iron -= ENCHANT_IRON_COST
+	}
 	switch slot {
 	case 1: g.enchant_slot_1 = etype
 	case 2: g.enchant_slot_2 = etype
 	case 3: g.enchant_slot_3 = etype
-	case: return false
 	}
 	return true
 }

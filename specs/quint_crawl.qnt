@@ -128,7 +128,9 @@ module quint_crawl {
   val FORTIFY_CD = 5
   val FORTIFY_DURATION = 8
   val CRAFT_VENOM_IRON_COST = 2
-  val ENCHANT_COST = 10
+  val ENCHANT_COST = 25
+  val ENCHANT_IRON_COST = 1
+  val ENCHANT_VENOM_COST = 1
   val MAX_INVENTORY = 30
   val CRAFT_LEVEL_REQ = 2
   val SALVAGE_WOOD_BASE = 0
@@ -492,7 +494,10 @@ module quint_crawl {
               cd_battle_cry: if (combat_ends) 0 else (if (cb.cd_battle_cry > 0) cb.cd_battle_cry - 1 else 0),
               cd_fortify: if (combat_ends) 0 else (if (cb.cd_fortify > 0) cb.cd_fortify - 1 else 0),
       },
-      eqp' = { ...eqp, sword_dur: new_sword_dur },
+      // If durability hits 0 this strike, enchants are lost with the broken sword.
+      eqp' = if (eqp.sword_dur > 0 and new_sword_dur == 0)
+               { ...eqp, sword_dur: 0, enchant_slot_1: 0, enchant_slot_2: 0, enchant_slot_3: 0 }
+             else { ...eqp, sword_dur: new_sword_dur },
       inv' = { ...inv,
                qty_potion: if (should_drop and not(drops_venom)) inv.qty_potion + 1 else inv.qty_potion,
                qty_venom_sac: if (drops_venom) inv.qty_venom_sac + 1 else inv.qty_venom_sac,
@@ -747,7 +752,10 @@ module quint_crawl {
               cd_battle_cry: if (combat_ends) 0 else (if (cb.cd_battle_cry > 0) cb.cd_battle_cry - 1 else 0),
               cd_fortify: if (combat_ends) 0 else (if (cb.cd_fortify > 0) cb.cd_fortify - 1 else 0),
       },
-      eqp' = { ...eqp, sword_dur: new_sword_dur },
+      // If durability hits 0 this strike, enchants are lost with the broken sword.
+      eqp' = if (eqp.sword_dur > 0 and new_sword_dur == 0)
+               { ...eqp, sword_dur: 0, enchant_slot_1: 0, enchant_slot_2: 0, enchant_slot_3: 0 }
+             else { ...eqp, sword_dur: new_sword_dur },
       inv' = { ...inv,
                qty_potion: if (should_drop and not(drops_venom)) inv.qty_potion + 1 else inv.qty_potion,
                qty_venom_sac: if (drops_venom) inv.qty_venom_sac + 1 else inv.qty_venom_sac,
@@ -818,7 +826,10 @@ module quint_crawl {
               cd_battle_cry: if (combat_ends) 0 else (if (cb.cd_battle_cry > 0) cb.cd_battle_cry - 1 else 0),
               cd_fortify: if (combat_ends) 0 else (if (cb.cd_fortify > 0) cb.cd_fortify - 1 else 0),
       },
-      eqp' = { ...eqp, sword_dur: new_sword_dur },
+      // If durability hits 0 this strike, enchants are lost with the broken sword.
+      eqp' = if (eqp.sword_dur > 0 and new_sword_dur == 0)
+               { ...eqp, sword_dur: 0, enchant_slot_1: 0, enchant_slot_2: 0, enchant_slot_3: 0 }
+             else { ...eqp, sword_dur: new_sword_dur },
       inv' = { ...inv,
                qty_potion: if (should_drop and not(drops_venom)) inv.qty_potion + 1 else inv.qty_potion,
                qty_venom_sac: if (drops_venom) inv.qty_venom_sac + 1 else inv.qty_venom_sac,
@@ -1042,7 +1053,10 @@ module quint_crawl {
               cd_battle_cry: if (combat_ends) 0 else (if (cb.cd_battle_cry > 0) cb.cd_battle_cry - 1 else 0),
               cd_fortify: if (combat_ends) 0 else (if (cb.cd_fortify > 0) cb.cd_fortify - 1 else 0),
       },
-      eqp' = { ...eqp, sword_dur: eqp.sword_dur - dur_cost },
+      // If this counter breaks the sword, enchants go with it.
+      eqp' = if (eqp.sword_dur > 0 and eqp.sword_dur - dur_cost == 0)
+               { ...eqp, sword_dur: 0, enchant_slot_1: 0, enchant_slot_2: 0, enchant_slot_3: 0 }
+             else { ...eqp, sword_dur: eqp.sword_dur - dur_cost },
       inv' = { ...inv,
                qty_potion: if (should_drop and not(drops_venom)) inv.qty_potion + 1 else inv.qty_potion,
                qty_venom_sac: if (drops_venom) inv.qty_venom_sac + 1 else inv.qty_venom_sac,
@@ -1107,16 +1121,24 @@ module quint_crawl {
   action apply_enchant = {
     nondet slot = Set(1, 2, 3).oneOf()
     nondet etype = Set(1, 2, 3, 4).oneOf()
+    // Vampiric (etype=3) costs 1 venom_sac; other elements cost 1 iron.
+    val needs_venom = (etype == 3)
     all {
       not(cb.in_combat), not(meta.game_won), ch.hp > 0,
       zone_has_services(w.pos_x, w.pos_y),
       inv.has_sword,
       ch.gold >= ENCHANT_COST,
+      if (needs_venom) inv.qty_venom_sac >= ENCHANT_VENOM_COST
+      else inv.qty_iron >= ENCHANT_IRON_COST,
       not(etype == 1 and has_ice_enchant),
       not(etype == 2 and has_fire_enchant),
       ch' = { ...ch, gold: ch.gold - ENCHANT_COST },
       eqp' = set_enchant_slot(eqp, slot, etype),
-      inv' = inv, cb' = cb, w' = w, meta' = meta, comp' = comp,
+      inv' = { ...inv,
+               qty_iron: if (needs_venom) inv.qty_iron else inv.qty_iron - ENCHANT_IRON_COST,
+               qty_venom_sac: if (needs_venom) inv.qty_venom_sac - ENCHANT_VENOM_COST else inv.qty_venom_sac,
+      },
+      cb' = cb, w' = w, meta' = meta, comp' = comp,
     }
   }
 
@@ -1143,7 +1165,10 @@ module quint_crawl {
              qty_iron: inv.qty_iron + salvage_iron_yield(inv.salvage_level),
              qty_sword: inv.qty_sword - 1,
     },
-    ch' = ch, eqp' = eqp,
+    ch' = ch,
+    // Salvaging destroys a sword — enchants are lost when the sword breaks.
+    // Zeros the equipped sword's enchant slots (they're tied to has_sword).
+    eqp' = { ...eqp, enchant_slot_1: 0, enchant_slot_2: 0, enchant_slot_3: 0 },
     cb' = cb,
     w' = { ...w, turn_count: w.turn_count + 1 },
     meta' = meta, comp' = comp,
