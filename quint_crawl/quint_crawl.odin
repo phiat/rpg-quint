@@ -1165,8 +1165,9 @@ counter_attack :: proc(g: ^Game_State) -> bool {
 	g.turn_count += 1
 	g.stamina -= COUNTER_STAMINA
 
-	// Player deals base damage + sword durability cost
-	dmg := attack_power(g)
+	// Counter-attack is a retaliatory strike — deals HALF attack power (min 1).
+	dmg := attack_power(g) / 2
+	if dmg < 1 do dmg = 1
 	if g.has_sword && g.sword_dur > 0 {
 		g.sword_dur -= 1
 	}

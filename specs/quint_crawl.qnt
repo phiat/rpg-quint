@@ -980,7 +980,10 @@ module quint_crawl {
     cb.in_combat, not(meta.game_won), ch.hp > 0, cb.enemy_hp > 0,
     ch.skill_counter_attack,
     ch.stamina >= COUNTER_STAMINA,
-    val player_dmg = effective_damage(attack_power, player_elem_mult)
+    // Counter-attack is a retaliatory strike — deals HALF attack power (rounded down, min 1).
+    // No longer a strict upgrade to combat_attack.
+    val counter_base = if (attack_power / 2 < 1) 1 else attack_power / 2
+    val player_dmg = effective_damage(counter_base, player_elem_mult)
     val new_enemy_hp = if (cb.enemy_hp - player_dmg < 0) 0 else cb.enemy_hp - player_dmg
     val enemy_poison_dmg = if (cb.enemy_poison_dur > 0) POISON_DMG else 0
     val final_enemy_hp = if (new_enemy_hp - enemy_poison_dmg < 0) 0 else new_enemy_hp - enemy_poison_dmg
