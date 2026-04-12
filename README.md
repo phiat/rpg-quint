@@ -81,7 +81,7 @@ The game logic in `quint_crawl/` is the single source of truth — shared by bot
 | = | Upgrade salvage level |
 | 1–7 | Unlock skill (when points available) |
 | 8–0 | Enchant sword slots 1–3 |
-| L | Claim victory (at Level 5 Castle) |
+| L | Claim victory (at Level 5 Castle, after the Boss) |
 
 ### Companions
 
@@ -108,7 +108,7 @@ See the HUD sidebar for zone-specific actions.
 - **Bestiary** — data-driven catalog of 200 named enemies across 20 archetypes (4 per tier, 5 tiers), 6 trait tags (Undead/Beast/Elemental/Construct/Humanoid/Aberration), trait-keyed secondary loot drops.
 - **Elemental system** — 4-element cycle (Fire > Ice > Lightning > Earth > Fire) with 2x/1x/0.5x damage multipliers.
 - **Companions** — data-driven species catalog (Wolf/Hawk/Turtle/Fox/Bear/Owl/Lynx/Sprite) with biome-gated adoption, trait affinities (Attacker/Defender/Scout/Support), rarity tiers (Common/Rare/Legendary), loyalty-on-combat loop, in-combat command, and a 3-stage companion quest chain. The spec verifies the abstract (trait × rarity) effect space; Odin grows the catalog freely without code changes.
-- **Progression** — XP/level-up, skill tree with 3 branches (Offense/Defense/Utility), 1 point per level, respec at village, 3 prerequisite-gated quests (Slime Slayer → Venture Forth → Castle Conqueror) tracked in the HUD.
+- **Progression** — XP/level-up, skill tree with 3 branches (Offense/Defense/Utility), 1 point per level, respec at village, 3 prerequisite-gated quests (Slime Slayer → Venture Forth → Castle Conqueror) tracked in the HUD, Castle Boss encounter gates the final victory claim.
 - **Items & crafting** — resource gathering (wood, iron), level-gated sword crafting (Lv2+), sword durability with village repair, salvage system (upgradeable 1–3), 3-slot weapon enchantment (fire/ice/vampiric/lightning; fire/ice mutually exclusive), venom sac crafting, loot drops with pity-counter guarantee, inventory capacity (30 items) enforced across gathering/shopping/loot.
 - **Persistence & polish** — save/load snapshot with full state round-trip; post-processing effects (zone tint, chromatic aberration, low-HP pulse, level-up bloom, poison overlay).
 
@@ -195,7 +195,7 @@ justfile               Task runner for common workflows
 | **fog_of_war** | Exploration reveal system | Revealed tiles monotonic, visibility radius bounded |
 | **permadeath** | Permadeath with legacy bonuses | Death permanent, legacy bonuses carry forward |
 | **bounty** | Bounty board quest system | Bounty rewards match difficulty, completion tracked |
-| **quint_crawl** | Full RPG game state machine (9x9 grid, 5 levels, data-driven companions) | HP bounded, gold non-negative, level bounded, position bounded, visited in bounds, waypoint is service zone, quantities non-negative, level gates respected, durability bounded, combo bounded, stamina bounded, cooldowns bounded (incl. fortify), cooldowns only in combat, loot pity bounded, status effects bounded, status only in combat, last kill turn bounded, broken sword gives no sword/enchant bonus, weather deterministic, skill points non-negative, skill prereqs respected, venom sac non-negative, enemy element bounded, enchant slots bounded, no fire/ice incompatible, enemy element only in combat, inventory bounded, salvage level bounded, quest counters bounded, quest prereqs respected, companion trait+rarity bounded, loyalty bounded, inactive=no loyalty, companion inactive zeroed, comp atk/def derived effects bounded, companion quest counters+prereqs respected, victory preconditions, win condition correct |
+| **quint_crawl** | Full RPG game state machine (9x9 grid, 5 levels, data-driven companions) | HP bounded, gold non-negative, level bounded, position bounded, visited in bounds, waypoint is service zone, quantities non-negative, level gates respected, durability bounded, combo bounded, stamina bounded, cooldowns bounded (incl. fortify), cooldowns only in combat, loot pity bounded, status effects bounded, status only in combat, last kill turn bounded, broken sword gives no sword/enchant bonus, weather deterministic, skill points non-negative, skill prereqs respected, venom sac non-negative, enemy element bounded, enchant slots bounded, no fire/ice incompatible, enemy element only in combat, inventory bounded, salvage level bounded, quest counters bounded, quest prereqs respected, companion trait+rarity bounded, loyalty bounded, inactive=no loyalty, companion inactive zeroed, comp atk/def derived effects bounded, companion quest counters+prereqs respected, victory preconditions, win condition correct, victory requires castle boss defeated |
 
 ## Quick start
 
