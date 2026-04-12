@@ -61,6 +61,12 @@ crawl_step :: proc(driver: rawptr, action: string, picks: map[string]mbt.ITF_Val
 	case "use_scroll_fire":
 		qc.use_scroll_fire(g)
 		return true
+	case "craft_holy_water":
+		qc.craft_holy_water(g)
+		return true
+	case "use_holy_water":
+		qc.use_holy_water(g)
+		return true
 	case "gather_wood":
 		qc.gather_wood(g)
 		return true
@@ -236,6 +242,8 @@ crawl_state :: proc(driver: rawptr) -> map[string]mbt.ITF_Value {
 	inv["salvage_level"] = mbt.ITF_Int{g.salvage_level}
 	inv["qty_battery"] = mbt.ITF_Int{g.qty_battery}
 	inv["qty_scroll_fire"] = mbt.ITF_Int{g.qty_scroll_fire}
+	inv["qty_holy_dust"] = mbt.ITF_Int{g.qty_holy_dust}
+	inv["qty_holy_water"] = mbt.ITF_Int{g.qty_holy_water}
 	state["inv"] = mbt.ITF_Record{inv}
 
 	// eqp: EquipState

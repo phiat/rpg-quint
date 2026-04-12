@@ -123,3 +123,26 @@ craft_venom_sac :: proc(g: ^Game_State) -> bool {
 	return true
 }
 
+craft_holy_water :: proc(g: ^Game_State) -> bool {
+	if !can_act_map(g) do return false
+	if !zone_has_services(g.pos_x, g.pos_y) do return false
+	if g.qty_holy_dust < 1 do return false
+	if g.qty_wood < CRAFT_HOLY_WATER_WOOD do return false
+	if total_items(g) - 1 - CRAFT_HOLY_WATER_WOOD + 1 > MAX_INVENTORY do return false
+	g.turn_count += 1
+	g.qty_holy_dust -= 1
+	g.qty_wood -= CRAFT_HOLY_WATER_WOOD
+	g.qty_holy_water += 1
+	return true
+}
+
+use_holy_water :: proc(g: ^Game_State) -> bool {
+	if !can_act_map(g) do return false
+	if g.qty_holy_water < 1 do return false
+	if g.hp >= g.max_hp do return false
+	g.turn_count += 1
+	g.qty_holy_water -= 1
+	g.hp = g.max_hp
+	return true
+}
+

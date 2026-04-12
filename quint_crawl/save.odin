@@ -37,6 +37,7 @@ save_game :: proc(g: ^Game_State) -> bool {
 		qty_battery = g.qty_battery,
 		qty_scroll_fire = g.qty_scroll_fire,
 		qty_holy_dust = g.qty_holy_dust,
+		qty_holy_water = g.qty_holy_water,
 		qty_pelt      = g.qty_pelt,
 		qty_core      = g.qty_core,
 		qty_essence   = g.qty_essence,
@@ -106,6 +107,7 @@ load_game :: proc(g: ^Game_State) -> bool {
 	g.qty_battery = s.qty_battery
 	g.qty_scroll_fire = s.qty_scroll_fire
 	g.qty_holy_dust = s.qty_holy_dust
+	g.qty_holy_water = s.qty_holy_water
 	g.qty_pelt      = s.qty_pelt
 	g.qty_core      = s.qty_core
 	g.qty_essence   = s.qty_essence

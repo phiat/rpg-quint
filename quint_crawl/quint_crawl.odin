@@ -80,6 +80,7 @@ INITIAL_MAX_MANA :: 10
 SPELL_HEAL :: 0
 SPELL_FIRE :: 1
 SCROLL_FIRE_COST :: 25
+CRAFT_HOLY_WATER_WOOD :: 2
 INITIAL_HP :: 50
 INITIAL_ATTACK :: 10
 INITIAL_POTIONS :: 2
@@ -160,6 +161,7 @@ Save_Data :: struct {
 	qty_battery:   int,
 	qty_scroll_fire: int,
 	qty_holy_dust: int,
+	qty_holy_water: int,
 	qty_pelt:      int,
 	qty_core:      int,
 	qty_essence:   int,
@@ -261,6 +263,7 @@ Game_State :: struct {
 	// stays untouched. Humanoid and Aberration intentionally do NOT reuse
 	// gold / qty_venom_sac because those are spec-tracked.
 	qty_holy_dust:       int,  // Undead
+	qty_holy_water:      int,  // Crafted from holy_dust (spec-visible)
 	qty_pelt:            int,  // Beast
 	qty_core:            int,  // Construct
 	qty_essence:         int,  // Elemental
@@ -530,7 +533,7 @@ attack_power :: proc(g: ^Game_State) -> int {
 total_items :: proc(g: ^Game_State) -> int {
 	return g.qty_potion + g.qty_wood + g.qty_iron + g.qty_sword + g.qty_venom_sac + g.qty_battery +
 		g.qty_scroll_fire +
-		g.qty_holy_dust + g.qty_pelt + g.qty_core + g.qty_essence + g.qty_coin + g.qty_ichor
+		g.qty_holy_dust + g.qty_holy_water + g.qty_pelt + g.qty_core + g.qty_essence + g.qty_coin + g.qty_ichor
 }
 
 salvage_wood_yield :: proc(slvl: int) -> int {
@@ -593,6 +596,7 @@ init_game :: proc(g: ^Game_State) {
 	g.qty_battery = 0
 	g.qty_scroll_fire = 0
 	g.qty_holy_dust = 0
+	g.qty_holy_water = 0
 	g.qty_pelt = 0
 	g.qty_core = 0
 	g.qty_essence = 0

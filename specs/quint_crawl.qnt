@@ -15,6 +15,7 @@ module quint_crawl {
     has_sword: bool, qty_venom_sac: int, salvage_level: int,
     qty_battery: int,
     qty_scroll_fire: int,
+    qty_holy_dust: int, qty_holy_water: int,
   }
 
   type EquipState = {
@@ -149,6 +150,8 @@ module quint_crawl {
   val SPELL_FIRE = 1
   // Fire scroll: consumable that deals fireball damage without skill_magic/mana
   val SCROLL_FIRE_COST = 25
+  // Holy water: crafted at village from holy_dust + wood; out-of-combat full heal.
+  val CRAFT_HOLY_WATER_WOOD = 2
   val INITIAL_HP = 50
   val INITIAL_ATTACK = 10
   val INITIAL_POTIONS = 2
@@ -396,7 +399,7 @@ module quint_crawl {
   val player_elem_mult = damage_multiplier(player_element, cb.enemy_element)
 
   // --- Inventory helpers ---
-  val total_items = inv.qty_potion + inv.qty_wood + inv.qty_iron + inv.qty_sword + inv.qty_venom_sac + inv.qty_battery + inv.qty_scroll_fire
+  val total_items = inv.qty_potion + inv.qty_wood + inv.qty_iron + inv.qty_sword + inv.qty_venom_sac + inv.qty_battery + inv.qty_scroll_fire + inv.qty_holy_dust + inv.qty_holy_water
 
   // Salvage recovery
   pure def salvage_wood_yield(slvl: int): int = SALVAGE_WOOD_BASE + (slvl - 1)
@@ -426,6 +429,7 @@ module quint_crawl {
       qty_potion: INITIAL_POTIONS, qty_wood: 0, qty_iron: 0, qty_sword: 0, qty_scroll_fire: 0,
       has_sword: false, qty_venom_sac: 0, salvage_level: 1,
       qty_battery: 0,
+      qty_holy_dust: 0, qty_holy_water: 0,
     },
     eqp' = {
       sword_dur: 0, sword_max_dur: SWORD_MAX_DUR,
@@ -1523,6 +1527,35 @@ module quint_crawl {
     meta' = meta, comp' = comp,
   }
 
+  // === Craft holy water (village; holy_dust + wood -> holy_water consumable) ===
+  action craft_holy_water = all {
+    not(cb.in_combat), not(meta.game_won), ch.hp > 0,
+    zone_has_services(w.pos_x, w.pos_y),
+    inv.qty_holy_dust >= 1,
+    inv.qty_wood >= CRAFT_HOLY_WATER_WOOD,
+    // Net delta: -1 holy_dust -W wood +1 holy_water => -W items net; guard anyway.
+    total_items - 1 - CRAFT_HOLY_WATER_WOOD + 1 <= MAX_INVENTORY,
+    inv' = { ...inv,
+             qty_holy_dust: inv.qty_holy_dust - 1,
+             qty_wood: inv.qty_wood - CRAFT_HOLY_WATER_WOOD,
+             qty_holy_water: inv.qty_holy_water + 1 },
+    ch' = ch, eqp' = eqp, cb' = cb,
+    w' = { ...w, turn_count: w.turn_count + 1 },
+    meta' = meta, comp' = comp,
+  }
+
+  // === Use holy water (out-of-combat full heal) ===
+  action use_holy_water = all {
+    not(cb.in_combat), not(meta.game_won), ch.hp > 0,
+    inv.qty_holy_water >= 1,
+    ch.hp < ch.max_hp,
+    inv' = { ...inv, qty_holy_water: inv.qty_holy_water - 1 },
+    ch' = { ...ch, hp: ch.max_hp },
+    eqp' = eqp, cb' = cb,
+    w' = { ...w, turn_count: w.turn_count + 1 },
+    meta' = meta, comp' = comp,
+  }
+
   // === Apply enchantment to slot 1 (at village, costs gold, requires sword) ===
   // === Apply enchantment to any slot (village, costs gold) ===
   action apply_enchant = {
@@ -1777,6 +1810,7 @@ module quint_crawl {
     cast_heal, cast_fireball,
     nondet sid = oneOf(Set(SPELL_HEAL, SPELL_FIRE)) cast_spell(sid),
     buy_scroll_fire, use_scroll_fire,
+    craft_holy_water, use_holy_water,
   }
 
   // === Invariants ===
