@@ -422,7 +422,7 @@ module quint_crawl {
       ch' = { ...ch, hp: if (ch.hp - storm_dmg < 1) 1 else ch.hp - storm_dmg },
       inv' = inv, eqp' = eqp,
       cb' = cb,
-      meta' = { ...meta, q2_zones: if (quest1_complete and zone_level(w.pos_x, w.pos_y - 1) >= 2 and meta.q2_zones < Q2_TARGET) meta.q2_zones + 1 else meta.q2_zones },
+      meta' = { ...meta, q2_zones: if (quest1_complete and zone_level(w.pos_x, w.pos_y - 1) >= 2 and not(w.visited.contains((w.pos_x, w.pos_y - 1))) and meta.q2_zones < Q2_TARGET) meta.q2_zones + 1 else meta.q2_zones },
       comp' = comp,
     }
   }
@@ -439,7 +439,7 @@ module quint_crawl {
       ch' = { ...ch, hp: if (ch.hp - storm_dmg < 1) 1 else ch.hp - storm_dmg },
       inv' = inv, eqp' = eqp,
       cb' = cb,
-      meta' = { ...meta, q2_zones: if (quest1_complete and zone_level(w.pos_x, w.pos_y + 1) >= 2 and meta.q2_zones < Q2_TARGET) meta.q2_zones + 1 else meta.q2_zones },
+      meta' = { ...meta, q2_zones: if (quest1_complete and zone_level(w.pos_x, w.pos_y + 1) >= 2 and not(w.visited.contains((w.pos_x, w.pos_y + 1))) and meta.q2_zones < Q2_TARGET) meta.q2_zones + 1 else meta.q2_zones },
       comp' = comp,
     }
   }
@@ -456,7 +456,7 @@ module quint_crawl {
       ch' = { ...ch, hp: if (ch.hp - storm_dmg < 1) 1 else ch.hp - storm_dmg },
       inv' = inv, eqp' = eqp,
       cb' = cb,
-      meta' = { ...meta, q2_zones: if (quest1_complete and zone_level(w.pos_x - 1, w.pos_y) >= 2 and meta.q2_zones < Q2_TARGET) meta.q2_zones + 1 else meta.q2_zones },
+      meta' = { ...meta, q2_zones: if (quest1_complete and zone_level(w.pos_x - 1, w.pos_y) >= 2 and not(w.visited.contains((w.pos_x - 1, w.pos_y))) and meta.q2_zones < Q2_TARGET) meta.q2_zones + 1 else meta.q2_zones },
       comp' = comp,
     }
   }
@@ -473,7 +473,7 @@ module quint_crawl {
       ch' = { ...ch, hp: if (ch.hp - storm_dmg < 1) 1 else ch.hp - storm_dmg },
       inv' = inv, eqp' = eqp,
       cb' = cb,
-      meta' = { ...meta, q2_zones: if (quest1_complete and zone_level(w.pos_x + 1, w.pos_y) >= 2 and meta.q2_zones < Q2_TARGET) meta.q2_zones + 1 else meta.q2_zones },
+      meta' = { ...meta, q2_zones: if (quest1_complete and zone_level(w.pos_x + 1, w.pos_y) >= 2 and not(w.visited.contains((w.pos_x + 1, w.pos_y))) and meta.q2_zones < Q2_TARGET) meta.q2_zones + 1 else meta.q2_zones },
       comp' = comp,
     }
   }
@@ -1401,7 +1401,7 @@ module quint_crawl {
       w' = { ...w, pos_x: target._1, pos_y: target._2, turn_count: w.turn_count + 1,
              visited: w.visited.union(Set((target._1, target._2))) },
       ch' = ch, inv' = inv, eqp' = eqp, cb' = cb,
-      meta' = { ...meta, q2_zones: if (quest1_complete and zone_level(target._1, target._2) >= 2 and meta.q2_zones < Q2_TARGET) meta.q2_zones + 1 else meta.q2_zones },
+      meta' = { ...meta, q2_zones: if (quest1_complete and zone_level(target._1, target._2) >= 2 and not(w.visited.contains(target)) and meta.q2_zones < Q2_TARGET) meta.q2_zones + 1 else meta.q2_zones },
       comp' = comp,
     }
   }

@@ -605,12 +605,13 @@ fast_travel :: proc(g: ^Game_State, tx, ty: int) -> bool {
 	if !g.waypoints[tx][ty] do return false
 	if tx == g.pos_x && ty == g.pos_y do return false  // already there
 	if zone_level(tx, ty) > g.level do return false
+	was_visited := g.visited[tx][ty]
 	g.pos_x = tx
 	g.pos_y = ty
 	g.turn_count += 1
 	g.visited[tx][ty] = true
-	// Quest 2: count ZL2+ zone entries after Q1 complete
-	if g.q1_kills >= Q1_TARGET && zone_level(tx, ty) >= 2 && g.q2_zones < Q2_TARGET {
+	// Quest 2: count NEW ZL2+ zone entries after Q1 complete
+	if g.q1_kills >= Q1_TARGET && zone_level(tx, ty) >= 2 && !was_visited && g.q2_zones < Q2_TARGET {
 		g.q2_zones += 1
 	}
 	return true
@@ -621,6 +622,7 @@ move :: proc(g: ^Game_State, dx, dy: int) -> bool {
 	if nx < 0 || nx >= WORLD_SIZE || ny < 0 || ny >= WORLD_SIZE do return false
 	if !can_act_map(g) do return false
 	if zone_level(nx, ny) > g.level do return false
+	was_visited := g.visited[nx][ny]
 	g.pos_x = nx
 	g.pos_y = ny
 	g.turn_count += 1
@@ -629,8 +631,8 @@ move :: proc(g: ^Game_State, dx, dy: int) -> bool {
 	if zone_has_services(nx, ny) {
 		g.waypoints[nx][ny] = true
 	}
-	// Quest 2: count ZL2+ zone entries after Q1 complete
-	if g.q1_kills >= Q1_TARGET && zone_level(nx, ny) >= 2 && g.q2_zones < Q2_TARGET {
+	// Quest 2: count NEW ZL2+ zone entries after Q1 complete
+	if g.q1_kills >= Q1_TARGET && zone_level(nx, ny) >= 2 && !was_visited && g.q2_zones < Q2_TARGET {
 		g.q2_zones += 1
 	}
 	// Storm damage (can't kill — floor at 1)
