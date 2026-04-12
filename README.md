@@ -25,7 +25,7 @@ Controls: WASD to move, E to fight, A to attack, K for combo, H for heavy strike
 
 Features:
 - 9x9 world grid with 5 difficulty levels and biome tiling (3x3 pattern repeats across regions)
-- Turn-based combat against 5 enemy tiers (Slime, Skeleton, Wolf, Wraith, Dragon)
+- Turn-based combat against a data-driven bestiary: 200 named enemies across 20 archetypes (4 per tier, 5 tiers) with 6 trait tags (Undead, Beast, Elemental, Construct, Humanoid, Aberration) and trait-keyed secondary loot drops
 - Mouse hover tooltips showing zone name, level, and available actions
 - HUD minimap with biome region overview
 - Stamina system — actions cost stamina, restored by resting
@@ -136,7 +136,7 @@ justfile               Task runner for common workflows
 | **fog_of_war** | Exploration reveal system | Revealed tiles monotonic, visibility radius bounded |
 | **permadeath** | Permadeath with legacy bonuses | Death permanent, legacy bonuses carry forward |
 | **bounty** | Bounty board quest system | Bounty rewards match difficulty, completion tracked |
-| **quint_crawl** | Full RPG game state machine (9x9 grid, 5 levels, data-driven companions) | HP bounded, gold non-negative, level gates, durability bounded, combo bounded, stamina bounded, cooldowns bounded (incl. fortify), loot pity bounded, status effects bounded, weather deterministic, skill points non-negative, skill prereqs respected, venom sac non-negative, enemy element bounded, enchant slots bounded, no fire/ice incompatible, enemy element only in combat, inventory bounded, salvage level bounded, quest counters bounded, quest prereqs respected, companion trait+rarity bounded, loyalty bounded, inactive=no loyalty, comp atk/def derived effects bounded, companion quest counters+prereqs respected, win condition correct |
+| **quint_crawl** | Full RPG game state machine (9x9 grid, 5 levels, data-driven companions) | HP bounded, gold non-negative, level gates, durability bounded, combo bounded, stamina bounded, cooldowns bounded (incl. fortify), loot pity bounded, status effects bounded, weather deterministic, skill points non-negative, skill prereqs respected, venom sac non-negative, enemy element bounded, enchant slots bounded, no fire/ice incompatible, enemy element only in combat, inventory bounded, salvage level bounded, quest counters bounded, quest prereqs respected, companion trait+rarity bounded, loyalty bounded, inactive=no loyalty, comp atk/def derived effects bounded, companion quest counters+prereqs respected, visited tiles in bounds, waypoints only on service zones, last_kill_turn bounded, companion inactive zeroed, victory preconditions, win condition correct |
 
 ## Quick start
 
