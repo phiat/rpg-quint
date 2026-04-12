@@ -16,6 +16,7 @@ module quint_crawl {
     qty_battery: int,
     qty_scroll_fire: int,
     qty_holy_dust: int, qty_holy_water: int,
+    qty_bomb: int, qty_smoke: int, qty_ration: int,
   }
 
   type EquipState = {
@@ -203,6 +204,13 @@ module quint_crawl {
   // Treasure chests: deterministic placement, one-time gold reward per chest.
   val CHEST_GOLD_BASE = 15
   val CHEST_GOLD_PER_TIER = 10
+  // Consumables: bombs (combat, flat dmg bypassing DEF), smoke bombs
+  // (guaranteed flee, no penalty), rations (out-of-combat stamina).
+  val BOMB_COST = 20
+  val BOMB_DAMAGE = 15
+  val SMOKE_COST = 15
+  val RATION_COST = 10
+  val RATION_STAMINA = 6
   val PISTOL_STAMINA = 2
   val PISTOL_BASE_BONUS = 4
   val CRAFT_LEVEL_REQ = 2
@@ -440,7 +448,7 @@ module quint_crawl {
   val player_elem_mult = damage_multiplier(player_element, cb.enemy_element)
 
   // --- Inventory helpers ---
-  val total_items = inv.qty_potion + inv.qty_wood + inv.qty_iron + inv.qty_sword + inv.qty_venom_sac + inv.qty_battery + inv.qty_scroll_fire + inv.qty_holy_dust + inv.qty_holy_water
+  val total_items = inv.qty_potion + inv.qty_wood + inv.qty_iron + inv.qty_sword + inv.qty_venom_sac + inv.qty_battery + inv.qty_scroll_fire + inv.qty_holy_dust + inv.qty_holy_water + inv.qty_bomb + inv.qty_smoke + inv.qty_ration
 
   // Salvage recovery
   pure def salvage_wood_yield(slvl: int): int = SALVAGE_WOOD_BASE + (slvl - 1)
@@ -471,6 +479,7 @@ module quint_crawl {
       has_sword: false, qty_venom_sac: 0, salvage_level: 1,
       qty_battery: 0,
       qty_holy_dust: 0, qty_holy_water: 0,
+      qty_bomb: 0, qty_smoke: 0, qty_ration: 0,
     },
     eqp' = {
       sword_dur: 0, sword_max_dur: SWORD_MAX_DUR,
@@ -1703,6 +1712,104 @@ module quint_crawl {
     inv' = inv, eqp' = eqp, cb' = cb, meta' = meta, comp' = comp,
   }
 
+  // === Consumables: bombs, smoke bombs, rations (village buys + uses) ===
+  action buy_bomb = all {
+    not(cb.in_combat), not(meta.game_won), ch.hp > 0,
+    zone_has_services(w.pos_x, w.pos_y),
+    ch.gold >= BOMB_COST,
+    total_items < MAX_INVENTORY,
+    ch' = { ...ch, gold: ch.gold - BOMB_COST },
+    inv' = { ...inv, qty_bomb: inv.qty_bomb + 1 },
+    eqp' = eqp, cb' = cb,
+    w' = { ...w, turn_count: w.turn_count + 1 },
+    meta' = meta, comp' = comp,
+  }
+
+  action buy_smoke = all {
+    not(cb.in_combat), not(meta.game_won), ch.hp > 0,
+    zone_has_services(w.pos_x, w.pos_y),
+    ch.gold >= SMOKE_COST,
+    total_items < MAX_INVENTORY,
+    ch' = { ...ch, gold: ch.gold - SMOKE_COST },
+    inv' = { ...inv, qty_smoke: inv.qty_smoke + 1 },
+    eqp' = eqp, cb' = cb,
+    w' = { ...w, turn_count: w.turn_count + 1 },
+    meta' = meta, comp' = comp,
+  }
+
+  action buy_ration = all {
+    not(cb.in_combat), not(meta.game_won), ch.hp > 0,
+    zone_has_services(w.pos_x, w.pos_y),
+    ch.gold >= RATION_COST,
+    total_items < MAX_INVENTORY,
+    ch' = { ...ch, gold: ch.gold - RATION_COST },
+    inv' = { ...inv, qty_ration: inv.qty_ration + 1 },
+    eqp' = eqp, cb' = cb,
+    w' = { ...w, turn_count: w.turn_count + 1 },
+    meta' = meta, comp' = comp,
+  }
+
+  // Bomb: in-combat flat damage bypassing DEF. Enemy retaliates (combat_potion pattern).
+  action use_bomb = all {
+    cb.in_combat, not(meta.game_won), inv.qty_bomb > 0, ch.hp > 0,
+    val new_enemy_hp = if (cb.enemy_hp - BOMB_DAMAGE < 0) 0 else cb.enemy_hp - BOMB_DAMAGE
+    val combat_ends = (new_enemy_hp <= 0)
+    val poison_tick = player_poison_tick
+    val incoming = if (combat_ends) 0 else incoming_enemy_dmg
+    val new_hp = ch.hp - incoming - poison_tick
+    val ticked = tick_statuses(cb, false)
+    all {
+      ch' = { ...ch, hp: if (new_hp < 0) 0 else new_hp },
+      inv' = { ...inv, qty_bomb: inv.qty_bomb - 1 },
+      eqp' = eqp,
+      cb' = { in_combat: if (combat_ends) false else true,
+              enemy_hp: if (combat_ends) 0 else new_enemy_hp,
+              enemy_attack: if (combat_ends) 0 else cb.enemy_attack,
+              enemy_element: if (combat_ends) 0 else cb.enemy_element,
+              combo_count: 0,
+              player_poison_dur: if (combat_ends) 0 else ticked.player_poison_dur,
+              player_atk_buff_dur: if (combat_ends) 0 else ticked.player_atk_buff_dur,
+              player_def_buff_dur: if (combat_ends) 0 else ticked.player_def_buff_dur,
+              enemy_poison_dur: if (combat_ends) 0 else ticked.enemy_poison_dur,
+              cd_heavy_strike: if (combat_ends) 0 else ticked.cd_heavy_strike,
+              cd_battle_cry: if (combat_ends) 0 else ticked.cd_battle_cry,
+              cd_fortify: if (combat_ends) 0 else ticked.cd_fortify,
+      },
+      w' = { ...w, turn_count: w.turn_count + 1 },
+      meta' = meta, comp' = comp,
+    }
+  }
+
+  // Smoke bomb: guaranteed escape, no damage penalty.
+  action use_smoke = all {
+    cb.in_combat, not(meta.game_won), inv.qty_smoke > 0, ch.hp > 0,
+    ch' = ch,
+    inv' = { ...inv, qty_smoke: inv.qty_smoke - 1 },
+    eqp' = eqp,
+    cb' = { in_combat: false, enemy_hp: 0, enemy_attack: 0, enemy_element: 0,
+            combo_count: 0, player_poison_dur: 0, player_atk_buff_dur: 0,
+            player_def_buff_dur: 0, enemy_poison_dur: 0,
+            cd_heavy_strike: 0, cd_battle_cry: 0, cd_fortify: 0 },
+    w' = { ...w, turn_count: w.turn_count + 1 },
+    meta' = meta, comp' = comp,
+  }
+
+  // Ration: out-of-combat stamina restore.
+  action use_ration = all {
+    not(cb.in_combat), not(meta.game_won), ch.hp > 0,
+    inv.qty_ration > 0,
+    ch.stamina < ch.max_stamina,
+    val new_stam = if (ch.stamina + RATION_STAMINA > ch.max_stamina) ch.max_stamina
+                   else ch.stamina + RATION_STAMINA
+    all {
+      ch' = { ...ch, stamina: new_stam },
+      inv' = { ...inv, qty_ration: inv.qty_ration - 1 },
+      eqp' = eqp, cb' = cb,
+      w' = { ...w, turn_count: w.turn_count + 1 },
+      meta' = meta, comp' = comp,
+    }
+  }
+
   // === Use holy water (out-of-combat full heal) ===
   action use_holy_water = all {
     not(cb.in_combat), not(meta.game_won), ch.hp > 0,
@@ -1978,6 +2085,8 @@ module quint_crawl {
     buy_scroll_fire, use_scroll_fire,
     craft_holy_water, use_holy_water,
     open_chest,
+    buy_bomb, buy_smoke, buy_ration,
+    use_bomb, use_smoke, use_ration,
   }
 
   // === Invariants ===
@@ -2017,6 +2126,9 @@ module quint_crawl {
     inv.qty_scroll_fire >= 0,
     inv.qty_holy_dust >= 0,
     inv.qty_holy_water >= 0,
+    inv.qty_bomb >= 0,
+    inv.qty_smoke >= 0,
+    inv.qty_ration >= 0,
   }
 
   /// Can only be in a zone you're qualified for

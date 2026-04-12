@@ -213,3 +213,46 @@ use_holy_water :: proc(g: ^Game_State) -> bool {
 	return true
 }
 
+buy_bomb :: proc(g: ^Game_State) -> bool {
+	if !can_act_map(g) do return false
+	if !zone_has_services(g.pos_x, g.pos_y) do return false
+	if g.gold < BOMB_COST do return false
+	if total_items(g) >= MAX_INVENTORY do return false
+	g.turn_count += 1
+	g.gold -= BOMB_COST
+	g.qty_bomb += 1
+	return true
+}
+
+buy_smoke :: proc(g: ^Game_State) -> bool {
+	if !can_act_map(g) do return false
+	if !zone_has_services(g.pos_x, g.pos_y) do return false
+	if g.gold < SMOKE_COST do return false
+	if total_items(g) >= MAX_INVENTORY do return false
+	g.turn_count += 1
+	g.gold -= SMOKE_COST
+	g.qty_smoke += 1
+	return true
+}
+
+buy_ration :: proc(g: ^Game_State) -> bool {
+	if !can_act_map(g) do return false
+	if !zone_has_services(g.pos_x, g.pos_y) do return false
+	if g.gold < RATION_COST do return false
+	if total_items(g) >= MAX_INVENTORY do return false
+	g.turn_count += 1
+	g.gold -= RATION_COST
+	g.qty_ration += 1
+	return true
+}
+
+use_ration :: proc(g: ^Game_State) -> bool {
+	if !can_act_map(g) do return false
+	if g.qty_ration < 1 do return false
+	if g.stamina >= g.max_stamina do return false
+	g.turn_count += 1
+	g.qty_ration -= 1
+	g.stamina = min(g.stamina + RATION_STAMINA, g.max_stamina)
+	return true
+}
+

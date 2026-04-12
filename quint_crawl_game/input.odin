@@ -302,6 +302,35 @@ handle_map_input :: proc(app: ^App_State) {
 		}
 	}
 
+	// Buy bomb (village)
+	if rl.IsKeyPressed(.F) {
+		if qc.buy_bomb(g) {
+			add_message(app, fmt.tprintf("Bought Bomb (%dg).", qc.BOMB_COST), TEXT_GOLD)
+		}
+	}
+
+	// Buy smoke bomb (village)
+	if rl.IsKeyPressed(.SLASH) {
+		if qc.buy_smoke(g) {
+			add_message(app, fmt.tprintf("Bought Smoke Bomb (%dg).", qc.SMOKE_COST), TEXT_GOLD)
+		}
+	}
+
+	// Buy ration (village)
+	if rl.IsKeyPressed(.APOSTROPHE) {
+		if qc.buy_ration(g) {
+			add_message(app, fmt.tprintf("Bought Ration (%dg).", qc.RATION_COST), TEXT_GOLD)
+		}
+	}
+
+	// Use ration (out of combat, restore stamina)
+	if rl.IsKeyPressed(.MINUS) {
+		old_stam := g.stamina
+		if qc.use_ration(g) {
+			add_message(app, fmt.tprintf("Ate a ration. +%d stamina.", g.stamina - old_stam), {200, 220, 140, 255})
+		}
+	}
+
 	// Open treasure chest (chest zones, one-time)
 	if rl.IsKeyPressed(.Z) {
 		if qc.chest_present(g.pos_x, g.pos_y) && !g.chests_opened[g.pos_x][g.pos_y] {
@@ -461,6 +490,29 @@ handle_combat_input :: proc(app: ^App_State) {
 			} else {
 				handle_combat_damage(app, old_hp, old_poison, {255, 50, 50, 80})
 			}
+		}
+	}
+
+	// Bomb (combat: flat damage, bypasses DEF)
+	if rl.IsKeyPressed(.B) {
+		old_enemy_hp := g.enemy_hp
+		old_hp := g.hp
+		if qc.use_bomb(g) {
+			dealt := old_enemy_hp - g.enemy_hp
+			add_message(app, fmt.tprintf("Threw bomb! %d damage.", dealt), {255, 160, 60, 255})
+			if old_hp > g.hp {
+				add_message(app, fmt.tprintf("Enemy hits you for %d!", old_hp - g.hp), BAR_HP_FG)
+				app.shake_timer = 0.15
+				app.flash_color = {255, 50, 50, 60}
+				app.flash_timer = 0.1
+			}
+		}
+	}
+
+	// Smoke bomb (combat: guaranteed escape, no damage)
+	if rl.IsKeyPressed(.M) {
+		if qc.use_smoke(g) {
+			add_message(app, "Smoke bomb! Vanished cleanly.", {200, 200, 220, 255})
 		}
 	}
 

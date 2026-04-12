@@ -58,6 +58,8 @@ The game logic in `quint_crawl/` is the single source of truth — shared by bot
 | P | Use potion |
 | V | Apply poison (venom sac) |
 | X | Antidote |
+| B | Throw bomb (flat damage, bypasses DEF) |
+| M | Smoke bomb (guaranteed escape) |
 
 ### Exploration
 
@@ -67,12 +69,16 @@ The game logic in `quint_crawl/` is the single source of truth — shared by bot
 | G | Gather wood |
 | M | Mine iron |
 | Z | Open treasure chest (chest zones only) |
+| - | Eat ration (restore stamina) |
 
 ### Village
 
 | Key | Action |
 |-----|--------|
 | B | Buy potions |
+| F | Buy bombs |
+| / | Buy smoke bombs |
+| ' | Buy rations |
 | C | Craft sword (Level 2+) |
 | Q | Equip |
 | T | Repair sword |

@@ -65,6 +65,11 @@ COMP_RARITY_COUNT      :: 3
 ADOPT_BASE_COST        :: 1   // wood cost baseline; scales with rarity
 SWORD_ATK_BONUS :: 5
 POTION_COST :: 15
+BOMB_COST :: 20
+BOMB_DAMAGE :: 15
+SMOKE_COST :: 15
+RATION_COST :: 10
+RATION_STAMINA :: 6
 HP_PER_LEVEL :: 15
 ATK_PER_LEVEL_UP :: 2
 STAMINA_PER_LEVEL :: 2
@@ -181,6 +186,9 @@ Save_Data :: struct {
 	qty_scroll_fire: int,
 	qty_holy_dust: int,
 	qty_holy_water: int,
+	qty_bomb:      int,
+	qty_smoke:     int,
+	qty_ration:    int,
 	qty_pelt:      int,
 	qty_core:      int,
 	qty_essence:   int,
@@ -291,6 +299,9 @@ Game_State :: struct {
 	// gold / qty_venom_sac because those are spec-tracked.
 	qty_holy_dust:       int,  // Undead
 	qty_holy_water:      int,  // Crafted from holy_dust (spec-visible)
+	qty_bomb:            int,
+	qty_smoke:           int,
+	qty_ration:          int,
 	qty_pelt:            int,  // Beast
 	qty_core:            int,  // Construct
 	qty_essence:         int,  // Elemental
@@ -569,7 +580,8 @@ attack_power :: proc(g: ^Game_State) -> int {
 total_items :: proc(g: ^Game_State) -> int {
 	return g.qty_potion + g.qty_wood + g.qty_iron + g.qty_sword + g.qty_venom_sac + g.qty_battery +
 		g.qty_scroll_fire +
-		g.qty_holy_dust + g.qty_holy_water + g.qty_pelt + g.qty_core + g.qty_essence + g.qty_coin + g.qty_ichor
+		g.qty_holy_dust + g.qty_holy_water + g.qty_bomb + g.qty_smoke + g.qty_ration +
+		g.qty_pelt + g.qty_core + g.qty_essence + g.qty_coin + g.qty_ichor
 }
 
 salvage_wood_yield :: proc(slvl: int) -> int {
@@ -638,6 +650,9 @@ init_game :: proc(g: ^Game_State) {
 	g.qty_scroll_fire = 0
 	g.qty_holy_dust = 0
 	g.qty_holy_water = 0
+	g.qty_bomb = 0
+	g.qty_smoke = 0
+	g.qty_ration = 0
 	g.qty_pelt = 0
 	g.qty_core = 0
 	g.qty_essence = 0

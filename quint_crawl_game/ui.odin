@@ -295,6 +295,9 @@ draw_hud :: proc(app: ^App_State) {
 		if qc.zone_has_services(g.pos_x, g.pos_y) {
 			draw_action(x, &y, "[R]", "Rest", g.hp < g.max_hp || g.stamina < g.max_stamina)
 			draw_action(x, &y, "[B]", fmt.ctprintf("Buy Potion (%dg)", qc.POTION_COST), g.gold >= qc.POTION_COST)
+			draw_action(x, &y, "[F]", fmt.ctprintf("Buy Bomb (%dg)", qc.BOMB_COST), g.gold >= qc.BOMB_COST)
+			draw_action(x, &y, "[/]", fmt.ctprintf("Buy Smoke (%dg)", qc.SMOKE_COST), g.gold >= qc.SMOKE_COST)
+			draw_action(x, &y, "[']", fmt.ctprintf("Buy Ration (%dg)", qc.RATION_COST), g.gold >= qc.RATION_COST)
 			if !g.skill_magic {
 				draw_action(x, &y, "[[]", fmt.ctprintf("Spellbook (%dg)", qc.SPELLBOOK_COST), g.gold >= qc.SPELLBOOK_COST)
 			}
@@ -351,6 +354,9 @@ draw_hud :: proc(app: ^App_State) {
 		}
 		if g.qty_holy_water >= 1 {
 			draw_action(x, &y, "[I]", "Use Holy Water", g.hp < g.max_hp)
+		}
+		if g.qty_ration >= 1 {
+			draw_action(x, &y, "[-]", "Eat Ration (+stam)", g.stamina < g.max_stamina)
 		}
 
 		// Castle: fight boss first, then claim victory

@@ -316,6 +316,59 @@ flee_combat :: proc(g: ^Game_State) -> bool {
 	return true
 }
 
+use_bomb :: proc(g: ^Game_State) -> bool {
+	if !g.in_combat || g.game_won || g.qty_bomb <= 0 || g.hp <= 0 do return false
+	g.turn_count += 1
+	g.qty_bomb -= 1
+	new_enemy_hp := g.enemy_hp - BOMB_DAMAGE
+	if new_enemy_hp < 0 do new_enemy_hp = 0
+	g.enemy_hp = new_enemy_hp
+	combat_ends := (new_enemy_hp <= 0)
+	poison_dmg := POISON_DMG if g.player_poison_dur > 0 else 0
+	if !combat_ends {
+		enemy_dmg := enemy_free_hit_damage(g, enchant_def_bonus(g))
+		g.hp = max(g.hp - enemy_dmg - poison_dmg, 0)
+	} else {
+		g.hp = max(g.hp - poison_dmg, 0)
+	}
+	g.combo_count = 0
+	if g.hp <= 0 || combat_ends {
+		g.in_combat = false
+		g.enemy_hp = 0
+		g.enemy_attack = 0
+		g.enemy_element = 0
+		g.player_poison_dur = 0
+		g.player_atk_buff_dur = 0
+		g.player_def_buff_dur = 0
+		g.enemy_poison_dur = 0
+		reset_cooldowns(g)
+	} else {
+		if g.player_poison_dur > 0 do g.player_poison_dur -= 1
+		if g.player_atk_buff_dur > 0 do g.player_atk_buff_dur -= 1
+		if g.player_def_buff_dur > 0 do g.player_def_buff_dur -= 1
+		if g.enemy_poison_dur > 0 do g.enemy_poison_dur -= 1
+		tick_cooldowns(g)
+	}
+	return true
+}
+
+use_smoke :: proc(g: ^Game_State) -> bool {
+	if !g.in_combat || g.game_won || g.qty_smoke <= 0 || g.hp <= 0 do return false
+	g.turn_count += 1
+	g.qty_smoke -= 1
+	g.in_combat = false
+	g.enemy_hp = 0
+	g.enemy_attack = 0
+	g.enemy_element = 0
+	g.player_poison_dur = 0
+	g.player_atk_buff_dur = 0
+	g.player_def_buff_dur = 0
+	g.enemy_poison_dur = 0
+	g.combo_count = 0
+	reset_cooldowns(g)
+	return true
+}
+
 use_antidote :: proc(g: ^Game_State) -> bool {
 	if !g.in_combat || g.game_won || g.hp <= 0 do return false
 	if g.qty_potion <= 0 || g.player_poison_dur <= 0 do return false
