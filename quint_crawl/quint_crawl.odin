@@ -137,6 +137,8 @@ Save_Data :: struct {
 	qty_pelt:      int,
 	qty_core:      int,
 	qty_essence:   int,
+	qty_coin:      int,
+	qty_ichor:     int,
 	enemy_element: int,
 	enchant_slot_1: int,
 	enchant_slot_2: int,
@@ -212,11 +214,16 @@ Game_State :: struct {
 	respec_count:        int,
 	// Venom sac
 	qty_venom_sac:       int,
-	// Trait-keyed archetype loot (Odin-only, not in MBT spec contract)
+	// Trait-keyed archetype loot (Odin-only, not in MBT spec contract).
+	// All six fields are invisible to the getter so the spec contract
+	// stays untouched. Humanoid and Aberration intentionally do NOT reuse
+	// gold / qty_venom_sac because those are spec-tracked.
 	qty_holy_dust:       int,  // Undead
 	qty_pelt:            int,  // Beast
 	qty_core:            int,  // Construct
 	qty_essence:         int,  // Elemental
+	qty_coin:            int,  // Humanoid (bonus trophy coins, not treasury gold)
+	qty_ichor:           int,  // Aberration
 	// Active enemy archetype trait (set at enter_combat; drives resolve_loot branch)
 	enemy_trait:         Enemy_Trait,
 	// Elemental & Enchantment
@@ -529,6 +536,8 @@ init_game :: proc(g: ^Game_State) {
 	g.qty_pelt = 0
 	g.qty_core = 0
 	g.qty_essence = 0
+	g.qty_coin = 0
+	g.qty_ichor = 0
 	g.enemy_trait = .Aberration
 	g.enemy_element = 0
 	g.enchant_slot_1 = 0
@@ -705,12 +714,9 @@ resolve_loot :: proc(g: ^Game_State) {
 		case .Elemental:
 			g.qty_essence += 1
 		case .Humanoid:
-			g.gold += GOLD_PER_LEVEL
+			g.qty_coin += 1
 		case .Aberration:
-			// Aberration reuses venom sac but respects inventory cap.
-			if total_items(g) < MAX_INVENTORY {
-				g.qty_venom_sac += 1
-			}
+			g.qty_ichor += 1
 		}
 	}
 }
@@ -1608,6 +1614,8 @@ save_game :: proc(g: ^Game_State) -> bool {
 		qty_pelt      = g.qty_pelt,
 		qty_core      = g.qty_core,
 		qty_essence   = g.qty_essence,
+		qty_coin      = g.qty_coin,
+		qty_ichor     = g.qty_ichor,
 		enemy_element = g.enemy_element,
 		enchant_slot_1 = g.enchant_slot_1,
 		enchant_slot_2 = g.enchant_slot_2,
@@ -1665,6 +1673,8 @@ load_game :: proc(g: ^Game_State) -> bool {
 	g.qty_pelt      = s.qty_pelt
 	g.qty_core      = s.qty_core
 	g.qty_essence   = s.qty_essence
+	g.qty_coin      = s.qty_coin
+	g.qty_ichor     = s.qty_ichor
 	g.enemy_element = s.enemy_element
 	g.enchant_slot_1 = s.enchant_slot_1
 	g.enchant_slot_2 = s.enchant_slot_2

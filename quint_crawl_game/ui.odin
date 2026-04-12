@@ -108,6 +108,14 @@ draw_hud :: proc(app: ^App_State) {
 		rl.DrawText(fmt.ctprintf("Essence: %d", g.qty_essence), x + 8, y, 14, {180, 140, 230, 255})
 		y += 18
 	}
+	if g.qty_coin > 0 {
+		rl.DrawText(fmt.ctprintf("Trophy Coins: %d", g.qty_coin), x + 8, y, 14, {220, 200, 120, 255})
+		y += 18
+	}
+	if g.qty_ichor > 0 {
+		rl.DrawText(fmt.ctprintf("Ichor: %d", g.qty_ichor), x + 8, y, 14, {140, 200, 140, 255})
+		y += 18
+	}
 
 	if g.has_sword {
 		dur_color := TEXT_BRIGHT if g.sword_dur > 3 else BAR_HP_FG
