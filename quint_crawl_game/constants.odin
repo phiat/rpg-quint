@@ -4,20 +4,20 @@ import qc "../quint_crawl"
 import rl "vendor:raylib"
 
 // Window
-WINDOW_W :: 960
-WINDOW_H :: 720
+WINDOW_W :: 1120
+WINDOW_H :: 880
 
 // Map area (left side)
 MAP_X :: 0
 MAP_Y :: 0
-MAP_SIZE :: 720
+MAP_SIZE :: 800
 TILE_PAD :: 4
 TILE_OFFSET :: TILE_PAD  // offset from top-left of map area
 TILE_SIZE :: (MAP_SIZE - TILE_OFFSET - TILE_PAD * (qc.WORLD_SIZE - 1)) / qc.WORLD_SIZE
 
 // HUD (right sidebar)
-HUD_X :: 720
-HUD_W :: 240
+HUD_X :: 800
+HUD_W :: 320
 HUD_PAD :: 12
 
 // Messages

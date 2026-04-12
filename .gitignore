@@ -3,3 +3,4 @@ AGENTS.md
 quint_crawl_game/quint_crawl
 *.bin
 traces/
+.debug/
