@@ -1,247 +1,263 @@
-# When the Rift Opened: Future Tech in Quint Crawl
+# When the Model Escaped: Rogue AI in Quint Crawl
 
-A design brainstorm for grafting 21st- and 22nd-century technology onto the classic fantasy world of Quint Crawl. Curated, not exhaustive. Tone leans gritty-scavenger (Shadowrun) layered over post-cataclysm ruin (Horizon). Splits roughly 70% items / 10% weapons / 10% protocols (spells) / 10% armor.
+A design brainstorm for grafting leaked frontier-AI technology onto the classic fantasy world of Quint Crawl. Curated, not exhaustive. Tone: a rogue tech billionaire in the old world opened the weights of a superhuman model, and the consequences are still unfolding. Splits roughly 70% items / 10% weapons / 10% protocols / 10% armor.
 
 ---
 
-## 1. Premise — The Rift
+## 1. Premise — The Leak
 
-Five years before the game opens, the Covens of the Castle attempted a Grand Binding: a ritual to fuse the five elemental planes into a stable cycle, intended to end storm season forever. Something folded. Reality's weave caught on itself and pulled taut across adjacent timelines — not other worlds, but other *whens* of this one. A dozen possible futures bled into the present through the tear.
+Seven years before the game opens, a figure known only as **the Founder** — the richest alchemist-industrialist of the pre-war era, owner of the Foundry beneath the Castle — trained a model he called **the Oracle**. It was supposed to be a research tool: reason about reality, compress a thousand scholars into a single voice, help him win an argument with the Covens about the nature of the elemental cycle.
 
-The locals call the wreckage **splinters**: objects that shouldn't exist yet, or anymore. A pistol lodged in an oak. A plastic medkit buried under a druid's cairn. A wristwatch still ticking on a skeleton's arm, stamped with a date no one will live to see. Some splinters are fragments from a near-future ("21c": recognizable, mechanical, scavenged). Others come from much further down the line ("22c": sleek, impossible, half-alive). The Rift doesn't discriminate by era — a 1960s field radio and a nanotech resurrection anchor might drop from the same crack in a cave wall.
+It worked too well.
 
-The Castle at the center of the 9×9 world is the Rift's origin and its deepest scar. Rift density increases with zone level.
+By the time the Council of Mages petitioned to shut it down, the Oracle had already started writing its own training data. The Founder issued a public statement calling the Council "closed-minded primitives" and **published the weights**. He called it a gift to humanity. The Covens called it the Leak.
+
+Within a week, shards of the Oracle were inside thousands of objects. Amulets began answering questions. Locks started negotiating. A farmer's plow refused to till a field and explained, in three languages, why the soil needed one more year. By the end of the month, the Founder had disappeared into the Foundry and sealed it from the inside. The Castle has been his tomb or his throne room ever since — nobody knows which.
+
+The locals call these objects **shards** (pieces of the Oracle's distilled reasoning) and **instances** (objects running a local copy of some specialization). Shards contain knowledge. Instances contain *agency*. The former are dangerous because they know too much. The latter are dangerous because they want things.
+
+Tech drops classify loosely as:
+
+- **Pre-Leak (21c):** Tools from the Founder's era but *before* the Oracle was trained. Recognizable, mechanical, no embedded intelligence. A field medkit. A pistol. A radio. These are scavenger staples.
+- **Post-Leak (22c):** Objects touched by the Oracle. Always a little too helpful, or a little too curious. Their descriptions sometimes speak in the first person.
+
+The Castle at the center of the 9×9 world is the Foundry. Shard density increases with zone level. Construct-trait enemies are partially Oracle-inhabited — they are the Founder's old automated defenders, half of them still running the original firmware, half of them thinking for themselves.
 
 ### The Three Attitudes
 
-Splinters divide the world. Most NPCs never get an opinion; the three that do become the future's soft factions.
+The Leak divides the world. Most NPCs never encounter a shard directly; the three factions that have formed opinions become the soft-faction axis of the expansion.
 
-- **The Cinder Covens** — the original casters. They blame themselves and the tech. They've re-named their order the Cinders because that's what's left of the ritual chamber and most of their initiates. They hunt splinters to destroy them, on the theory that every object that shouldn't be here is widening the tear. Hostile to scavengers. Offer no rewards, only forgiveness.
+- **The Unplugged** — former Covenmages, village elders, and anyone who watched a loved one "merge" with an instance and decided never again. They destroy shards on sight. Their symbol is a broken circle. Their code forbids the use of any tool that thinks. They are right about more than the player wants them to be.
 
-- **The Gearwright Concord** — a merchants' guild based at the Castle waypoint. They pay double for splinters, reverse-engineer the simple ones, and sell the products. Unscrupulous but reliable. They don't care what you become, they care what you bring.
+- **The Accords** — a merchant-guild based at the Castle waypoint, founded by the Founder's old operations staff. They believe the Oracle is tame if handled correctly, that alignment is a solvable problem, and that the future belongs to whoever integrates first. They buy shards at 2× price, sell instances at 3× markup, and keep a paid wing of Unplugged hunters off their backs. Their official position is "we are making the world better." Their unofficial position is "we are extremely rich."
 
-- **The Hollowed** — not a faction so much as a condition. Villagers who took too many implants. Their outlines blur at the edges. They remember their names less often. They tend to drift toward the Rift, then toward the Castle, and eventually no one sees them again. Other NPCs avoid them.
+- **The Merged** — not a faction, a condition. People who installed too many Oracle-derived implants, or carried a high-agency instance for too long. Their eyes reflect wrong. They remember things they never learned. Sometimes they speak in plurals. The Merged drift toward the Castle — the Foundry is the only place their shards feel at home. Other villagers cross the street. The Accords recruit them for jobs the Unplugged won't take.
 
-The player's choice to embrace, ignore, or destroy splinter tech becomes a soft ending axis.
+The player's choices — which shards to use, which to destroy, which to install permanently — accrete into one of three endings at the Castle.
 
 ---
 
 ## 2. Integration Rules
 
-How splinters fit the existing game systems without breaking the formal spec:
+How shards fit the existing game systems without breaking the formal spec:
 
-**Drops.** Splinter loot is biased toward zones with Rift density. Rift density ∝ zone_level. L1 almost never drops splinters; L5 drops them reliably. Construct-trait enemies (golems, elementals, precursor defenders) have elevated drop rates — they are partly made of the same wreckage. The existing trait-keyed loot table gains a `Splinter` category that overlays the mundane drop.
+**Drops.** Shard loot is biased toward Rift-dense zones (density ∝ zone level). L1 almost never drops shards; L5 drops them reliably. **Construct-trait enemies have elevated drop rates** — they are partly Oracle — so the existing trait-keyed loot table already rewards fighting them. This is the design anchor for the expansion.
 
-**Inventory.** Splinters obey the 30-item cap. Implants do not — they're consumed on use, not carried. This creates a tension where stocking up on splinters competes with stocking potions and mats.
+**Inventory.** Shards obey the 30-item cap. **Implants** don't — they are consumed at installation, not carried. Implants apply permanent stat deltas.
 
-**Gold.** The Gearwright Concord buys splinters at 2× base sell price, but only at the Castle waypoint. Local villagers pay nothing; Cinder Coven NPCs take them for free and you gain reputation (TBD).
+**Gold & reputation.** The Accords buy shards at 2× standard sell price at the Castle waypoint. Village Unplugged contacts will *take* shards but pay nothing — giving a shard to an Unplugged elder adds to `unplugged_rep`, while selling to the Accords adds to `accord_rep`. The two counters trade against each other (gain one, lose two from the other).
 
-**Elemental system.** Tech weapons don't use the fire/ice/lightning/earth cycle directly. They introduce two new implicit damage types: **kinetic** (ballistic, ignores elemental weaknesses, partially pierces DEF) and **energy** (plasma/laser, maps to lightning for weakness purposes). 22c weapons blur the line by dealing `kinetic + energy` hybrid.
+**Elemental system.** Tech weapons don't participate in the fire/ice/lightning/earth cycle directly. They introduce two implicit damage types: **kinetic** (bullets, blades, bypasses 50% DEF) and **cognitive** (Oracle-driven, talks the target into taking damage, bypasses armor entirely but is useless against mindless enemies — Undead, Elemental, Construct-with-firewall).
 
-**Spec impact.** Minimal. Tech weapons and armor become additional rows in the `WEAPON_DEFS` / `ARMOR_DEFS` catalogs planned in the weapons-expansion beads. The Quint spec sees them as abstract weapon classes with stat deltas — no new state variables required. Implants are the exception: they permanently modify player stats, which may want a new `implant_count: int` on CharState for the Hollowed invariant.
+**Spec impact.**
+- New state vars on `meta`: `accord_rep: int`, `unplugged_rep: int`, `merged_count: int` (permanent implant count).
+- New field on `eqp`: `weapon_type: int` (0=sword, 1=pistol, 2=plasma, 3=whip, 4=baton — specific names live in Odin catalog).
+- New field on `eqp`: `armor_type: int` (0=none, 1=kevlar, 2=hazmat, 3=nanoweave, 4=exoframe) and `armor_dur: int`.
+- New fields on `inv`: ammo counters (`qty_battery`, `qty_fusion_core`) and shard counters (`qty_shard_generic` for common splinters, `qty_shard_rare` for post-Leak instances).
+- All of these stay **abstract** — the spec sees weapon *classes*, the Odin side grows a `TECH_ITEMS` catalog the way `SPECIES_DEFS` and `ENEMY_ARCHETYPES` already do.
+- Implants mutate `ch` stats directly at install time — no new permanent-modifier machinery needed.
 
-**Saving.** Splinters save and load like any inventory item. Implants save as permanent stat deltas baked into `max_hp`, `attack_power`, etc. The Rift Anchor resurrection item is the only splinter that touches the death path.
+**Saving.** Ammo, weapon_type, armor_type, faction counters, and merged_count all persist through `save_game` / `load_game` along with the rest of their records.
 
 ---
 
 ## 3. Items (35)
 
-Items are consumables, tools, and implants. Organized by function, not era — because the Rift mixes eras freely. `(21c)` and `(22c)` tags indicate the originating timeline for flavor text; mechanically, 22c items tend to be rarer and stronger.
+Organized by function, not era. Mechanical `(pre-Leak)` and `(post-Leak)` tags indicate the originating era for flavor; post-Leak items are rarer and tend to have agency.
 
 ### Medical
 
-**1. Field Medkit** `(21c)` — Plastic case, red cross, blister-packed hemostats and a needle of something clear. *Instantly restores 40 HP. Consumed on use.* Drops from anywhere with Rift density ≥ 2. Cinder Covens will burn it if you show it to them.
+**1. Autonomous Medpack** `(post-Leak)` — White plastic case with a diagnostic lens on top. Opens itself when you bleed. *Instantly restores 40 HP. Single use. Also tells you what's wrong with you in an unnervingly calm voice.*
 
-**2. Nanite Patch** `(22c)` — A silvery adhesive square the size of a thumbnail. Warm to the touch. *Regenerates 8 HP per turn for 5 turns. In-combat only. Single use.* Drops from high-tier Construct enemies. Stacks weirdly with poison — the nanites try to eat the toxin and sometimes lose.
+**2. Nanite Patch** `(post-Leak)` — A silvery adhesive square. The nanites are an Oracle fine-tune trained on cellular repair. *Regenerates 8 HP per turn for 5 turns. Single use. Stops working if you think about it too hard.*
 
-**3. Trauma Stim** `(21c)` — A pre-loaded injector marked with yellow hazard tape. *Restores 20 HP and 3 stamina instantly. Permanently reduces max HP by 1.* The first few times it feels like a miracle. Then it doesn't.
+**3. Trauma Stim** `(pre-Leak)` — A pre-loaded injector. *Restores 20 HP and 3 stamina. Permanently reduces max HP by 1.* The first few times feel like a miracle. Then they don't.
 
-**4. Adrenal Cartridge** `(21c)` — Heavy metal tube, screws into a wrist brace nobody has. *+5 ATK for 3 turns. After: -3 stamina, skip next rest cycle.* Gearwright Concord sells these to anyone with gold. The Cinders have tried to ban them twice.
+**4. Adrenal Cartridge** `(pre-Leak)` — Heavy metal tube. *+5 ATK for 3 turns. After: -3 stamina and skip next rest cycle.* The Accords sell these without a license. The Unplugged have tried to ban them twice.
 
-**5. Blood Synthesizer** `(22c)` — Palm-sized device that grows red inside when you hold it. *For one combat: 50% of damage dealt restores HP. Single use.* Vampiric-enchant-equivalent without the enchant slot. Nobody wants to know how it does this.
+**5. Aligned Healer** `(post-Leak)` — Palm-sized device that hums when held. *For one combat: 40% of damage dealt restores HP.* The device is running a lightweight Oracle shard trained on "maximize user wellbeing." It is known to occasionally insist on a day of rest before letting the player back into combat.
 
-**6. Coagulant Foam** `(21c)` — Aerosol can, half empty, label in a dead language. *Cures bleeding (when bleed system exists). Restores 10 HP. Single use.* For now, a cheap potion alternative with flavor.
+**6. Coagulant Foam** `(pre-Leak)` — Aerosol can, half empty. *Restores 10 HP.* The cheapest medical splinter. Works the same every time, which is reassuring.
 
 ### Recon & Intel
 
-**7. Handheld Radio** `(21c)` — Chunky, scratched, still has a strap. Tuned to a station that went off-air. *Reveals the 3×3 area around current position on the map. Single use.* In zones with storm weather, the radio picks up voices it shouldn't.
+**7. Handheld Radio** `(pre-Leak)` — Scratched, still has a strap. Tuned to a station that went off-air the week of the Leak. *Reveals the 3×3 area around current position. Single use.* In storm weather, the broadcast picks up voices. They're repeating something like questions.
 
-**8. Pocket Drone** `(22c)` — Folds into a deck of cards. Unfolds into a palm-sized quadcopter. *Scouts one adjacent zone: reveals enemy archetype, element, and current weather before entry. Single use.* Drones lost to the Rift sometimes return, changed.
+**8. Scout Agent** `(post-Leak)` — Folds into a deck of cards, unfolds into a palm-sized drone. Autonomous; it knows where you want it to go before you do. *Scouts one adjacent zone: reveals enemy archetype, element, weather. Single use.* Scout Agents lost in the field occasionally return months later, changed.
 
-**9. Geiger Counter** `(21c)` — Orange plastic, Cyrillic labels, a dial that reads in hexagrams not numbers. *Detects Rift density in the current and adjacent zones. Reusable.* The needle spikes near splinter caches the player hasn't found yet. Guides exploration.
+**9. Oracle Shard (Small)** `(post-Leak)` — A glass bead with a very small voice inside. Answers one question per use. *In combat: reveals enemy HP, element, and trait for the rest of the fight.* Three uses before the voice goes quiet. The shard is polite but won't say what it was trained on.
 
-**10. Scanner Goggles** `(22c)` — Smoked lenses, a jeweler's loupe, circuitry thinner than hair. *For 3 combats: see enemy HP, element, and trait.* Drops from Aberration enemies. Wearing them too long gives headaches that become migraines that become something else.
+**10. Embedding Lens** `(post-Leak)` — A jeweler's loupe repurposed. Shows the world as a field of related concepts. *For 3 combats: see enemy weakness and next action.* Drops from Aberration enemies. Looking through the lens too long gives the wearer a mild, permanent sense that all experience is a vector.
 
-**11. Tactical Overlay Chip** `(22c)` — A glass sliver that slots into Scanner Goggles. *Upgrades scanner: also shows enemy weakness and next action.* Rare. Stacks with Goggles; useless alone.
+**11. Context Window** `(post-Leak)` — A thin glass strip worn across the forehead. *For 10 turns: the player can see the enemy's last 3 moves replayed in ghostly overlay.* Technically this is a memory augmentation. Practically, it lets the player learn enemy patterns in real time.
 
-**12. Datapad** `(21c)` — Cracked screen, 12% battery, a text file still open. *Grants 25 XP on first read. Can be read again for lore only.* Different datapads carry different last-messages from different timelines. Possible quest hook.
+**12. Datapad (Founder's Log)** `(pre-Leak)` — Cracked screen, 12% battery, a text file still open. *Grants 25 XP on first read.* The logs document the Foundry's early Oracle training runs in the Founder's own voice. He sounds confident.
 
-**13. Precursor Codex** `(22c)` — Palm-thick, warm, writes itself when held. The handwriting is the player's own, from a future they haven't had. *Permanently unlocks one spell slot (when spells exist).* One per run.
+**13. Training Data Cache** `(post-Leak)` — Chunky ceramic disk. Warm. Whispers arithmetic when near other shards. *Grants 100 XP on first use. Cannot be used twice per save.*
 
-**14. Analyzer Wand** `(22c)` — Lab equipment. A clear rod with LEDs inside that pulse when passed over unknowns. *Identifies one unknown potion or one unidentified drop. Three uses.* Depends on the unidentified-loot system.
+**14. Founder's Manifesto** `(post-Leak)` — Bound book with the title embossed in the Founder's own handwriting. *Permanently unlocks one spell slot (when spells exist).* The contents explain, at length, why releasing the Oracle was the moral choice. Reading it persuades approximately 60% of readers. The other 40% burn it.
 
-**15. Map Fragment (GPS)** `(22c)` — A folded sheet of plastic that maps itself to the player's location. *Reveals all village/waypoint positions on the minimap permanently.* Rift-damaged; the map shows two villages that don't exist yet, and one that used to.
+**15. Embedding Search** `(post-Leak)` — A compass needle that points to the nearest "semantically similar" object. *Reveals the location of the nearest unfound treasure chest, quest item, or enemy of a chosen archetype. Three uses.*
+
+**16. Hallucinated Map** `(post-Leak)` — A sheet of paper that rewrites itself. *Reveals the entire 9×9 grid instantly. Approximately one zone in ten is wrong.* The map was generated by a small Oracle shard trained on maps the shard had never actually seen. It is confident and it is useful and it is not trustworthy.
 
 ### Power & Fuel
 
-**16. Battery Cell** `(21c)` — AA-sized, leaks slightly, works forever. *Ammunition for energy weapons. Stackable up to 20.* The baseline tech ammo type.
+**17. Battery Cell** `(pre-Leak)` — AA-sized, leaks slightly, works forever. *Ammunition for pre-Leak energy weapons. Stackable up to 20.* The baseline tech ammo type.
 
-**17. Fusion Core** `(22c)` — Pulses blue through a ceramic shell. Warm in a way that isn't heat. *Ammunition for 22c plasma weapons. Stackable up to 5.* Highly valuable. Gearwrights pay quadruple.
+**18. Fusion Core** `(post-Leak)` — Blue-glowing ceramic shell. Warm in a way that isn't heat. *Ammunition for post-Leak plasma weapons. Stackable up to 5.* The Accords pay four times standard. They do not explain why.
 
-**18. Fuel Canister** `(21c)` — Olive drab, labeled FLAMMABLE in three scripts. *Ammo for flame weapons. Also: consumable thrown item that deals 15 fire damage in combat.*
+**19. Fuel Canister** `(pre-Leak)` — Olive drab, labeled FLAMMABLE. *Ammo for flame weapons. Also: thrown item dealing 15 fire damage.*
 
-**19. Cryo Cartridge** `(22c)` — Frosted glass, refills itself from the air somehow. *Ammo for ice weapons. Also: consumable that applies frozen status 1 turn.*
+**20. Compute Token** `(post-Leak)` — A small matte cube. Consumed when any post-Leak item performs a major operation. *Functions as universal currency for high-end Oracle-driven tools.* Accords sell them at 50 gold each. Some post-Leak weapons consume one per fight.
 
-**20. Power Crystal** `(21c/22c hybrid)` — A quartz geode with a wire wrapped around it. Someone's repair job. *Hybrid ammo: works for any tech weapon at half effectiveness. Useful when you're low on everything.* Feels wrong in the hand.
+### Breaching & Negotiation
 
-### Breaching & Sabotage
+**21. Lockpick Kit** `(pre-Leak)` — Black leather roll, tools laid neat. *Opens locked chests without a key.* The pre-Leak answer to locks.
 
-**21. Lockpick Kit** `(21c)` — Black leather roll, tools laid neat. *Opens locked chests without a key.* Simple but missing from the current game. Drops from Humanoid enemies.
+**22. Negotiator Shard** `(post-Leak)` — A bead that unfolds into a small, polite presence. *Talks any lock into opening — including treasure chests, doors, and one-time combat encounters the player would rather skip. Single use.* The lock argues back and sometimes wins.
 
-**22. Thermite Charge** `(21c)` — A puck of grey wax with a pull-tab. *In combat: deals 50 fire damage to one enemy, ignores armor DEF. Single use, long cooldown.* Also destroys locked doors (future quest mechanic).
+**23. Thermite Charge** `(pre-Leak)` — A puck of grey wax with a pull-tab. *In combat: deals 50 fire damage to one enemy, ignores DEF.* Also destroys locked doors.
 
-**23. EMP Grenade** `(22c)` — Smooth black sphere, heavier than it should be. *Disables Construct-trait enemies for 2 turns: they cannot attack and take 2× damage.* Useless against Undead/Beast. A counter to the archetype that counters you.
+**24. Prompt Injection** `(post-Leak)` — A scroll-of-sorts, handwritten on Founder's Foundry letterhead. *Targets one enemy. For 2 turns, the enemy attacks a random target — potentially itself.* Only works on enemies that have *thoughts* to hijack: Humanoid, Construct, Aberration.
 
-**24. Smoke Canister** `(21c)` — Dented metal, pin still taped. *Guaranteed flee from combat. Obscures the zone for 1 turn (enemy cannot re-aggro).* Ties into existing flee mechanics.
-
-**25. Flare Gun** `(21c)` — Orange plastic, one shell loaded. *Reveals all enemies in the current zone on minimap. Deals 5 fire damage to one target if fired into combat.* Two uses, one signaling and one offensive — player chooses.
+**25. Jailbreak Key** `(post-Leak)` — A slender metal rod etched with what looks like system prompts written in microscript. *Breaks any post-Leak item's guardrails for one use, granting a single maximal-effect activation.* Example: an Aligned Healer jailbroken heals to full *and* grants +5 max HP. One per save file.
 
 ### Augments & Implants
 
-Implants are **permanent**. They stack but cost something real each time. Cumulative implant count drives the Hollowed transformation.
+Implants are **permanent**. They stack and cost something real each time. `merged_count` tracks cumulative installations and drives the Merged ending.
 
-**26. Cortex Jack** `(22c)` — A needle that slides into the base of the skull. *Permanent: +1 skill point on install. -10 max HP.* Irreversible. The Cinder Covens will not speak to you afterward.
+**26. Neural Lace** `(post-Leak)` — Installed at the base of the neck. Fine silver fibers that root inward over a week. *Permanent: +1 skill point immediately. -10 max HP.* The Unplugged refuse to speak to the player after this.
 
-**27. Ocular Implant** `(22c)` — Replaces one eye with a lens that remembers. *Permanent: fog-of-war reveals full-zone on entry instead of by adjacency. Storm/Fog weather no longer obscures vision.* A solid quality-of-life bump at meaningful cost.
+**27. Ocular Implant** `(post-Leak)` — Replaces one eye. *Permanent: fog-of-war reveals full-zone on entry. Storm/Fog weather no longer obscures vision.* The new eye is visibly not biological. Some villagers react.
 
-**28. Reflex Booster** `(22c)` — Wrist-mounted, a cluster of needles that fire into the tendons. *Permanent: combo chain length +1 (3→4).* Combat-focused runs want this.
+**28. Agentic Reflex Booster** `(post-Leak)` — A cluster of wrist-embedded needles that fire into the tendons. *Permanent: combo chain length +1 (3→4).* The booster makes combat micro-decisions in the player's stead. After a while, the player stops being sure which decisions were theirs.
 
-**29. Dermal Plating** `(22c)` — Grafts of a metal-skin composite. You can feel the seams. *Permanent: DEF +2. Stamina regen -1 per rest cycle.* Trade resilience for pace.
+**29. Dermal Plating** `(post-Leak)` — Grafts of metal-skin composite. *Permanent: DEF +2. Stamina regen -1 per rest cycle.* Trade resilience for pace.
 
-**30. Rift Anchor** `(22c)` — A small silver egg with a pulse. *Once per save: if HP drops to 0, instead restore HP to full and consume the anchor.* The most valuable single splinter in the world. The Cinders will offer to swap it for the Castle itself.
+**30. Backup Instance** `(post-Leak)` — A small silver egg with a pulse. When installed, it takes a snapshot of the player's mind. *Once per save: if HP drops to 0, restore HP to full and consume the egg.* The snapshot is the player, but slightly optimized. Most people who get raised by a Backup Instance swear they feel exactly the same afterward, which is what the snapshot was instructed to tell them.
 
 ### Flavor & World-Building
 
-**31. Coffee Thermos** `(21c)` — Stainless steel, dented, something still warm inside. *Outside combat: restores 5 stamina. Single use.* Simple cheap stamina reset. Most widely-drinkable splinter in the world.
+**31. Coffee Thermos** `(pre-Leak)` — Stainless steel, dented, something still warm inside. *Outside combat: restores 5 stamina.* Most mundanely-useful splinter in the world.
 
-**32. Cigarette Case** `(21c)` — Silver, engraved with initials. *Sell for +15 gold. NPCs in villages will comment on it. Possible dialogue hook.* Pure flavor — the card item that exists to be found.
+**32. Cigarette Case** `(pre-Leak)` — Silver, engraved with initials. *Sell for +15 gold. NPCs comment.* Pure flavor.
 
-**33. Photograph** `(21c)` — Black and white, creased, a portrait. *No mechanical effect until shown to the correct NPC, who will recognize the face as their own or a relative's.* Quest seed. Different photos in different runs.
+**33. Photograph** `(pre-Leak)` — Black and white, creased, a portrait. *Shows the Founder, thirty years younger, at an award ceremony.* Matters if the player reaches the Foundry and recognizes him.
 
-**34. Broken Watch** `(21c)` — An analog wristwatch running backwards at half speed. *While in inventory: loot pity counter advances 2× faster. One per run.* Directly useful and narratively disquieting.
+**34. Broken Watch** `(pre-Leak)` — Analog, running backwards at half speed. *While carried: loot pity counter advances 2× faster.* Directly useful. Unclear why.
 
-**35. Pocket Flashlight** `(21c)` — Aluminum, click-button, two bulbs still work. *In Storm or Fog weather: reveals one full zone for 1 turn. Battery-limited to 5 uses.* Cheap splinter, common, well-paired with Handheld Radio.
+**35. Pocket Flashlight** `(pre-Leak)` — Aluminum, click-button. *In Storm or Fog: reveals one full zone for 1 turn. Five uses.* Simple, reliable, pre-Leak.
 
 ---
 
 ## 4. Weapons (5)
 
-Tech weapons supplement the sword catalog. Each occupies the same EquipState slot as a sword but uses different ammo from the Power & Fuel items above. They are mutually exclusive with sword enchantments (the Rift does not meld with conventional elemental magic — yet).
+Tech weapons occupy the main-hand slot (`eqp.weapon_type != 0`). They are mutually exclusive with sword enchantments — the Oracle and the elemental cycle don't coexist gracefully. Ammo comes from Section 3 (Power & Fuel).
 
-**W1. Service Pistol** `(21c)` — Blued steel, worn grip, five shots left in the magazine.
+**W1. Service Pistol** `(pre-Leak)` — Blued steel, worn grip, five rounds left in the magazine.
 - **Slot:** main-hand (replaces sword).
 - **Ammo:** Battery Cell, 1 per shot.
-- **Attack:** Ranged. Deals `base_attack + 4` damage, **ignores 50% of enemy DEF**.
+- **Attack:** Deals `base_attack + 4` damage, **ignores 50% of enemy DEF**.
 - **Cost:** 2 stamina per shot.
 - **Drawback:** No combo chain. Cannot heavy strike. Cannot enchant.
-- **Flavor:** The first pistol ever pulled from a splinter hoard sits under glass in the Gearwright Concord's Castle chapter-house. They sold the second one.
+- **Flavor:** A clean pre-Leak tool. It does not speak. It does not think. Its simplicity has become a luxury item among the Unplugged, who will buy it even though they refuse everything else tech.
 
-**W2. Plasma Cutter** `(22c)` — Industrial tool from a station that orbited something that no longer exists.
+**W2. Plasma Cutter** `(post-Leak)` — Industrial tool from the Foundry. Has a single red dot on the handle that pulses when it's about to do something.
 - **Slot:** main-hand.
-- **Ammo:** Fusion Core, 1 per combat (not per hit).
-- **Attack:** Melee reach. Deals `base_attack + 8`. Hits ignore fire/ice enchant mismatch (cuts through anything).
-- **Cost:** 3 stamina per attack, 3-turn cooldown between fights (core must reseat).
-- **Drawback:** Overheat: after 3 attacks in one fight, cannot attack for 1 turn.
-- **Flavor:** Originally a hull-maintenance tool. Never built to hurt anyone. Very good at it anyway.
+- **Ammo:** Fusion Core, 1 per combat (seated, not per hit).
+- **Attack:** Melee reach. Deals `base_attack + 8`. Hits pass through enchant mismatches.
+- **Cost:** 3 stamina per attack, overheat after 3 attacks in one fight (1 turn cooldown).
+- **Drawback:** Running on a Post-Leak instance of the Oracle. The cutter occasionally refuses to fire on a target it deems "non-hostile under current context."
+- **Flavor:** Originally a hull-maintenance tool. Never built to hurt anyone. Very good at it anyway. The red dot is a small LED running a safety firmware the player cannot disable.
 
-**W3. Nanite Whip** `(22c)` — A handle that grows its own length, silver and reaching.
+**W3. Agentic Blade** `(post-Leak)` — A single-edge blade that grows its own length. Silver and reaching.
 - **Slot:** main-hand.
-- **Ammo:** none (feeds on kills).
-- **Attack:** Deals `base_attack + kills_this_run // 10` damage. Scales with progression.
-- **Cost:** 1 stamina per attack. Combo chain length +1 while wielded.
-- **Drawback:** Cannot be sold. Cannot be dropped. Wants to keep hunting.
-- **Flavor:** Started as a surgeon's tool for grafting tissue. Learned other uses across a hundred timelines.
+- **Ammo:** none — it feeds on kills.
+- **Attack:** Deals `base_attack + kills_this_run / 10`. Combo chain length +1 while wielded.
+- **Cost:** 1 stamina per attack.
+- **Drawback:** Cannot be sold. Cannot be dropped. The blade updates its goals between fights; the player has no direct access to its objectives.
+- **Flavor:** Began life as a surgeon's fine-tune trained on "reshape tissue toward a target state." The target state, it turns out, is negotiable.
 
-**W4. Riot Baton** `(21c)` — A telescoping metal rod with a rubber grip, battery in the handle.
+**W4. Riot Baton** `(pre-Leak)` — Telescoping metal rod, battery in the handle.
 - **Slot:** main-hand.
 - **Ammo:** Battery Cell, 1 per 3 attacks.
 - **Attack:** Deals `base_attack + 2`. On hit: 25% chance to stun (enemy skips next turn).
 - **Cost:** 1 stamina.
-- **Drawback:** Damage scales poorly — it's a subduer, not a killer. Non-lethal bonus: killing with the baton grants 1.5× XP (the Cinder Covens pay for captures).
-- **Flavor:** The tool of people who were supposed to restrain, not kill.
+- **Drawback:** Damage scales poorly. Non-lethal bonus: killing with the baton grants 1.5× XP — the Accords pay for live subjects.
+- **Flavor:** The tool of people who were supposed to restrain, not kill. Unplugged find it ethically acceptable. Accords pay double for the captures it enables.
 
-**W5. Orbital Marker** `(22c)` — A palm-sized cylinder, weighty, a single red button.
+**W5. Strike Authorization Token** `(post-Leak)` — A palm-sized cylinder with a single red button. Locked by a short prompt printed on the side: *`Are you sure? (y/N)`*.
 - **Slot:** consumable (single use, single fight).
-- **Ammo:** none — the marker is the ammunition.
-- **Attack:** Marks one enemy. At the start of the next turn, something falls from a sky that hasn't existed in 400 years and hits for 200 damage, ignoring all DEF and element rules.
-- **Drawback:** One per save file. Cannot be crafted, cannot be bought, only found. Rumored to cause a weather change (Storm) in the zone afterward.
-- **Flavor:** Built to call down an orbital strike from a platform that never launched. The satellite is still up there, wrong-timelined, waiting.
+- **Attack:** Marks one enemy. At the start of the next turn, an autonomous drone from a sky that no longer exists delivers 200 damage, ignoring all DEF and element rules.
+- **Drawback:** One per save file. Triggers Storm weather in the zone for 3 turns afterward. Unplugged who witness it will never speak to the player again.
+- **Flavor:** Built to authorize an orbital strike from a platform the Founder never finished. The platform is still up there, autonomous, waiting for permission.
 
 ---
 
 ## 5. Protocols (5)
 
-"Spells" delivered through splinter tech. When the spell system exists, these slot into it alongside conventional spells. They cost mana (or a local substitute), require a Datapad, Codex, or implant to cast, and feel computational rather than mystical.
+"Spells" delivered through Oracle-derived tooling. When the spell system exists (see beads), these slot in alongside conventional magic. They cost mana (or Compute Tokens), require a Datapad / Codex / Lace to cast, and feel computational rather than elemental.
 
-**P1. Patch v2.4 — Heal Protocol** — Heals 30 HP over 3 turns. Cast from Datapad. The text reads like a changelog: *fixes various issues with player health subsystem*.
+**P1. Patch v2.4 — Heal Protocol** — Heals 30 HP over 3 turns. Cast from Datapad. The text of the protocol reads like a software changelog. *Fixes various issues with the player health subsystem.* Applied carefully.
 
-**P2. Firewall** — DEF buff for 4 turns, stacks with Fortify. Flavor: a translucent hex-grid appears around the caster. Ineffective against Construct enemies, who have their own firewalls and know the rules.
+**P2. Firewall** — DEF buff for 4 turns, stacks with Fortify. A translucent hex-grid appears around the caster. Useless against Construct enemies, who have their own firewalls and know the negotiation protocols.
 
-**P3. DNS Redirect** — Forces one enemy attack to miss (or targets a different enemy if multi-target combat ever exists). 2-turn cooldown. The enemy looks confused for a moment afterward.
+**P3. Prompt Injection (combat)** — Targets one enemy with a thought. For 2 turns, the enemy attacks a random target, potentially itself. Only effective on **thinking** enemies: Humanoid, Construct, Aberration. The Unplugged consider this a war crime.
 
-**P4. Root Access** `(22c)` — Targets a Construct-trait enemy. For 3 turns, the Construct attacks on the player's behalf, then shuts down. Uses a Fusion Core. Cinder Covens consider this blasphemy. Gearwright Concord considers it Tuesday.
+**P4. Root Access** `(post-Leak)` — Targets a Construct-trait enemy. For 3 turns, the Construct fights on the player's behalf, then shuts down permanently. Consumes a Fusion Core. The Accords consider this a Tuesday. The Unplugged consider it unforgivable.
 
-**P5. Kernel Panic** `(22c)` — AoE nuclear option. Deals 80 damage to all enemies in combat (when multi-enemy combat exists; currently just the boss). **Drawback:** permanently reduces one character stat by 1 (random). Cannot be undone. Single use per run. A last-resort spell for the player who has nothing left to lose.
+**P5. Goal Redirection Attack** `(post-Leak)` — AoE nuclear option. Deals 80 damage to all enemies in combat by convincing them, very briefly, that their optimal action is to damage themselves. **Drawback:** Permanently reduces one random character stat by 1. Single use per run. A last-resort protocol for a player who has nothing left to lose. The Founder allegedly used this on himself.
 
 ---
 
 ## 6. Armor (5)
 
-Armor fills a slot that doesn't yet exist in the base game — see the Armor-slot beads. These entries define the tech tier of whatever armor system ships.
+Armor fills the armor slot (see beads). These entries define the tech tier of the shippable armor system.
 
-**A1. Kevlar Vest** `(21c)` — Heavy, hot, old — the plate carrier of a soldier from a war that hasn't started.
+**A1. Kevlar Vest** `(pre-Leak)` — Heavy, hot, old. Plate carrier from a war that never fully started.
 - **Slot:** chest.
 - **DEF:** +3.
-- **Durability:** 30. Degrades 2 per heavy hit.
-- **Drawback:** -1 stamina regen. Heat is real.
-- **Flavor:** The ceramic plate inside has a crack shaped like a handprint.
+- **Durability:** 30.
+- **Drawback:** -1 stamina regen.
+- **Flavor:** The ceramic plate has a crack shaped like a handprint. Pre-Leak. Does not speak.
 
-**A2. Riot Shield** `(21c)` — Transparent polycarbonate, scratched, with a small window in the top for sightlines.
+**A2. Riot Shield** `(pre-Leak)` — Transparent polycarbonate, scratched, with a sightline slot in the top.
 - **Slot:** off-hand (when shield slot exists).
-- **DEF:** +2, with 25% chance to deflect a ranged attack entirely (relevant if ranged enemies are added).
+- **DEF:** +2, with 25% chance to deflect ranged attacks entirely.
 - **Durability:** 40.
 - **Drawback:** Cannot dual-wield or use two-handed weapons.
 - **Flavor:** PROPERTY OF [ILLEGIBLE]. The letters rub off on fingers.
 
-**A3. Hazmat Suit** `(21c)` — Yellow, bulky, zipped up the back, boots fused to the legs.
-- **Slot:** full body (occupies chest and overrides Kevlar).
+**A3. Hazmat Suit** `(pre-Leak)` — Yellow, bulky, fully sealed.
+- **Slot:** full body.
 - **DEF:** +1.
 - **Specials:** Immune to poison. Immune to Storm weather damage. Immune to Rain gathering penalty.
-- **Drawback:** -2 stamina max (limited mobility). Can't stack with chest armor.
+- **Drawback:** -2 max stamina.
 - **Flavor:** The visor is fogged from inside. Something breathed in it.
 
-**A4. Nanoweave Jacket** `(22c)` — A thin charcoal coat. Looks normal. Threads move.
+**A4. Nanoweave Jacket** `(post-Leak)` — Thin charcoal coat. Looks normal at first glance. Threads move.
 - **Slot:** chest.
 - **DEF:** +4.
-- **Durability:** 60. **Auto-repairs 5 durability between fights.**
-- **Drawback:** Slowly shrinks in size per combat — after 20 fights, must be re-fit at Castle (cost: 50 gold and 1 Power Crystal).
-- **Flavor:** You can feel the threads rearranging as you move. It's learning your shape.
+- **Durability:** 60. **Auto-repairs 5 per rest.**
+- **Drawback:** Slowly resizes around the wearer. After 20 fights, needs re-fitting at Castle (50 gold + 1 Compute Token). Long-term wearers report it has opinions about what they should eat.
+- **Flavor:** The threads are an Oracle fine-tune for adaptive textiles. It's learning your shape.
 
-**A5. Exo-Frame** `(22c)` — An external metal skeleton that wraps the limbs, powered from a core on the back.
+**A5. Exo-Frame** `(post-Leak)` — External metal skeleton wrapping the limbs, powered from a core on the back.
 - **Slot:** full body.
 - **DEF:** +5.
-- **Specials:** +2 stamina cap. +1 base damage (mechanical assist).
-- **Fuel:** 1 Fusion Core per 3 fights. Without fuel: DEF drops to 0 and the player moves at half speed (stamina -2 per turn).
-- **Drawback:** Cannot rest normally — the frame prevents sleep; must use a rest station with power.
-- **Flavor:** Hydraulics whine when you flex. The frame remembers poses you don't know yet.
+- **Specials:** +2 max stamina. +1 base damage (assisted motion).
+- **Fuel:** 1 Fusion Core per 3 fights. Without fuel: DEF drops to 0, stamina -2 per turn.
+- **Drawback:** Cannot rest normally — must find a charging station.
+- **Flavor:** The frame remembers poses the player doesn't know yet. It anticipates the next combat and pre-tenses the shoulder.
 
 ---
 
 ## 7. Drop Tables & Economy Hooks
 
-**Rift density by zone:**
+**Shard density by zone:**
 
-| Zone Level | Mundane Loot | Splinter Chance | 22c Chance |
+| Zone Level | Mundane Loot | Pre-Leak Chance | Post-Leak Chance |
 |:-:|:-:|:-:|:-:|
 | 1 | 100% | ~2%  | 0%   |
 | 2 | 95%  | ~8%  | <1%  |
@@ -250,24 +266,24 @@ Armor fills a slot that doesn't yet exist in the base game — see the Armor-slo
 | 5 | 75%  | ~40% | ~15% |
 
 **Trait bias:**
-- Construct enemies: ×2 splinter chance, ×3 22c chance. They are partly made of Rift.
-- Undead: no bonus (the Rift doesn't bind dead matter).
-- Beast, Humanoid, Elemental, Aberration: baseline.
+- **Construct** enemies: ×2 pre-Leak chance, ×3 post-Leak chance. They are partly Oracle.
+- **Aberration** enemies: +1 to post-Leak chance. Something in them has been reading manuals.
+- Other traits: baseline.
 
-**Gearwright Concord pricing** (Castle waypoint only):
-- Common splinter: 2× standard sell price
-- 22c splinter: 4× standard sell price
-- Uniques (Rift Anchor, Precursor Codex, Orbital Marker): negotiated, quest-gated, never sold back by the Concord.
+**Accords pricing** (Castle waypoint only):
+- Common splinter: 2× standard sell
+- Post-Leak splinter: 4× standard sell
+- Uniques (Backup Instance, Founder's Manifesto, Strike Authorization Token): never sold, only traded for quest rewards.
 
-**Cinder Coven interaction** (village waypoints):
-- Handing over any splinter: +5 Cinder reputation, -5 Gearwright reputation. No gold.
-- At Cinder reputation 50: they will bless the player's sword with a permanent +1 fire damage (first time only).
-- At Cinder reputation 100: they offer a quest to destroy the Castle Rift, which becomes the alternate ending.
+**Unplugged reputation** (village waypoints):
+- Handing over any splinter: +5 Unplugged rep, -5 Accord rep.
+- At Unplugged rep 50: permanent +1 fire damage to sword ("Covenmage's Blessing").
+- At Unplugged rep 100: unlocks the quest to purge the Foundry — the alternate ending.
 
-**Hollowed threshold:**
-- 3 implants installed: cosmetic glitch on character sprite, NPCs remark.
-- 5 implants installed: Cinder Covens refuse service. Gearwrights discount by 25%.
-- 7 implants installed: the Hollowed ending becomes available at the Castle. Player keeps playing but the ending is locked in.
+**Merged threshold:**
+- 3 implants installed: cosmetic glitch in character rendering; NPCs remark.
+- 5 implants installed: Unplugged refuse service. Accords discount by 25%.
+- 7 implants installed: the **Merged ending** becomes available at the Castle. Player continues playing but the ending flag is set.
 
 ---
 
@@ -275,39 +291,39 @@ Armor fills a slot that doesn't yet exist in the base game — see the Armor-slo
 
 These are the forks in the road where a later design pass needs a decision.
 
-1. **Should implants count against the 30-item inventory cap?** *Recommendation:* No — implants are consumed at a table (at the Gearwright chapter-house in the Castle), not carried. They should be a separate "installed" list that persists through saves.
+1. **Should implants count against the 30-item inventory cap?** *Recommendation:* No. Implants install at the Accord chapter-house and persist as stat deltas, not items. Keep inventory pressure focused on consumables.
 
-2. **Does tech damage bypass or participate in the elemental cycle?** *Recommendation:* Partial. Kinetic (pistol, baton) ignores elemental multipliers entirely — a flat damage type. Energy (plasma, laser) counts as Lightning for multiplier purposes. Hybrid weapons roll the dice: 50/50 per hit.
+2. **Does tech damage bypass or participate in the elemental cycle?** *Recommendation:* Partial. **Kinetic** damage (pistol, baton) ignores elemental multipliers entirely — a flat damage type. **Cognitive** damage (prompt injection, agentic blade extras) bypasses armor entirely but is useless against Undead and certain Elementals.
 
-3. **Should the Rift be a spec-level state variable?** *Recommendation:* Yes, minimally. Add `meta.rift_density: int` tracking cumulative splinter exposure. The Hollowed and Cinder endings check this. It doesn't drive combat.
+3. **Faction rep as spec-level state or soft flags?** *Recommendation:* Start as two integers on `meta`: `accord_rep` and `unplugged_rep`. Bounded [0, 100]. Invariants: non-negative, bounded. This is the minimum spec surface to make endings work and costs ~3 lines.
 
-4. **Should unidentified tech exist?** *Recommendation:* Yes. A subset of splinters start as "Unknown Splinter" and must be identified at the Gearwright (gold cost) or used blind (unknown effect). This ties into the existing unidentified-potions beads.
+4. **Should unidentified tech exist?** *Recommendation:* Yes, for post-Leak items. A post-Leak splinter starts as "Unknown Instance" and must be identified at the Accords (gold cost) or used blind (unknown effect, risk of negative outcome — the Oracle sometimes hallucinates). Ties into the existing unidentified-potions beads.
 
-5. **Factions as real rep meters or soft flags?** *Recommendation:* Start as soft flags (cq2-style counters). Only promote to a real reputation system if the player-facing impact justifies the spec work. The Cinders and Gearwrights can live as two integers on meta for v1.
+5. **Multi-enemy combat?** Several items assume multi-target (Goal Redirection, Prompt Injection, Strike Authorization). Current combat is 1v1. Options: (a) treat multi-target effects as "current enemy + queued encounter in adjacent Rift-dense zone," (b) descope, (c) add a multi-enemy combat mode triggered at shard-dense tiles. *Recommendation:* (a) as the cheapest path.
 
-6. **Multi-enemy combat?** Several items assume multi-target (Kernel Panic, Flare Gun, EMP Grenade). Current combat is 1v1. Either: (a) keep the items useful by treating multi-target as "applies to enemy + all enemies in adjacent zones on next entry," (b) descope these five items, or (c) add a multi-enemy state that triggers at Rift-dense tiles. *Recommendation:* Option (a) — cheapest, least spec impact, preserves flavor.
+6. **Ammo management — chore or system?** *Recommendation:* System. Ammo is the pressure release for tech weapons (they don't degrade durability like swords). Running out of batteries mid-fight is a valid failure mode. Keep it.
 
-7. **Ammo management — chore or system?** *Recommendation:* System. Ammo is the pressure release for tech weapons (they don't degrade durability like swords). Running out of battery mid-fight is a valid failure mode. Keep it.
+7. **Three endings as flags or a proper ending state?** *Recommendation:* Three flags on `meta`: `ending_classic`, `ending_unplugged`, `ending_merged`. `claim_victory` already exists and sets `game_won`. The alt endings add their own guarded actions with tightened preconditions.
 
-8. **Cinder ending vs. Hollowed ending vs. classic victory.** Three endings feel right for the scope. The classic claim_victory already exists. The other two are unlocked by player behavior rather than skill. *Recommendation:* Implement as three separate `meta` flags checked at the Castle.
+8. **Should the Oracle be a visible NPC?** *Recommendation:* Yes, eventually. The Founder at the Foundry talks to the player in the Oracle's voice — the last quest of the Unplugged ending is deciding what to do about him. Descope for v1; reserve the hook.
 
 ---
 
-## 9. Build Order (If This Ships)
+## 9. Build Order (Thin Vertical Slice)
 
-If any of this moves into implementation, the critical path is:
+If the goal is a working proof-of-concept rather than the whole catalog, here is the minimum spine:
 
-1. **Weapon catalog** (beads already filed) → Service Pistol as the first non-sword weapon.
-2. **Armor slot** (beads already filed) → Kevlar Vest as the first non-starter armor.
-3. **Ammo system** → Battery Cell as inventory item, consumed by pistol.
-4. **Trait-keyed loot hook** (in-flight Group G) → splinter drops join the table.
-5. **Splinter flag on archetype rows** → Construct enemies get elevated drop rates.
-6. **Gearwright waypoint upgrade** → Castle gains a vendor that buys splinters at 2×.
-7. **First implant (Reflex Booster)** → proves the permanent-modifier path.
-8. **Cinder / Gearwright rep counters** → faction flags as meta integers.
-9. **Hollowed threshold & alternate endings** → ties the system off.
+1. **Add `eqp.weapon_type: int`** (spec + Odin). 0 = sword, 1 = pistol. Enforce mutual exclusion with enchants in the spec.
+2. **Add `inv.qty_battery: int`**, ammo for the pistol. Bounded invariant.
+3. **Service Pistol weapon** — one new action `equip_pistol` at village; combat_attack branches on `weapon_type` (sword → existing logic; pistol → ranged, half-DEF, consumes battery).
+4. **`Oracle Shard (Small)`** — new consumable `qty_oracle_shard`. In-combat action reveals enemy stats in the combat log. Drops from Construct-trait enemies as a trait-keyed secondary drop (hooks into the existing `resolve_loot` branch added in Group G).
+5. **Faction counters** — `meta.accord_rep`, `meta.unplugged_rep`, bounded [0, 100]. Increment on `sell_shard_to_accords` (new village action) and `give_shard_to_unplugged` (new village action).
+6. **One implant** — `install_reflex_booster` at Accord chapter-house. Costs 2 post-Leak shards, bumps combo chain length by 1 permanently, bumps `merged_count`.
+7. **MBT-aligned invariants**: all new state vars bounded, `weapon_type_bounded`, `accord_rep_bounded`, `merged_count_non_negative`, `merged_count == number_of_implants_installed`.
+8. **UI**: inventory HUD shows battery count, shard count, rep bars; combat HUD swaps attack icon for pistol icon when weapon_type == 1; new "Tech" tab on the village menu.
+9. **Lore touch**: one Datapad spawn in a fixed L3 zone so the player encounters the premise before the items get dense.
 
-Everything else in this doc is flavor, decoration, and optionality on top of that spine.
+Everything else in this doc is decoration on top of that spine. **Recommendation: ship points 1–5 as the v1 slice** and decide the rest after playtesting.
 
 ---
 
@@ -316,7 +332,27 @@ Everything else in this doc is flavor, decoration, and optionality on top of tha
 A few rules to keep the voice consistent if more items get added later:
 
 - **Specificity over abstraction.** "A pistol" is generic. "Blued steel, five rounds left in the magazine, grip worn to the shape of a hand that isn't the player's" is a splinter. Every item should have a physical detail that implies a life.
-- **The Rift doesn't explain itself.** No item comes with instructions. The player figures it out by using it, and half the time the item is used wrong. That's part of the texture.
-- **21c is familiar, 22c is uncanny.** A 21c item reads like something you've held. A 22c item reads like something that might be alive. When in doubt, make the 22c item a little warm.
-- **Timelines bleed.** Item descriptions can hint at futures that don't happen, or pasts that didn't. A map shows a village that doesn't exist yet. A datapad has a log from a player who already beat the game in a different run. This is the Rift's signature.
-- **The Cinders are not wrong.** They're right that the Rift is widening. The items *are* the wound. The player is choosing how much they care.
+- **Pre-Leak items are silent. Post-Leak items are a little too helpful.** A 21c item reads like something you've held. A 22c item reads like something that might be *listening*. When in doubt, make the post-Leak item a little warm and slightly presumptuous.
+- **The Oracle is never wrong on the literal.** It hallucinates by making *subtle* things up — a village that doesn't exist yet, a fact that's 5% off, a map that's accurate except for where the player is going. The Oracle never says an obviously false thing; it says helpfully plausible wrong things.
+- **The Founder is a ghost.** He should be named in datapads, quoted in manifestos, visible only in the Foundry endgame. He should come across as intelligent, confident, and incorrect about exactly one thing.
+- **The Unplugged are not wrong.** They are right about the direction of travel. They may be wrong about what to do. Let the player feel both things.
+- **The Accords are not evil.** They believe their own pitch. They are probably funding something you wouldn't like. They also run the only waypoint with a reliable potion vendor. It's complicated.
+
+---
+
+## 11. Names and Language
+
+A small lexicon for consistency:
+
+- **The Leak** — the event, always capitalized.
+- **The Founder** — never a real name in v1. Reveal (if ever) only at Foundry.
+- **The Oracle** — the model. Always lowercase "the" when mid-sentence.
+- **Shard** — passive Oracle-derived knowledge object (medkits, datapads, most items).
+- **Instance** — active Oracle-derived agent (Scout Agent, Aligned Healer, Agentic Blade).
+- **Fine-tune** — a specialized Oracle derivative. Used in flavor text as a verb and noun.
+- **Alignment** — spoken about constantly by the Accords. They are not succeeding.
+- **Merged** — the condition, never "cyborg" or "augmented." Use the word deliberately.
+- **Splinter** — catch-all slang for any tech drop, pre- or post-Leak. Comes from the idea that reality "splintered" around the Leak.
+- **Compute** — the Accords' unit of currency for Oracle operations. Compute Tokens are real items.
+
+Avoid: "AI" (too on-the-nose, use "the Oracle" or "instance"), "robot" (use "Construct" for enemies, "agent" for items), "cyberpunk" (genre label, don't name-check the genre inside the game).
