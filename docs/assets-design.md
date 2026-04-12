@@ -179,12 +179,14 @@ The rendering code in `rendering.odin` can be updated to check for asset files a
 ### Shader Pipeline
 
 The game already has a post-processing shader pipeline (`quint_crawl_game/assets/effects.fs`) that applies:
-- Day/night color grading (time-based)
-- Per-zone color tinting
-- Chromatic aberration on combat hits
-- Low-HP danger pulse (red vignette)
-- Level-up bloom flash
-- Poison green tint (driven by `player_poison_dur`)
+- Per-zone color tinting (`u_zone_tint`)
+- Chromatic aberration + barrel distortion on combat hits (`u_aberration`)
+- Low-HP danger pulse / red vignette (`u_danger`)
+- Level-up bloom flash (`u_bloom`)
+- Poison green tint driven by `player_poison_dur` (`u_poison`)
+- Global time for animated effects (`u_time`)
+
+Single off-screen render texture → shader pass → default framebuffer.
 
 Sprite assets will pass through these shaders automatically — they should be authored at neutral lighting and let the shaders handle atmospheric effects.
 

@@ -162,4 +162,5 @@ just test-crawl             # regen traces + run crawl MBT tests
 
 ## Docs
 
+- [System Architecture Diagram](docs/architecture.excalidraw) — Quint spec → MBT → Odin game overview (open in [excalidraw.com](https://excalidraw.com))
 - [Asset Design Guide](docs/assets-design.md) — sprite specs for V2 visual upgrade (26 required assets)
