@@ -740,7 +740,7 @@ resolve_combat_hit :: proc(g: ^Game_State, dmg: int) -> bool {
 
 	if new_enemy_hp <= 0 {
 		// Enemy defeated, player alive — XP, loot, level-up, respawn timer
-		g.last_kill_turn = g.turn_count
+		g.last_kill_turn = g.turn_count - 1
 		g.xp += zone_xp_reward(g.pos_x, g.pos_y)
 		// Quest 1 / 3: count slime / dragon kills
 		zone_tier := zone_level(g.pos_x, g.pos_y)
@@ -1259,7 +1259,7 @@ counter_attack :: proc(g: ^Game_State) -> bool {
 			reset_cooldowns(g)
 		} else {
 			// Enemy defeated, player alive
-			g.last_kill_turn = g.turn_count
+			g.last_kill_turn = g.turn_count - 1
 			g.xp += zone_xp_reward(g.pos_x, g.pos_y)
 			g.in_combat = false
 			g.enemy_attack = 0
