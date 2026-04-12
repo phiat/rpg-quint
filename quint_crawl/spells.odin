@@ -7,16 +7,17 @@ cast_heal :: proc(g: ^Game_State) -> bool {
 	if g.hp >= g.max_hp do return false
 	g.turn_count += 1
 	g.mana -= HEAL_COST
-	g.hp = min(g.hp + HEAL_AMOUNT, g.max_hp)
+	heal_amt := HEAL_AMOUNT + (STAFF_HEAL_BONUS if g.weapon_type == 2 else 0)
+	g.hp = min(g.hp + heal_amt, g.max_hp)
 	return true
 }
 
 // Shared fireball damage resolution — used by cast_fireball and use_scroll_fire.
 // Caller must have already validated preconditions, incremented turn_count,
 // and deducted the resource (mana or scroll).
-resolve_fireball_hit :: proc(g: ^Game_State) {
+resolve_fireball_hit :: proc(g: ^Game_State, fire_dmg: int) {
 	enemy_poison_dmg := POISON_DMG if g.enemy_poison_dur > 0 else 0
-	new_enemy_hp := g.enemy_hp - FIREBALL_DMG - enemy_poison_dmg
+	new_enemy_hp := g.enemy_hp - fire_dmg - enemy_poison_dmg
 
 	poison_dmg := POISON_DMG if g.player_poison_dur > 0 else 0
 	new_hp := g.hp - poison_dmg
@@ -66,7 +67,8 @@ cast_fireball :: proc(g: ^Game_State) -> bool {
 	if g.mana < FIREBALL_COST do return false
 	g.turn_count += 1
 	g.mana -= FIREBALL_COST
-	resolve_fireball_hit(g)
+	fire_dmg := FIREBALL_DMG + (STAFF_SPELL_BONUS if g.weapon_type == 2 else 0)
+	resolve_fireball_hit(g, fire_dmg)
 	return true
 }
 
@@ -97,6 +99,6 @@ use_scroll_fire :: proc(g: ^Game_State) -> bool {
 	if g.qty_scroll_fire < 1 do return false
 	g.turn_count += 1
 	g.qty_scroll_fire -= 1
-	resolve_fireball_hit(g)
+	resolve_fireball_hit(g, FIREBALL_DMG)
 	return true
 }

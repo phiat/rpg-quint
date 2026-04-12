@@ -82,6 +82,9 @@ crawl_step :: proc(driver: rawptr, action: string, picks: map[string]mbt.ITF_Val
 	case "equip_pistol":
 		qc.equip_pistol(g)
 		return true
+	case "equip_staff":
+		qc.equip_staff(g)
+		return true
 	case "pistol_shot":
 		qc.pistol_shot(g)
 		return true

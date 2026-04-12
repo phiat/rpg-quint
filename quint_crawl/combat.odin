@@ -102,7 +102,8 @@ resolve_loot :: proc(g: ^Game_State) {
 	pre_turn := g.turn_count - 1
 	// ch.xp in spec is the pre-kill value; Odin has already granted the xp reward by now.
 	pre_xp := g.xp - zone_xp_reward(g.pos_x, g.pos_y)
-	should_drop := (g.pity_counter >= PITY_THRESHOLD || ((pre_turn + pre_xp) % LOOT_DROP_MODULO == 0)) && total_items(g) < MAX_INVENTORY
+	tot := total_items(g)
+	should_drop := (g.pity_counter >= PITY_THRESHOLD || ((pre_turn + pre_xp) % LOOT_DROP_MODULO == 0)) && tot < MAX_INVENTORY
 	if should_drop {
 		zlvl := zone_level(g.pos_x, g.pos_y)
 		if zlvl >= POISON_APPLY_TIER {
@@ -111,6 +112,10 @@ resolve_loot :: proc(g: ^Game_State) {
 		} else {
 			g.qty_potion += 1
 			g.last_drop = 1
+		}
+		// Bonus holy_dust drop at tier 2+ when room for both items — mirrors spec drops_holy.
+		if zlvl >= POISON_APPLY_TIER && tot + 1 < MAX_INVENTORY {
+			g.qty_holy_dust += 1
 		}
 		g.pity_counter = 0
 	} else {
@@ -125,7 +130,7 @@ resolve_loot :: proc(g: ^Game_State) {
 	if h % 4 == 0 {
 		switch g.enemy_trait {
 		case .Undead:
-			g.qty_holy_dust += 1
+			// holy_dust now granted by the spec-visible tier-2 bonus drop above.
 		case .Beast:
 			g.qty_pelt += 1
 		case .Construct:

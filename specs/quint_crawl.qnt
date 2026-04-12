@@ -65,6 +65,7 @@ module quint_crawl {
   type LootDrop = {
     potion_inc: int,
     venom_inc: int,
+    holy_dust_inc: int,
     new_pity: int,
     new_last_drop: int,
   }
@@ -176,6 +177,12 @@ module quint_crawl {
   val MAX_INVENTORY = 30
   val BATTERY_CAP = 20
   val PISTOL_UNLOCK_COST = 50
+  // Staff: caster weapon (weapon_type=2). Village unlock, requires skill_magic.
+  // Grants +max_mana on equip and boosts spell output; no melee combat action.
+  val STAFF_UNLOCK_COST = 40
+  val STAFF_MAX_MANA_BONUS = 5
+  val STAFF_SPELL_BONUS = 5
+  val STAFF_HEAL_BONUS = 5
   val PISTOL_STAMINA = 2
   val PISTOL_BASE_BONUS = 4
   val CRAFT_LEVEL_REQ = 2
@@ -346,9 +353,16 @@ module quint_crawl {
     val drop_trigger = (m.pity_counter >= PITY_THRESHOLD or ((turn_count + nonce) % LOOT_DROP_MODULO == 0))
     val should_drop = defeated_alive and drop_trigger and tot < MAX_INVENTORY
     val drops_venom = should_drop and zone_tier >= POISON_APPLY_TIER
+    // Holy dust is a bonus drop alongside the primary at tier 2+,
+    // mirroring the Odin-side trait drop that formerly keyed on .Undead.
+    // Gates on the same drop_trigger so MBT traces can exercise it.
+    // Holy dust stacks on the primary drop, so it only fires when there's
+    // room for both items under the inventory cap.
+    val drops_holy = should_drop and zone_tier >= POISON_APPLY_TIER and tot + 1 < MAX_INVENTORY
     {
       potion_inc: if (should_drop and not(drops_venom)) 1 else 0,
       venom_inc: if (drops_venom) 1 else 0,
+      holy_dust_inc: if (drops_holy) 1 else 0,
       new_pity: if (should_drop) 0
                 else if (defeated_alive) m.pity_counter + 1
                 else m.pity_counter,
@@ -624,6 +638,7 @@ module quint_crawl {
       inv' = { ...inv,
                qty_potion: inv.qty_potion + loot.potion_inc,
                qty_venom_sac: inv.qty_venom_sac + loot.venom_inc,
+               qty_holy_dust: inv.qty_holy_dust + loot.holy_dust_inc,
       },
       w' = { ...w, turn_count: w.turn_count + 1 },
       meta' = { ...meta, pity_counter: loot.new_pity, last_drop: loot.new_last_drop,
@@ -742,7 +757,8 @@ module quint_crawl {
     ch.skill_magic,
     ch.mana >= HEAL_COST,
     ch.hp < ch.max_hp,
-    val healed = clamp_hp(ch.hp + HEAL_AMOUNT, ch.max_hp)
+    val heal_amt = HEAL_AMOUNT + (if (eqp.weapon_type == 2) STAFF_HEAL_BONUS else 0)
+    val healed = clamp_hp(ch.hp + heal_amt, ch.max_hp)
     all {
       ch' = { ...ch, hp: healed, mana: ch.mana - HEAL_COST },
       inv' = inv, eqp' = eqp, cb' = cb,
@@ -758,8 +774,9 @@ module quint_crawl {
     cb.in_combat, not(meta.game_won), ch.hp > 0, cb.enemy_hp > 0,
     ch.skill_magic,
     ch.mana >= FIREBALL_COST,
+    val fire_dmg = FIREBALL_DMG + (if (eqp.weapon_type == 2) STAFF_SPELL_BONUS else 0)
     val enemy_poison_dmg = if (cb.enemy_poison_dur > 0) POISON_DMG else 0
-    val new_enemy_hp = cb.enemy_hp - FIREBALL_DMG - enemy_poison_dmg
+    val new_enemy_hp = cb.enemy_hp - fire_dmg - enemy_poison_dmg
     val new_hp = if (new_enemy_hp > 0) ch.hp - incoming_enemy_dmg - player_poison_tick else ch.hp - player_poison_tick
     val gained_xp = if (new_enemy_hp <= 0 and new_hp > 0) ch.xp + zone_xp_reward(w.pos_x, w.pos_y) else ch.xp
     val new_level = if (ch.level < MAX_LEVEL and gained_xp >= xp_threshold(ch.level + 1)) ch.level + 1 else ch.level
@@ -797,6 +814,7 @@ module quint_crawl {
       inv' = { ...inv,
                qty_potion: inv.qty_potion + loot.potion_inc,
                qty_venom_sac: inv.qty_venom_sac + loot.venom_inc,
+               qty_holy_dust: inv.qty_holy_dust + loot.holy_dust_inc,
       },
       eqp' = eqp,
       w' = { ...w, turn_count: w.turn_count + 1 },
@@ -877,6 +895,7 @@ module quint_crawl {
                qty_scroll_fire: inv.qty_scroll_fire - 1,
                qty_potion: inv.qty_potion + loot.potion_inc,
                qty_venom_sac: inv.qty_venom_sac + loot.venom_inc,
+               qty_holy_dust: inv.qty_holy_dust + loot.holy_dust_inc,
       },
       eqp' = eqp,
       w' = { ...w, turn_count: w.turn_count + 1 },
@@ -974,6 +993,28 @@ module quint_crawl {
     ch' = { ...ch, gold: ch.gold - PISTOL_UNLOCK_COST },
     inv' = { ...inv, has_sword: false },
     eqp' = { ...eqp, weapon_type: 1, sword_dur: 0,
+             enchant_slot_1: 0, enchant_slot_2: 0, enchant_slot_3: 0 },
+    cb' = cb,
+    w' = { ...w, turn_count: w.turn_count + 1 },
+    meta' = meta, comp' = comp,
+  }
+
+  // === Equip staff (village, trades in sword for a caster weapon) ===
+  // Requires spellbook (skill_magic). Converts equipped sword into a Staff:
+  // weapon_type flips to 2, +max_mana, mana restored to full, enchants
+  // cleared. No melee attack — staff users rely on spells/scrolls/flee.
+  action equip_staff = all {
+    not(cb.in_combat), not(meta.game_won), ch.hp > 0,
+    zone_has_services(w.pos_x, w.pos_y),
+    inv.has_sword, eqp.weapon_type == 0,
+    ch.skill_magic,
+    ch.gold >= STAFF_UNLOCK_COST,
+    ch' = { ...ch,
+            gold: ch.gold - STAFF_UNLOCK_COST,
+            max_mana: ch.max_mana + STAFF_MAX_MANA_BONUS,
+            mana: ch.max_mana + STAFF_MAX_MANA_BONUS },
+    inv' = { ...inv, has_sword: false },
+    eqp' = { ...eqp, weapon_type: 2, sword_dur: 0,
              enchant_slot_1: 0, enchant_slot_2: 0, enchant_slot_3: 0 },
     cb' = cb,
     w' = { ...w, turn_count: w.turn_count + 1 },
@@ -1110,6 +1151,7 @@ module quint_crawl {
       inv' = { ...inv,
                qty_potion: inv.qty_potion + loot.potion_inc,
                qty_venom_sac: inv.qty_venom_sac + loot.venom_inc - (if (auto_poison) 1 else 0),
+               qty_holy_dust: inv.qty_holy_dust + loot.holy_dust_inc,
       },
       w' = { ...w, turn_count: w.turn_count + 1 },
       meta' = { ...meta, pity_counter: loot.new_pity, last_drop: loot.new_last_drop,
@@ -1178,6 +1220,7 @@ module quint_crawl {
       inv' = { ...inv,
                qty_potion: inv.qty_potion + loot.potion_inc,
                qty_venom_sac: inv.qty_venom_sac + loot.venom_inc - (if (auto_poison) 1 else 0),
+               qty_holy_dust: inv.qty_holy_dust + loot.holy_dust_inc,
       },
       w' = { ...w, turn_count: w.turn_count + 1 },
       meta' = { ...meta, pity_counter: loot.new_pity, last_drop: loot.new_last_drop,
@@ -1410,6 +1453,7 @@ module quint_crawl {
       inv' = { ...inv,
                qty_potion: inv.qty_potion + loot.potion_inc,
                qty_venom_sac: inv.qty_venom_sac + loot.venom_inc,
+               qty_holy_dust: inv.qty_holy_dust + loot.holy_dust_inc,
       },
       w' = { ...w, turn_count: w.turn_count + 1 },
       meta' = { ...meta, pity_counter: loot.new_pity, last_drop: loot.new_last_drop,
@@ -1504,6 +1548,7 @@ module quint_crawl {
                qty_battery: inv.qty_battery - 1,
                qty_potion: inv.qty_potion + loot.potion_inc,
                qty_venom_sac: inv.qty_venom_sac + loot.venom_inc,
+               qty_holy_dust: inv.qty_holy_dust + loot.holy_dust_inc,
       },
       w' = { ...w, turn_count: w.turn_count + 1 },
       meta' = { ...meta, pity_counter: loot.new_pity, last_drop: loot.new_last_drop,
@@ -1793,7 +1838,7 @@ module quint_crawl {
     move_up, move_down, move_left, move_right, fast_travel,
     enter_combat, combat_attack, combat_potion, flee_combat,
     rest_at_village, buy_potion, repair_sword, buy_spellbook,
-    gather_wood, mine_iron, craft_sword, equip_sword, equip_pistol,
+    gather_wood, mine_iron, craft_sword, equip_sword, equip_pistol, equip_staff,
     use_antidote, poison_strike, combo_attack,
     heavy_strike, battle_cry, shield_block,
     counter_attack, fortify, pistol_shot,
@@ -1965,7 +2010,7 @@ module quint_crawl {
   val no_fire_ice_incompatible = not(has_fire_enchant and has_ice_enchant)
 
   /// Weapon type bounded (0=sword, 1=pistol)
-  val weapon_type_bounded = eqp.weapon_type >= 0 and eqp.weapon_type <= 1
+  val weapon_type_bounded = eqp.weapon_type >= 0 and eqp.weapon_type <= 2
 
   /// Battery quantity bounded [0, BATTERY_CAP]
   val qty_battery_bounded = inv.qty_battery >= 0 and inv.qty_battery <= BATTERY_CAP
