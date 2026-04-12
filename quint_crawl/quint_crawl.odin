@@ -76,7 +76,7 @@ POISON_APPLY_TIER :: 2
 LOOT_DROP_MODULO :: 3
 MAX_COMBO_CHAIN :: 3
 SKILL_POINTS_PER_LEVEL :: 1
-RESPEC_COST :: 25
+RESPEC_BASE_COST :: 25
 COUNTER_STAMINA :: 3
 SHIELD_BLOCK_STAMINA :: 3
 FORTIFY_STAMINA :: 4
@@ -131,6 +131,7 @@ Save_Data :: struct {
 	skill_counter_attack: bool,
 	skill_battle_cry: bool,
 	skill_fortify: bool,
+	respec_count: int,
 	qty_venom_sac: int,
 	enemy_element: int,
 	enchant_slot_1: int,
@@ -203,6 +204,8 @@ Game_State :: struct {
 	skill_counter_attack: bool,
 	skill_battle_cry:    bool,
 	skill_fortify:       bool,
+	// Respec escalation (scales cost with uses)
+	respec_count:        int,
 	// Venom sac
 	qty_venom_sac:       int,
 	// Elemental & Enchantment
@@ -502,6 +505,7 @@ init_game :: proc(g: ^Game_State) {
 	g.skill_counter_attack = false
 	g.skill_battle_cry = false
 	g.skill_fortify = false
+	g.respec_count = 0
 	g.qty_venom_sac = 0
 	g.enemy_element = 0
 	g.enchant_slot_1 = 0
@@ -1151,10 +1155,16 @@ unlock_fortify :: proc(g: ^Game_State) -> bool {
 	return true
 }
 
+// Escalating respec cost: RESPEC_BASE_COST * (respec_count + 1)
+respec_cost :: proc(g: ^Game_State) -> int {
+	return RESPEC_BASE_COST * (g.respec_count + 1)
+}
+
 respec :: proc(g: ^Game_State) -> bool {
 	if !can_act_map(g) do return false
 	if !zone_has_services(g.pos_x, g.pos_y) do return false
-	if g.gold < RESPEC_COST do return false
+	cost := respec_cost(g)
+	if g.gold < cost do return false
 	spent := 0
 	if g.skill_combo do spent += 1
 	if g.skill_poison do spent += 1
@@ -1164,7 +1174,7 @@ respec :: proc(g: ^Game_State) -> bool {
 	if g.skill_battle_cry do spent += 2
 	if g.skill_fortify do spent += 2
 	if spent == 0 do return false
-	g.gold -= RESPEC_COST
+	g.gold -= cost
 	g.skill_points += spent
 	g.skill_combo = false
 	g.skill_poison = false
@@ -1173,6 +1183,7 @@ respec :: proc(g: ^Game_State) -> bool {
 	g.skill_counter_attack = false
 	g.skill_battle_cry = false
 	g.skill_fortify = false
+	g.respec_count += 1
 	return true
 }
 
@@ -1524,6 +1535,7 @@ save_game :: proc(g: ^Game_State) -> bool {
 		skill_counter_attack = g.skill_counter_attack,
 		skill_battle_cry = g.skill_battle_cry,
 		skill_fortify = g.skill_fortify,
+		respec_count = g.respec_count,
 		qty_venom_sac = g.qty_venom_sac,
 		enemy_element = g.enemy_element,
 		enchant_slot_1 = g.enchant_slot_1,
@@ -1576,6 +1588,7 @@ load_game :: proc(g: ^Game_State) -> bool {
 	g.skill_counter_attack = s.skill_counter_attack
 	g.skill_battle_cry = s.skill_battle_cry
 	g.skill_fortify = s.skill_fortify
+	g.respec_count = s.respec_count
 	g.qty_venom_sac = s.qty_venom_sac
 	g.enemy_element = s.enemy_element
 	g.enchant_slot_1 = s.enchant_slot_1

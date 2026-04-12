@@ -6,6 +6,7 @@ module quint_crawl {
     skill_combo: bool, skill_poison: bool, skill_shield_block: bool,
     skill_heavy_strike: bool, skill_counter_attack: bool,
     skill_battle_cry: bool, skill_fortify: bool,
+    respec_count: int,
   }
 
   type InvState = {
@@ -121,7 +122,7 @@ module quint_crawl {
   val LOOT_DROP_MODULO = 3
   val MAX_COMBO_CHAIN = 3
   val SKILL_POINTS_PER_LEVEL = 1
-  val RESPEC_COST = 25
+  val RESPEC_BASE_COST = 25
   val COUNTER_STAMINA = 3
   val SHIELD_BLOCK_STAMINA = 3
   val FORTIFY_STAMINA = 4
@@ -313,6 +314,7 @@ module quint_crawl {
       skill_combo: false, skill_poison: false, skill_shield_block: false,
       skill_heavy_strike: false, skill_counter_attack: false,
       skill_battle_cry: false, skill_fortify: false,
+      respec_count: 0,
     },
     inv' = {
       qty_potion: INITIAL_POTIONS, qty_wood: 0, qty_iron: 0, qty_sword: 0,
@@ -977,19 +979,21 @@ module quint_crawl {
   action respec = all {
     not(cb.in_combat), not(meta.game_won), ch.hp > 0,
     zone_has_services(w.pos_x, w.pos_y),
-    ch.gold >= RESPEC_COST,
+    val respec_cost = RESPEC_BASE_COST * (ch.respec_count + 1)
     val spent = (if (ch.skill_combo) 1 else 0) + (if (ch.skill_poison) 1 else 0) +
                 (if (ch.skill_shield_block) 1 else 0) + (if (ch.skill_heavy_strike) 1 else 0) +
                 (if (ch.skill_counter_attack) 1 else 0) + (if (ch.skill_battle_cry) 2 else 0) +
                 (if (ch.skill_fortify) 2 else 0)
     all {
       spent > 0,
+      ch.gold >= respec_cost,
       ch' = { ...ch,
-              gold: ch.gold - RESPEC_COST,
+              gold: ch.gold - respec_cost,
               skill_points: ch.skill_points + spent,
               skill_combo: false, skill_poison: false, skill_shield_block: false,
               skill_heavy_strike: false, skill_counter_attack: false,
               skill_battle_cry: false, skill_fortify: false,
+              respec_count: ch.respec_count + 1,
       },
       inv' = inv, eqp' = eqp, cb' = cb, w' = w, meta' = meta, comp' = comp,
     }
@@ -1426,6 +1430,9 @@ module quint_crawl {
 
   /// Skill points are non-negative
   val skill_points_non_negative = ch.skill_points >= 0
+
+  /// Respec count is non-negative
+  val respec_count_non_negative = ch.respec_count >= 0
 
   /// Skill prerequisites are respected
   val skill_prereqs_respected = and {
