@@ -105,6 +105,7 @@ start_transition :: proc(app: ^App_State, target: Screen) {
 		app.transition_timer = TRANSITION_DURATION
 		app.transition_target = target
 		app.transition_phase = false  // start with fade-out
+		app.inventory_open = false   // never carry overlay across screens
 	}
 }
 

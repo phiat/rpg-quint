@@ -25,7 +25,7 @@ handle_map_input :: proc(app: ^App_State) {
 		}
 		return
 	}
-	if rl.IsKeyPressed(.I) {
+	if rl.IsKeyPressed(.I) && !g.in_combat {
 		app.inventory_open = true
 		return
 	}

@@ -96,7 +96,9 @@ Used in the HUD sidebar inventory and shop/loot panels.
 | File | Item | Description |
 |------|------|-------------|
 | `icon_potion.png` | Health Potion | Red flask, +20 HP |
-| `icon_sword.png` | Sword | Steel blade, +5 ATK |
+| `icon_sword.png` | Sword (Common) | Steel blade, +5 ATK |
+| `icon_sword_rare.png` | Sword (Rare) | Blue-hilt variant, higher ATK scaling |
+| `icon_sword_legendary.png` | Sword (Legendary) | Gold-hilt variant with glow, highest ATK scaling |
 | `icon_sword_broken.png` | Broken Sword | Cracked/dimmed blade, 0 durability |
 | `icon_dagger.png` | Dagger | Short blade, fast attacks, lower stamina cost |
 | `icon_pistol.png` | Pistol | Battery-powered sidearm (alt weapon type) |
@@ -131,6 +133,18 @@ Dropped by enemies based on their trait tag (see Bestiary section).
 | `icon_essence.png` | Essence | Elemental | Swirling vial of colored mist |
 | `icon_coin.png` | Trophy Coin | Humanoid | Stamped faction token (distinct from gold) |
 | `icon_ichor.png` | Ichor | Aberration | Black viscous droplet |
+
+### Unique trophy drops (32x32)
+
+One-of-a-kind drops from a tier's signature archetype. Each grants a permanent ATK bonus and is displayed in the inventory overlay's trophy panel. There are 5 (one per level tier).
+
+| File | Trophy | Tier | Notes |
+|------|--------|------|-------|
+| `icon_trophy_slime_crown.png`    | Slime Crown    | 1 | Gel crown with jewel inclusion |
+| `icon_trophy_bone_standard.png`  | Bone Standard  | 2 | Tattered banner on femur pole |
+| `icon_trophy_alpha_pelt.png`     | Alpha Pelt     | 3 | Oversized scarred pelt |
+| `icon_trophy_wraith_veil.png`    | Wraith Veil    | 4 | Translucent ghostly shroud |
+| `icon_trophy_dragon_heart.png`   | Dragon Heart   | 5 | Pulsing ember-cored heart |
 
 ## Weapon & Enchantment Icons (32x32)
 
@@ -251,6 +265,7 @@ Data-driven species catalog: 8 species × 3 rarity tiers (Common / Rare / Legend
 | `frame_hud.png` | 240x720 | HUD sidebar background |
 | `frame_combat.png` | 720x720 | Combat screen background |
 | `frame_rewards.png` | 400x300 | Victory rewards panel background |
+| `frame_inventory.png` | 760x680 | Inventory overlay panel background (3-column layout) |
 | `icon_quest_claim.png` | 32x32 | Glow ribbon for `[TAB] Claim reward` HUD hint |
 | `banner_boss_defeated.png` | 720x120 | One-shot banner after Castle Boss kill |
 | `icon_star.png` | 32x32 | Level-up celebration icon |
@@ -270,6 +285,8 @@ Data-driven species catalog: 8 species × 3 rarity tiers (Common / Rare / Legend
 | Item icons (core) | 11 | 32x32 |
 | Item icons (consumables) | 5 | 32x32 |
 | Item icons (trait mats) | 6 | 32x32 |
+| Item icons (unique trophies) | 5 | 32x32 |
+| Sword rarity variants | 2 | 32x32 |
 | Enchantment icons | 4 | 32x32 |
 | Elemental VFX | 4 | 64x64 |
 | Weather icons | 4 | 32x32 |
@@ -279,7 +296,7 @@ Data-driven species catalog: 8 species × 3 rarity tiers (Common / Rare / Legend
 | Skill tree icons | 7 | 32x32 |
 | Companion sprites | 8 | 48x48 |
 | Treasure chest marker | 1 | 32x32 |
-| **Total** | **84** | |
+| **Total** | **91** | |
 
 ### Optional (polish)
 

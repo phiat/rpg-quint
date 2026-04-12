@@ -60,6 +60,7 @@ The game logic in `quint_crawl/` is the single source of truth — shared by bot
 | X | Antidote |
 | B | Throw bomb (flat damage, bypasses DEF) |
 | M | Smoke bomb (guaranteed escape) |
+| INS | Use holy water (full heal) |
 
 ### Exploration
 
@@ -70,6 +71,7 @@ The game logic in `quint_crawl/` is the single source of truth — shared by bot
 | M | Mine iron |
 | Z | Open treasure chest (chest zones only) |
 | - | Eat ration (restore stamina) |
+| I | Open inventory (ESC to close) |
 
 ### Village
 
@@ -88,6 +90,9 @@ The game logic in `quint_crawl/` is the single source of truth — shared by bot
 | = | Upgrade salvage level |
 | 1–7 | Unlock skill (when points available) |
 | 8–0 | Enchant sword slots 1–3 |
+| F1 | Recycle 3 wood → ration |
+| F2 | Recycle 3 iron → battery |
+| F3 | Recycle 3 potion → holy water |
 | L | Claim victory (at Level 5 Castle, after the Boss) |
 
 ### Companions
@@ -116,7 +121,7 @@ See the HUD sidebar for zone-specific actions.
 - **Elemental system** — 4-element cycle (Fire > Ice > Lightning > Earth > Fire) with 2x/1x/0.5x damage multipliers.
 - **Companions** — data-driven species catalog (Wolf/Hawk/Turtle/Fox/Bear/Owl/Lynx/Sprite) with biome-gated adoption, trait affinities (Attacker/Defender/Scout/Support), rarity tiers (Common/Rare/Legendary), loyalty-on-combat loop (inactive below LOW_LOYALTY until fed), in-combat command, village training to raise rarity, and a 3-stage companion quest chain. The spec verifies the abstract (trait × rarity) effect space; Odin grows the catalog freely without code changes.
 - **Progression** — XP/level-up, skill tree with 3 branches (Offense/Defense/Utility), 1 point per level, respec at village, 3 prerequisite-gated quests (Slime Slayer → Venture Forth → Castle Conqueror) tracked in the HUD, Castle Boss encounter gates the final victory claim.
-- **Items & crafting** — resource gathering (wood, iron), level-gated sword crafting (Lv2+), sword durability with village repair, salvage system (upgradeable 1–3), 3-slot weapon enchantment (fire/ice/vampiric/lightning; fire/ice mutually exclusive), venom sac crafting, holy water crafting (holy_dust + wood → out-of-combat full heal), fire scrolls (bypass mana gate), loot drops with pity-counter guarantee, inventory capacity (30 items) enforced across gathering/shopping/loot.
+- **Items & crafting** — resource gathering (wood, iron), level-gated sword crafting (Lv2+), sword durability with village repair, salvage system (upgradeable 1–3), 3-slot weapon enchantment (fire/ice/vampiric/lightning; fire/ice mutually exclusive), venom sac crafting, holy water crafting (holy_dust + wood → out-of-combat full heal), fire scrolls (bypass mana gate), loot drops with pity-counter guarantee, zone-tiered sword rarity drops (Common/Rare/Legendary with ATK scaling), per-tier unique archetype trophies (5 collectible drops that grant a permanent ATK bonus), village recycling (3-for-1 wood/iron/potion conversion), full-screen inventory overlay ([I] to open), inventory capacity (30 items) enforced across gathering/shopping/loot.
 - **Persistence & polish** — save/load snapshot with full state round-trip; post-processing effects (zone tint, chromatic aberration, low-HP pulse, level-up bloom, poison overlay).
 
 ## How MBT works
@@ -196,4 +201,4 @@ just verify NAME MAIN INVARIANT # run invariant check (100k traces, 20 steps)
 
 ## Docs
 
-- [Asset Design Guide](docs/assets-design.md) — sprite specs for V2 visual upgrade (84 required assets)
+- [Asset Design Guide](docs/assets-design.md) — sprite specs for V2 visual upgrade (91 required assets)

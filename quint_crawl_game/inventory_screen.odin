@@ -94,7 +94,6 @@ draw_inventory_overlay :: proc(app: ^App_State) {
 			y += 16
 		}
 	}
-	y += 6
 	if g.has_shield {
 		rl.DrawText(fmt.ctprintf("Shield %d/%d", g.shield_dur, qc.SHIELD_MAX_DUR), col3_x, y, 14, {180, 200, 255, 255})
 	} else {
@@ -112,7 +111,7 @@ draw_inventory_overlay :: proc(app: ^App_State) {
 	} else {
 		rl.DrawText("No trinket", col3_x, y, 14, TEXT_DIM)
 	}
-	y += 24
+	y += 20
 
 	// Trophies
 	trophies := qc.unique_count(g.unique_drops_mask)
