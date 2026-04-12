@@ -200,8 +200,10 @@ handle_map_input :: proc(app: ^App_State) {
 
 	// Claim quest reward
 	if rl.IsKeyPressed(.TAB) {
+		old_sp := g.skill_points
 		if qc.claim_quest_reward(g) {
-			add_message(app, "Quest reward claimed: +gold, +skill point!", TEXT_GOLD)
+			sp_delta := g.skill_points - old_sp
+			add_message(app, fmt.tprintf("Quest reward! +%dg  +%d SP", qc.QUEST_REWARD_GOLD, sp_delta), TEXT_GOLD)
 		}
 	}
 

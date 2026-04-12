@@ -105,14 +105,17 @@ draw_combat :: proc(app: ^App_State) {
 	player_hp_w := rl.MeasureText(player_hp, 14)
 	rl.DrawText(player_hp, 200 + (200 - player_hp_w) / 2, player_cy + 21, 14, TEXT_BRIGHT)
 
-	// Player ATK + sword durability
+	// Player ATK + DEF + sword durability
 	atk := qc.attack_power(g)
+	def := qc.defense_power(g)
+	def_color: rl.Color = {100, 180, 255, 255} if g.player_def_buff_dur > 0 else TEXT_BRIGHT
 	if g.has_sword {
 		dur_color := TEXT_BRIGHT if g.sword_dur > 3 else BAR_HP_FG
 		rl.DrawText(fmt.ctprintf("ATK: %d  Sword: %d/%d", atk, g.sword_dur, g.sword_max_dur), 200, player_cy + 48, 16, dur_color)
 	} else {
 		rl.DrawText(fmt.ctprintf("ATK: %d", atk), 200, player_cy + 48, 16, TEXT_BRIGHT)
 	}
+	rl.DrawText(fmt.ctprintf("DEF: %d", def), 380, player_cy + 48, 16, def_color)
 
 	// Player element + multiplier
 	p_elem := qc.player_element(g)

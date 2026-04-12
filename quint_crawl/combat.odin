@@ -86,6 +86,14 @@ enemy_free_hit_damage :: proc(g: ^Game_State, enchant_def: int) -> int {
 	return max(d, 1)
 }
 
+// Sum of all defense sources used to blunt an incoming enemy hit.
+// Mirrors the subtraction in enemy_free_hit_damage for UI display.
+defense_power :: proc(g: ^Game_State) -> int {
+	shield_def := SHIELD_DEF if g.has_shield else 0
+	armor_def := ARMOR_DEF if g.has_armor else 0
+	return enchant_def_bonus(g) + def_reduction_active(g) + comp_dmg_reduction(g) + shield_def + armor_def
+}
+
 // Shared kill-accounting: called from every kill path (resolve_combat_hit,
 // counter_attack, and any future site). Handles xp, quest counters, boss
 // flag, companion win, loot, and level-up. The caller is still responsible
