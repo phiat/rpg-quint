@@ -313,11 +313,18 @@ def_for :: proc(slot: int) -> int {
 	return 0
 }
 
+// Enchants are sword-bound: a broken (or absent) sword zeroes enchant bonuses.
+enchant_sword_ok :: proc(g: ^Game_State) -> bool {
+	return g.has_sword && g.sword_dur > 0
+}
+
 enchant_atk_bonus :: proc(g: ^Game_State) -> int {
+	if !enchant_sword_ok(g) do return 0
 	return atk_for(g.enchant_slot_1) + atk_for(g.enchant_slot_2) + atk_for(g.enchant_slot_3)
 }
 
 enchant_def_bonus :: proc(g: ^Game_State) -> int {
+	if !enchant_sword_ok(g) do return 0
 	return def_for(g.enchant_slot_1) + def_for(g.enchant_slot_2) + def_for(g.enchant_slot_3)
 }
 

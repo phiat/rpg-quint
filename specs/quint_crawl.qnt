@@ -240,8 +240,16 @@ module quint_crawl {
     else if (slot == 2) { ...e, enchant_slot_2: value }
     else { ...e, enchant_slot_3: value }
 
-  val enchant_atk_bonus = atk_for(eqp.enchant_slot_1) + atk_for(eqp.enchant_slot_2) + atk_for(eqp.enchant_slot_3)
-  val enchant_def_bonus = def_for(eqp.enchant_slot_1) + def_for(eqp.enchant_slot_2) + def_for(eqp.enchant_slot_3)
+  // Enchants are sword-bound: a broken (or absent) sword zeroes enchant bonuses.
+  val enchant_sword_ok = inv.has_sword and eqp.sword_dur > 0
+  val enchant_atk_bonus =
+    if (enchant_sword_ok)
+      atk_for(eqp.enchant_slot_1) + atk_for(eqp.enchant_slot_2) + atk_for(eqp.enchant_slot_3)
+    else 0
+  val enchant_def_bonus =
+    if (enchant_sword_ok)
+      def_for(eqp.enchant_slot_1) + def_for(eqp.enchant_slot_2) + def_for(eqp.enchant_slot_3)
+    else 0
   // Companion passives
   val comp_active = comp.active and comp.loyalty > 0
   // Rarity scale: common=1, rare=2, legendary=3
@@ -1336,8 +1344,12 @@ module quint_crawl {
   /// Max durability is constant
   val dur_max_constant = eqp.sword_max_dur == SWORD_MAX_DUR
 
-  /// Broken sword gives no attack bonus (ignoring ATK buff)
-  val broken_no_bonus = (inv.has_sword and eqp.sword_dur == 0 and cb.player_atk_buff_dur == 0).implies(attack_power == ch.base_attack + enchant_atk_bonus)
+  /// Broken sword gives no attack bonus: neither SWORD_ATK_BONUS nor enchant atk.
+  /// (ATK buff and companion atk bonuses are independent and may still apply.)
+  val atk_buff_bonus_val = if (cb.player_atk_buff_dur > 0) ATK_BUFF_BONUS else 0
+  val broken_no_bonus = (inv.has_sword and eqp.sword_dur == 0).implies(
+    attack_power == ch.base_attack + atk_buff_bonus_val + comp_atk_bonus
+  )
 
   /// Status durations are non-negative and bounded
   val status_dur_bounded = and {
