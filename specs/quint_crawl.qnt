@@ -137,6 +137,8 @@ module quint_crawl {
   val MAX_INVENTORY = 30
   val BATTERY_CAP = 20
   val PISTOL_UNLOCK_COST = 50
+  val PISTOL_STAMINA = 2
+  val PISTOL_BASE_BONUS = 4
   val CRAFT_LEVEL_REQ = 2
   val SALVAGE_WOOD_BASE = 0
   val SALVAGE_IRON_BASE = 1
@@ -459,6 +461,7 @@ module quint_crawl {
   // === Combat: attack enemy ===
   action combat_attack = all {
     cb.in_combat, not(meta.game_won), ch.hp > 0, cb.enemy_hp > 0,
+    eqp.weapon_type == 0,
     ch.stamina >= ATTACK_STAMINA,
     // Degrade sword on attack
     val new_sword_dur = if (inv.has_sword and eqp.sword_dur > 0) eqp.sword_dur - 1 else eqp.sword_dur
@@ -698,6 +701,7 @@ module quint_crawl {
   // === Poison strike (apply poison to enemy, enemy hits back) ===
   action poison_strike = all {
     cb.in_combat, not(meta.game_won), ch.hp > 0, cb.enemy_hp > 0,
+    eqp.weapon_type == 0,
     ch.skill_poison, inv.qty_venom_sac > 0,
     ch.stamina >= ATTACK_STAMINA,
     val new_hp = ch.hp - incoming_enemy_dmg
@@ -728,6 +732,7 @@ module quint_crawl {
   // === Combo attack (3-hit chain: Slash 1x -> Thrust 1.5x -> Finisher 2x) ===
   action combo_attack = all {
     cb.in_combat, not(meta.game_won), ch.hp > 0, cb.enemy_hp > 0,
+    eqp.weapon_type == 0,
     ch.skill_combo,
     cb.combo_count < MAX_COMBO_CHAIN,
     ch.stamina >= COMBO_STAMINA,
@@ -814,6 +819,7 @@ module quint_crawl {
   // === Heavy strike (2x damage, costs 5 stamina, 3-turn cooldown) ===
   action heavy_strike = all {
     cb.in_combat, not(meta.game_won), ch.hp > 0, cb.enemy_hp > 0,
+    eqp.weapon_type == 0,
     ch.skill_heavy_strike,
     cb.cd_heavy_strike == 0,
     ch.stamina >= HEAVY_STRIKE_STAMINA,
@@ -889,6 +895,7 @@ module quint_crawl {
   // Enemy hits back. Resets combo.
   action battle_cry = all {
     cb.in_combat, not(meta.game_won), ch.hp > 0, cb.enemy_hp > 0,
+    eqp.weapon_type == 0,
     ch.skill_battle_cry,
     cb.cd_battle_cry == 0,
     ch.stamina >= BATTLE_CRY_STAMINA,
@@ -926,6 +933,7 @@ module quint_crawl {
   // === Shield block (grants DEF buff, takes enemy hit) ===
   action shield_block = all {
     cb.in_combat, not(meta.game_won), ch.hp > 0, cb.enemy_hp > 0,
+    eqp.weapon_type == 0,
     ch.skill_shield_block,
     ch.stamina >= SHIELD_BLOCK_STAMINA,
     val new_hp = ch.hp - incoming_enemy_dmg - player_poison_tick
@@ -1057,6 +1065,7 @@ module quint_crawl {
   // === Counter-Attack (block + retaliatory hit) ===
   action counter_attack = all {
     cb.in_combat, not(meta.game_won), ch.hp > 0, cb.enemy_hp > 0,
+    eqp.weapon_type == 0,
     ch.skill_counter_attack,
     ch.stamina >= COUNTER_STAMINA,
     // Counter-attack is a retaliatory strike — deals HALF attack power (rounded down, min 1).
@@ -1133,6 +1142,7 @@ module quint_crawl {
   // === Fortify (double-duration DEF buff, no damage, cooldown) ===
   action fortify = all {
     cb.in_combat, not(meta.game_won), ch.hp > 0, cb.enemy_hp > 0,
+    eqp.weapon_type == 0,
     ch.skill_fortify,
     cb.cd_fortify == 0,
     ch.stamina >= FORTIFY_STAMINA,
@@ -1163,6 +1173,76 @@ module quint_crawl {
       eqp' = eqp, inv' = inv,
       w' = { ...w, turn_count: w.turn_count + 1 },
       meta' = meta, comp' = comp,
+    }
+  }
+
+  // === Pistol shot (future-tech weapon: no elemental, no enchants, consumes battery) ===
+  action pistol_shot = all {
+    cb.in_combat, not(meta.game_won), ch.hp > 0, cb.enemy_hp > 0,
+    eqp.weapon_type == 1,
+    inv.qty_battery >= 1,
+    ch.stamina >= PISTOL_STAMINA,
+    val pistol_dmg = ch.base_attack + PISTOL_BASE_BONUS + (if (cb.player_atk_buff_dur > 0) ATK_BUFF_BONUS else 0) + comp_atk_bonus
+    val enemy_poison_dmg = if (cb.enemy_poison_dur > 0) POISON_DMG else 0
+    val new_enemy_hp = cb.enemy_hp - pistol_dmg - enemy_poison_dmg
+    val new_hp = if (new_enemy_hp > 0) ch.hp - incoming_enemy_dmg - player_poison_tick else ch.hp - player_poison_tick
+    val gained_xp = if (new_enemy_hp <= 0 and new_hp > 0) ch.xp + zone_xp_reward(w.pos_x, w.pos_y) else ch.xp
+    val new_level = if (ch.level < MAX_LEVEL and gained_xp >= xp_threshold(ch.level + 1)) ch.level + 1 else ch.level
+    val zone_tier = zone_level(w.pos_x, w.pos_y)
+    val apply_poison = (zone_tier >= POISON_APPLY_TIER and cb.player_poison_dur == 0 and new_enemy_hp > 0)
+    val next_player_poison = if (apply_poison) STATUS_DURATION
+                             else if (cb.player_poison_dur > 0) cb.player_poison_dur - 1
+                             else 0
+    val next_atk_buff = if (cb.player_atk_buff_dur > 0) cb.player_atk_buff_dur - 1 else 0
+    val next_def_buff = if (cb.player_def_buff_dur > 0) cb.player_def_buff_dur - 1 else 0
+    val next_enemy_poison = if (cb.enemy_poison_dur > 0) cb.enemy_poison_dur - 1 else 0
+    val combat_ends = (new_enemy_hp <= 0 or new_hp <= 0)
+    val enemy_defeated_alive = (new_enemy_hp <= 0 and new_hp > 0)
+    val drop_trigger = (meta.pity_counter >= PITY_THRESHOLD or (w.turn_count % LOOT_DROP_MODULO == 0))
+    val should_drop = enemy_defeated_alive and drop_trigger and total_items < MAX_INVENTORY
+    val new_pity = if (should_drop) 0
+                   else if (enemy_defeated_alive) meta.pity_counter + 1
+                   else meta.pity_counter
+    val drops_venom = should_drop and zone_tier >= POISON_APPLY_TIER
+    val new_last_drop = if (drops_venom) 2 else if (should_drop) 1 else 0
+    all {
+      ch' = { ...ch,
+              hp: if (new_hp < 0) 0 else new_hp,
+              xp: gained_xp,
+              gold: if (new_enemy_hp <= 0) ch.gold + zone_gold_reward(w.pos_x, w.pos_y) else ch.gold,
+              level: new_level,
+              max_hp: if (new_level > ch.level) ch.max_hp + HP_PER_LEVEL else ch.max_hp,
+              base_attack: if (new_level > ch.level) ch.base_attack + ATK_PER_LEVEL_UP else ch.base_attack,
+              stamina: ch.stamina - PISTOL_STAMINA,
+              max_stamina: if (new_level > ch.level) ch.max_stamina + STAMINA_PER_LEVEL else ch.max_stamina,
+              skill_points: if (new_level > ch.level) ch.skill_points + SKILL_POINTS_PER_LEVEL else ch.skill_points,
+      },
+      cb' = { in_combat: if (combat_ends) false else true,
+              enemy_hp: if (combat_ends) 0 else new_enemy_hp,
+              enemy_attack: if (combat_ends) 0 else cb.enemy_attack,
+              enemy_element: if (combat_ends) 0 else cb.enemy_element,
+              combo_count: 0,
+              player_poison_dur: if (combat_ends) 0 else next_player_poison,
+              player_atk_buff_dur: if (combat_ends) 0 else next_atk_buff,
+              player_def_buff_dur: if (combat_ends) 0 else next_def_buff,
+              enemy_poison_dur: if (combat_ends) 0 else next_enemy_poison,
+              cd_heavy_strike: if (combat_ends) 0 else (if (cb.cd_heavy_strike > 0) cb.cd_heavy_strike - 1 else 0),
+              cd_battle_cry: if (combat_ends) 0 else (if (cb.cd_battle_cry > 0) cb.cd_battle_cry - 1 else 0),
+              cd_fortify: if (combat_ends) 0 else (if (cb.cd_fortify > 0) cb.cd_fortify - 1 else 0),
+      },
+      eqp' = eqp,
+      inv' = { ...inv,
+               qty_battery: inv.qty_battery - 1,
+               qty_potion: if (should_drop and not(drops_venom)) inv.qty_potion + 1 else inv.qty_potion,
+               qty_venom_sac: if (drops_venom) inv.qty_venom_sac + 1 else inv.qty_venom_sac,
+      },
+      w' = { ...w, turn_count: w.turn_count + 1 },
+      meta' = { ...meta, pity_counter: new_pity, last_drop: new_last_drop,
+               last_kill_turn: if (enemy_defeated_alive) w.turn_count else meta.last_kill_turn,
+               q1_kills: if (enemy_defeated_alive and zone_tier == 1 and meta.q1_kills < Q1_TARGET) meta.q1_kills + 1 else meta.q1_kills,
+               q3_kills: if (enemy_defeated_alive and zone_tier == MAX_LEVEL and meta.q3_kills < Q3_TARGET) meta.q3_kills + 1 else meta.q3_kills,
+               cq3_wins: if (enemy_defeated_alive and comp_active and meta.cq3_wins < CQ3_TARGET) meta.cq3_wins + 1 else meta.cq3_wins },
+      comp' = comp,
     }
   }
 
@@ -1381,7 +1461,7 @@ module quint_crawl {
     gather_wood, mine_iron, craft_sword, equip_sword, equip_pistol,
     use_antidote, poison_strike, combo_attack,
     heavy_strike, battle_cry, shield_block,
-    counter_attack, fortify,
+    counter_attack, fortify, pistol_shot,
     unlock_combo, unlock_poison, unlock_shield_block,
     unlock_heavy_strike, unlock_counter_attack,
     unlock_battle_cry, unlock_fortify,
