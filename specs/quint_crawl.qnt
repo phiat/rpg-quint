@@ -310,6 +310,10 @@ module quint_crawl {
   pure def salvage_iron_yield(slvl: int): int = SALVAGE_IRON_BASE + (slvl - 1)
 
   // --- Helpers ---
+  // HP clamp convention:
+  //   - Death paths (combat damage, poison ticks) clamp to 0 so HP <= 0 ends combat.
+  //   - Survival paths (storm on move, flee_combat) floor at 1 so the player
+  //     never dies from an escape-hatch action or from entering a zone.
   pure def clamp_hp(v: int, mx: int): int =
     if (v > mx) mx else if (v < 0) 0 else v
 
@@ -514,7 +518,7 @@ module quint_crawl {
       },
       w' = { ...w, turn_count: w.turn_count + 1 },
       meta' = { ...meta, pity_counter: new_pity, last_drop: new_last_drop,
-               last_kill_turn: if (enemy_defeated_alive) w.turn_count + 1 else meta.last_kill_turn,
+               last_kill_turn: if (enemy_defeated_alive) w.turn_count else meta.last_kill_turn,
                q1_kills: if (enemy_defeated_alive and zone_tier == 1 and meta.q1_kills < Q1_TARGET) meta.q1_kills + 1 else meta.q1_kills,
                q3_kills: if (enemy_defeated_alive and zone_tier == MAX_LEVEL and meta.q3_kills < Q3_TARGET) meta.q3_kills + 1 else meta.q3_kills,
                cq3_wins: if (enemy_defeated_alive and comp_active and meta.cq3_wins < CQ3_TARGET) meta.cq3_wins + 1 else meta.cq3_wins },
@@ -565,7 +569,7 @@ module quint_crawl {
       inv' = inv, eqp' = eqp,
       cb' = cb,
       w' = { ...w, turn_count: w.turn_count + 1 },
-      meta' = { ...meta, cq2_maxed: if (new_loyalty == MAX_LOYALTY and meta.cq2_maxed < CQ2_TARGET) CQ2_TARGET else meta.cq2_maxed },
+      meta' = { ...meta, cq2_maxed: if (new_loyalty == MAX_LOYALTY and meta.cq2_maxed < CQ2_TARGET) meta.cq2_maxed + 1 else meta.cq2_maxed },
       comp' = { ...comp, loyalty: new_loyalty },
     }
   }
@@ -775,7 +779,7 @@ module quint_crawl {
       },
       w' = { ...w, turn_count: w.turn_count + 1 },
       meta' = { ...meta, pity_counter: new_pity, last_drop: new_last_drop,
-               last_kill_turn: if (enemy_defeated_alive) w.turn_count + 1 else meta.last_kill_turn,
+               last_kill_turn: if (enemy_defeated_alive) w.turn_count else meta.last_kill_turn,
                q1_kills: if (enemy_defeated_alive and zone_tier == 1 and meta.q1_kills < Q1_TARGET) meta.q1_kills + 1 else meta.q1_kills,
                q3_kills: if (enemy_defeated_alive and zone_tier == MAX_LEVEL and meta.q3_kills < Q3_TARGET) meta.q3_kills + 1 else meta.q3_kills,
                cq3_wins: if (enemy_defeated_alive and comp_active and meta.cq3_wins < CQ3_TARGET) meta.cq3_wins + 1 else meta.cq3_wins },
@@ -849,7 +853,7 @@ module quint_crawl {
       },
       w' = { ...w, turn_count: w.turn_count + 1 },
       meta' = { ...meta, pity_counter: new_pity, last_drop: new_last_drop,
-               last_kill_turn: if (enemy_defeated_alive) w.turn_count + 1 else meta.last_kill_turn,
+               last_kill_turn: if (enemy_defeated_alive) w.turn_count else meta.last_kill_turn,
                q1_kills: if (enemy_defeated_alive and zone_tier == 1 and meta.q1_kills < Q1_TARGET) meta.q1_kills + 1 else meta.q1_kills,
                q3_kills: if (enemy_defeated_alive and zone_tier == MAX_LEVEL and meta.q3_kills < Q3_TARGET) meta.q3_kills + 1 else meta.q3_kills,
                cq3_wins: if (enemy_defeated_alive and comp_active and meta.cq3_wins < CQ3_TARGET) meta.cq3_wins + 1 else meta.cq3_wins },
@@ -1094,7 +1098,7 @@ module quint_crawl {
       },
       w' = { ...w, turn_count: w.turn_count + 1 },
       meta' = { ...meta, pity_counter: new_pity, last_drop: new_last_drop,
-               last_kill_turn: if (enemy_defeated_alive) w.turn_count + 1 else meta.last_kill_turn,
+               last_kill_turn: if (enemy_defeated_alive) w.turn_count else meta.last_kill_turn,
                q1_kills: if (enemy_defeated_alive and zone_tier == 1 and meta.q1_kills < Q1_TARGET) meta.q1_kills + 1 else meta.q1_kills,
                q3_kills: if (enemy_defeated_alive and zone_tier == MAX_LEVEL and meta.q3_kills < Q3_TARGET) meta.q3_kills + 1 else meta.q3_kills,
                cq3_wins: if (enemy_defeated_alive and comp_active and meta.cq3_wins < CQ3_TARGET) meta.cq3_wins + 1 else meta.cq3_wins },
@@ -1205,9 +1209,9 @@ module quint_crawl {
              qty_sword: inv.qty_sword - 1,
     },
     ch' = ch,
-    // Salvaging destroys a sword — enchants are lost when the sword breaks.
-    // Zeros the equipped sword's enchant slots (they're tied to has_sword).
-    eqp' = { ...eqp, enchant_slot_1: 0, enchant_slot_2: 0, enchant_slot_3: 0 },
+    // Salvage destroys an inventory sword; the equipped sword (and its enchants)
+    // is untouched.
+    eqp' = eqp,
     cb' = cb,
     w' = { ...w, turn_count: w.turn_count + 1 },
     meta' = meta, comp' = comp,
@@ -1298,7 +1302,7 @@ module quint_crawl {
       inv.qty_wood >= cost,
       inv' = { ...inv, qty_wood: inv.qty_wood - cost },
       comp' = { active: true, trait: t, rarity: r, loyalty: INITIAL_LOYALTY, command_used: false },
-      meta' = { ...meta, cq1_adopted: if (meta.cq1_adopted < CQ1_TARGET) CQ1_TARGET else meta.cq1_adopted },
+      meta' = { ...meta, cq1_adopted: if (meta.cq1_adopted < CQ1_TARGET) meta.cq1_adopted + 1 else meta.cq1_adopted },
       ch' = ch, eqp' = eqp, cb' = cb, w' = w,
     }
   }
@@ -1313,7 +1317,7 @@ module quint_crawl {
     all {
       inv' = { ...inv, qty_potion: inv.qty_potion - 1 },
       comp' = { ...comp, loyalty: new_loyalty },
-      meta' = { ...meta, cq2_maxed: if (new_loyalty == MAX_LOYALTY and meta.cq2_maxed < CQ2_TARGET) CQ2_TARGET else meta.cq2_maxed },
+      meta' = { ...meta, cq2_maxed: if (new_loyalty == MAX_LOYALTY and meta.cq2_maxed < CQ2_TARGET) meta.cq2_maxed + 1 else meta.cq2_maxed },
       ch' = ch, eqp' = eqp, cb' = cb, w' = w,
     }
   }
@@ -1380,6 +1384,11 @@ module quint_crawl {
   val current_pos_visited = w.visited.contains((w.pos_x, w.pos_y))
   val start_is_waypoint = w.waypoints.contains((0, 0))
   val waypoints_are_visited = w.waypoints.forall(p => w.visited.contains(p))
+  /// All visited cells are on the grid
+  val visited_in_bounds = w.visited.forall(p =>
+    p._1 >= 0 and p._1 < WORLD_SIZE and p._2 >= 0 and p._2 < WORLD_SIZE)
+  /// Every waypoint is a service zone (fast travel assumes this)
+  val waypoint_is_service_zone = w.waypoints.forall(p => zone_has_services(p._1, p._2))
 
   /// Quantities never go negative
   val quantities_non_negative = and {
@@ -1461,6 +1470,10 @@ module quint_crawl {
   /// Base attack grows correctly with level
   val base_attack_scales_with_level =
     ch.base_attack >= INITIAL_ATTACK + (ch.level - 1) * ATK_PER_LEVEL_UP
+
+  /// Victory only set under valid claim_victory guards (safety form of liveness)
+  val victory_preconditions = meta.game_won.implies(
+    ch.level >= MAX_LEVEL and zone_level(w.pos_x, w.pos_y) >= MAX_LEVEL)
 
   /// Win condition requires Castle position
   val win_requires_castle = meta.game_won.implies(

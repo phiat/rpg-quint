@@ -743,7 +743,7 @@ resolve_combat_hit :: proc(g: ^Game_State, dmg: int) -> bool {
 
 	if new_enemy_hp <= 0 {
 		// Enemy defeated, player alive — XP, loot, level-up, respawn timer
-		g.last_kill_turn = g.turn_count
+		g.last_kill_turn = g.turn_count - 1
 		g.xp += zone_xp_reward(g.pos_x, g.pos_y)
 		// Quest 1 / 3: count slime / dragon kills
 		zone_tier := zone_level(g.pos_x, g.pos_y)
@@ -824,7 +824,7 @@ rest_at_village :: proc(g: ^Game_State) -> bool {
 	g.stamina = g.max_stamina
 	if g.comp_active {
 		g.comp_loyalty = min(g.comp_loyalty + LOYALTY_GAIN, MAX_LOYALTY)
-		if g.comp_loyalty == MAX_LOYALTY && g.cq2_maxed < CQ2_TARGET do g.cq2_maxed = CQ2_TARGET
+		if g.comp_loyalty == MAX_LOYALTY && g.cq2_maxed < CQ2_TARGET do g.cq2_maxed += 1
 	}
 	return true
 }
@@ -1262,7 +1262,7 @@ counter_attack :: proc(g: ^Game_State) -> bool {
 			reset_cooldowns(g)
 		} else {
 			// Enemy defeated, player alive
-			g.last_kill_turn = g.turn_count
+			g.last_kill_turn = g.turn_count - 1
 			g.xp += zone_xp_reward(g.pos_x, g.pos_y)
 			g.in_combat = false
 			g.enemy_attack = 0
@@ -1380,7 +1380,7 @@ adopt_companion_abstract :: proc(g: ^Game_State, trait, rarity: int) -> bool {
 	g.comp_rarity = rarity
 	g.comp_loyalty = INITIAL_LOYALTY
 	g.comp_command_used = false
-	if g.cq1_adopted < CQ1_TARGET do g.cq1_adopted = CQ1_TARGET
+	if g.cq1_adopted < CQ1_TARGET do g.cq1_adopted += 1
 	return true
 }
 
@@ -1400,7 +1400,7 @@ adopt_companion :: proc(g: ^Game_State, species_idx: int, rarity: int) -> bool {
 	g.comp_rarity = rarity
 	g.comp_loyalty = INITIAL_LOYALTY
 	g.comp_command_used = false
-	if g.cq1_adopted < CQ1_TARGET do g.cq1_adopted = CQ1_TARGET
+	if g.cq1_adopted < CQ1_TARGET do g.cq1_adopted += 1
 	return true
 }
 
@@ -1412,7 +1412,7 @@ feed_companion :: proc(g: ^Game_State) -> bool {
 	if g.qty_potion < 1 do return false
 	g.qty_potion -= 1
 	g.comp_loyalty = min(g.comp_loyalty + LOYALTY_GAIN, MAX_LOYALTY)
-	if g.comp_loyalty == MAX_LOYALTY && g.cq2_maxed < CQ2_TARGET do g.cq2_maxed = CQ2_TARGET
+	if g.comp_loyalty == MAX_LOYALTY && g.cq2_maxed < CQ2_TARGET do g.cq2_maxed += 1
 	return true
 }
 
@@ -1457,10 +1457,7 @@ salvage_sword :: proc(g: ^Game_State) -> bool {
 	g.qty_sword -= 1
 	g.qty_wood += salvage_wood_yield(g.salvage_level)
 	g.qty_iron += salvage_iron_yield(g.salvage_level)
-	// Salvaging destroys a sword — enchants are lost with the broken sword.
-	g.enchant_slot_1 = 0
-	g.enchant_slot_2 = 0
-	g.enchant_slot_3 = 0
+	// Salvage destroys an inventory sword; equipped sword + its enchants untouched.
 	return true
 }
 
