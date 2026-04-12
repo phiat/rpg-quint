@@ -17,69 +17,48 @@ draw_hud :: proc(app: ^App_State) {
 	y := i32(HUD_PAD)
 	w := i32(HUD_W - HUD_PAD * 2)
 
-	// Title
-	rl.DrawText("QUINT CRAWL", x, y, 20, PLAYER_COLOR)
-	y += 30
-
-	// Level
-	rl.DrawText(fmt.ctprintf("Level %d", g.level), x, y, 22, TEXT_GOLD)
-	y += 30
-
-	// HP bar
-	rl.DrawText("HP", x, y, 14, TEXT_DIM)
-	y += 16
-	draw_bar(x, y, w, 16, g.hp, g.max_hp, BAR_HP_FG, BAR_HP_BG)
-	hp_str := fmt.ctprintf("%d/%d", g.hp, g.max_hp)
-	hp_w := rl.MeasureText(hp_str, 12)
-	rl.DrawText(hp_str, x + (w - hp_w) / 2, y + 2, 12, TEXT_BRIGHT)
+	// Title + level (one row)
+	rl.DrawText("QUINT CRAWL", x, y, 18, PLAYER_COLOR)
+	rl.DrawText(fmt.ctprintf("Lv %d", g.level), x + w - 50, y, 18, TEXT_GOLD)
 	y += 24
 
-	// XP bar
-	xp_target := qc.XP_THRESHOLDS[g.level + 1] if g.level < qc.MAX_LEVEL else g.xp
-	rl.DrawText("XP", x, y, 14, TEXT_DIM)
-	y += 16
-	draw_bar(x, y, w, 16, g.xp, xp_target, BAR_XP_FG, BAR_XP_BG)
-	xp_str := fmt.ctprintf("%d/%d", g.xp, xp_target)
-	xp_w := rl.MeasureText(xp_str, 12)
-	rl.DrawText(xp_str, x + (w - xp_w) / 2, y + 2, 12, TEXT_BRIGHT)
-	y += 24
-
-	// Stamina bar
-	rl.DrawText("STA", x, y, 14, TEXT_DIM)
-	y += 16
-	draw_bar(x, y, w, 16, g.stamina, g.max_stamina, BAR_STAMINA_FG, BAR_STAMINA_BG)
-	sta_str := fmt.ctprintf("%d/%d", g.stamina, g.max_stamina)
-	sta_w := rl.MeasureText(sta_str, 12)
-	rl.DrawText(sta_str, x + (w - sta_w) / 2, y + 2, 12, TEXT_BRIGHT)
-	y += 24
-
-	// Mana bar (only when magic unlocked)
-	if g.skill_magic {
-		rl.DrawText("MP", x, y, 14, TEXT_DIM)
-		y += 16
-		draw_bar(x, y, w, 16, g.mana, g.max_mana, {100, 140, 255, 255}, {30, 40, 80, 255})
-		mp_str := fmt.ctprintf("%d/%d", g.mana, g.max_mana)
-		mp_w := rl.MeasureText(mp_str, 12)
-		rl.DrawText(mp_str, x + (w - mp_w) / 2, y + 2, 12, TEXT_BRIGHT)
-		y += 24
+	// Inline label+bar helper
+	label_w := i32(32)
+	bar_w := w - label_w
+	draw_inline_bar :: proc(x, y, label_w, bar_w: i32, label: cstring, cur, mx: int, fg, bg: rl.Color) {
+		rl.DrawText(label, x, y + 2, 13, TEXT_DIM)
+		draw_bar(x + label_w, y, bar_w, 16, cur, mx, fg, bg)
+		s := fmt.ctprintf("%d/%d", cur, mx)
+		sw := rl.MeasureText(s, 12)
+		rl.DrawText(s, x + label_w + (bar_w - sw) / 2, y + 2, 12, TEXT_BRIGHT)
 	}
 
-	// Attack
-	atk := qc.attack_power(g)
-	if g.has_sword {
-		rl.DrawText(fmt.ctprintf("ATK: %d (%d+%d)", atk, g.base_attack, qc.SWORD_ATK_BONUS), x, y, 16, TEXT_BRIGHT)
-	} else {
-		rl.DrawText(fmt.ctprintf("ATK: %d", atk), x, y, 16, TEXT_BRIGHT)
-	}
-	y += 22
-
-	// Gold
-	rl.DrawText(fmt.ctprintf("Gold: %d", g.gold), x, y, 16, TEXT_GOLD)
+	draw_inline_bar(x, y, label_w, bar_w, "HP", g.hp, g.max_hp, BAR_HP_FG, BAR_HP_BG)
 	y += 20
 
-	// Skill points
+	xp_target := qc.XP_THRESHOLDS[g.level + 1] if g.level < qc.MAX_LEVEL else g.xp
+	draw_inline_bar(x, y, label_w, bar_w, "XP", g.xp, xp_target, BAR_XP_FG, BAR_XP_BG)
+	y += 20
+
+	draw_inline_bar(x, y, label_w, bar_w, "STA", g.stamina, g.max_stamina, BAR_STAMINA_FG, BAR_STAMINA_BG)
+	y += 20
+
+	if g.skill_magic {
+		draw_inline_bar(x, y, label_w, bar_w, "MP", g.mana, g.max_mana, {100, 140, 255, 255}, {30, 40, 80, 255})
+		y += 20
+	}
+
+	// ATK / DEF inline
+	atk := qc.attack_power(g)
+	def := qc.enchant_def_bonus(g) + (qc.SHIELD_DEF if g.has_shield else 0) + qc.comp_dmg_reduction(g)
+	rl.DrawText(fmt.ctprintf("ATK: %d", atk), x, y, 14, TEXT_BRIGHT)
+	rl.DrawText(fmt.ctprintf("DEF: %d", def), x + w / 2, y, 14, TEXT_BRIGHT)
+	y += 18
+
+	// Gold + skill points inline
+	rl.DrawText(fmt.ctprintf("Gold: %d", g.gold), x, y, 14, TEXT_GOLD)
 	if g.skill_points > 0 {
-		rl.DrawText(fmt.ctprintf("Skill Pts: %d", g.skill_points), x, y, 16, {255, 220, 50, 255})
+		rl.DrawText(fmt.ctprintf("SP: %d", g.skill_points), x + w / 2, y, 14, {255, 220, 50, 255})
 	}
 	y += 20
 
