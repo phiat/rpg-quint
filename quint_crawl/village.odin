@@ -71,6 +71,20 @@ craft_sword :: proc(g: ^Game_State) -> bool {
 	return true
 }
 
+batch_craft_sword :: proc(g: ^Game_State) -> bool {
+	if !can_act_map(g) do return false
+	if !zone_has_services(g.pos_x, g.pos_y) do return false
+	if g.level < CRAFT_LEVEL_REQ do return false
+	if g.qty_wood < CRAFT_WOOD_COST * BATCH_CRAFT_COUNT do return false
+	if g.qty_iron < CRAFT_IRON_COST * BATCH_CRAFT_COUNT do return false
+	if total_items(g) + BATCH_CRAFT_COUNT > MAX_INVENTORY do return false
+	g.turn_count += 1
+	g.qty_wood -= CRAFT_WOOD_COST * BATCH_CRAFT_COUNT
+	g.qty_iron -= CRAFT_IRON_COST * BATCH_CRAFT_COUNT
+	g.qty_sword += BATCH_CRAFT_COUNT
+	return true
+}
+
 equip_sword :: proc(g: ^Game_State) -> bool {
 	if !can_act_map(g) do return false
 	if g.qty_sword < 1 || g.has_sword do return false

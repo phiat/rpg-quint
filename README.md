@@ -81,7 +81,7 @@ The game logic in `quint_crawl/` is the single source of truth — shared by bot
 | F | Buy bombs |
 | / | Buy smoke bombs |
 | ' | Buy rations |
-| C | Craft sword (Level 2+) |
+| C | Craft sword (Level 2+) (Shift+C: batch 3) |
 | Q | Equip |
 | T | Repair sword |
 | O | Craft venom sac |
@@ -119,9 +119,9 @@ See the HUD sidebar for zone-specific actions.
 - **Combat** — turn-based, stamina-gated actions, 3-hit combo chain with damage multipliers, cooldown abilities (heavy strike, battle cry, fortify, counter-attack), status effects (poison, ATK/DEF buffs) with turn-based ticking, enemy respawn timer (5-turn cooldown after a kill), four weapon types (sword / dagger / battery pistol / staff; `weapon_type` gates combat actions — sword and dagger share blade-combat paths with per-weapon stamina + attack tuning).
 - **Bestiary** — data-driven catalog of 200 named enemies across 20 archetypes (4 per tier, 5 tiers), 6 trait tags (Undead/Beast/Elemental/Construct/Humanoid/Aberration), trait-keyed secondary loot drops.
 - **Elemental system** — 4-element cycle (Fire > Ice > Lightning > Earth > Fire) with 2x/1x/0.5x damage multipliers.
-- **Companions** — data-driven species catalog (Wolf/Hawk/Turtle/Fox/Bear/Owl/Lynx/Sprite) with biome-gated adoption, trait affinities (Attacker/Defender/Scout/Support), rarity tiers (Common/Rare/Legendary), loyalty-on-combat loop (inactive below LOW_LOYALTY until fed), in-combat command, village training to raise rarity, and a 3-stage companion quest chain. The spec verifies the abstract (trait × rarity) effect space; Odin grows the catalog freely without code changes.
+- **Companions** — data-driven species catalog (Wolf/Hawk/Turtle/Fox/Bear/Owl/Lynx/Sprite) with biome-gated adoption, trait affinities (Attacker/Defender/Scout/Support), rarity tiers (Common/Rare/Legendary), species-specific perks (HP regen / mana regen / stamina vigor / loyalty bond), loyalty-on-combat loop (inactive below LOW_LOYALTY until fed), in-combat command, village training to raise rarity, and a 3-stage companion quest chain. The spec verifies the abstract (trait × rarity) effect space; Odin grows the catalog freely without code changes.
 - **Progression** — XP/level-up, skill tree with 3 branches (Offense/Defense/Utility), 1 point per level, respec at village, 3 prerequisite-gated quests (Slime Slayer → Venture Forth → Castle Conqueror) tracked in the HUD, Castle Boss encounter gates the final victory claim.
-- **Items & crafting** — resource gathering (wood, iron), level-gated sword crafting (Lv2+), sword durability with village repair, salvage system (upgradeable 1–3), 3-slot weapon enchantment (fire/ice/vampiric/lightning; fire/ice mutually exclusive), venom sac crafting, holy water crafting (holy_dust + wood → out-of-combat full heal), fire scrolls (bypass mana gate), loot drops with pity-counter guarantee, zone-tiered sword rarity drops (Common/Rare/Legendary with ATK scaling), per-tier unique archetype trophies (5 collectible drops that grant a permanent ATK bonus), village recycling (3-for-1 wood/iron/potion conversion), full-screen inventory overlay ([I] to open), inventory capacity (30 items) enforced across gathering/shopping/loot.
+- **Items & crafting** — resource gathering (wood, iron), level-gated sword crafting (Lv2+, batch-of-3 option), sword durability with village repair, salvage system (upgradeable 1–3), 3-slot weapon enchantment (fire/ice/vampiric/lightning; fire/ice mutually exclusive), venom sac crafting, holy water crafting (holy_dust + wood → out-of-combat full heal), fire scrolls (bypass mana gate), loot drops with pity-counter guarantee, zone-tiered sword rarity drops (Common/Rare/Legendary with ATK scaling), per-tier unique archetype trophies (5 collectible drops that grant a permanent ATK bonus), village recycling (3-for-1 wood/iron/potion conversion), full-screen inventory overlay ([I] to open), inventory capacity (30 items) enforced across gathering/shopping/loot.
 - **Persistence & polish** — save/load snapshot with full state round-trip; post-processing effects (zone tint, chromatic aberration, low-HP pulse, level-up bloom, poison overlay).
 
 ## How MBT works

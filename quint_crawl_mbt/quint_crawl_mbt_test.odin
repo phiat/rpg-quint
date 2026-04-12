@@ -115,6 +115,9 @@ crawl_step :: proc(driver: rawptr, action: string, picks: map[string]mbt.ITF_Val
 	case "craft_sword":
 		qc.craft_sword(g)
 		return true
+	case "batch_craft_sword":
+		qc.batch_craft_sword(g)
+		return true
 	case "equip_sword":
 		qc.equip_sword(g)
 		return true

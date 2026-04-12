@@ -163,9 +163,13 @@ handle_map_input :: proc(app: ^App_State) {
 		}
 	}
 
-	// Craft sword
+	// Craft sword — Shift+C for batch (3x), C for single.
 	if rl.IsKeyPressed(.C) {
-		if qc.craft_sword(g) {
+		if rl.IsKeyDown(.LEFT_SHIFT) || rl.IsKeyDown(.RIGHT_SHIFT) {
+			if qc.batch_craft_sword(g) {
+				add_message(app, fmt.tprintf("Batch crafted %d swords! (%d wood + %d iron)", qc.BATCH_CRAFT_COUNT, qc.CRAFT_WOOD_COST * qc.BATCH_CRAFT_COUNT, qc.CRAFT_IRON_COST * qc.BATCH_CRAFT_COUNT), {100, 220, 255, 255})
+			}
+		} else if qc.craft_sword(g) {
 			add_message(app, "Crafted a sword! (1 wood + 2 iron)", {100, 200, 255, 255})
 		}
 	}

@@ -194,6 +194,8 @@ module quint_crawl {
   val POTION_HEAL = 20
   val CRAFT_WOOD_COST = 1
   val CRAFT_IRON_COST = 2
+  // Batch crafting: one action crafts this many swords, consuming N * mats.
+  val BATCH_CRAFT_COUNT = 3
   val POISON_APPLY_TIER = 2
   val LOOT_DROP_MODULO = 3
   val MAX_COMBO_CHAIN = 3
@@ -1141,6 +1143,26 @@ module quint_crawl {
     ch.level >= CRAFT_LEVEL_REQ,
     inv.qty_wood >= CRAFT_WOOD_COST, inv.qty_iron >= CRAFT_IRON_COST,
     inv' = { ...inv, qty_wood: inv.qty_wood - CRAFT_WOOD_COST, qty_iron: inv.qty_iron - CRAFT_IRON_COST, qty_sword: inv.qty_sword + 1 },
+    ch' = ch, eqp' = eqp,
+    cb' = cb,
+    w' = { ...w, turn_count: w.turn_count + 1 },
+    meta' = meta, comp' = comp,
+  }
+
+  // Batch-craft BATCH_CRAFT_COUNT swords in a single action. Same gates as
+  // craft_sword but consumes N x mats, produces N x sword, advances one turn.
+  // Inventory cap still enforced (total_items + N <= MAX_INVENTORY).
+  action batch_craft_sword = all {
+    not(cb.in_combat), not(meta.game_won), ch.hp > 0,
+    zone_has_services(w.pos_x, w.pos_y),
+    ch.level >= CRAFT_LEVEL_REQ,
+    inv.qty_wood >= CRAFT_WOOD_COST * BATCH_CRAFT_COUNT,
+    inv.qty_iron >= CRAFT_IRON_COST * BATCH_CRAFT_COUNT,
+    total_items + BATCH_CRAFT_COUNT <= MAX_INVENTORY,
+    inv' = { ...inv,
+             qty_wood: inv.qty_wood - CRAFT_WOOD_COST * BATCH_CRAFT_COUNT,
+             qty_iron: inv.qty_iron - CRAFT_IRON_COST * BATCH_CRAFT_COUNT,
+             qty_sword: inv.qty_sword + BATCH_CRAFT_COUNT },
     ch' = ch, eqp' = eqp,
     cb' = cb,
     w' = { ...w, turn_count: w.turn_count + 1 },
@@ -2237,7 +2259,7 @@ module quint_crawl {
     move_up, move_down, move_left, move_right, fast_travel,
     enter_combat, combat_attack, combat_potion, flee_combat,
     rest_at_village, buy_potion, buy_shield, buy_armor, repair_sword, buy_spellbook,
-    gather_wood, mine_iron, craft_sword, equip_sword, equip_pistol, equip_staff, equip_dagger,
+    gather_wood, mine_iron, craft_sword, batch_craft_sword, equip_sword, equip_pistol, equip_staff, equip_dagger,
     buy_trinket, remove_trinket,
     use_antidote, poison_strike, combo_attack,
     heavy_strike, battle_cry, shield_block,
