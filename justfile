@@ -76,7 +76,7 @@ traces:
         name=$(basename "$path"); \
         printf "%-20s" "$name"; \
         if [ "$name" = "quint_crawl" ]; then \
-            if quint run --main="$main" --mbt --max-samples=200000 --max-steps=40 --n-traces=25 \
+            if quint run --main="$main" --mbt --max-samples=200000 --max-steps=100 --n-traces=25 \
                 --out-itf="traces/${name}_trace.itf.json" \
                 "specs/${path}.qnt" > /dev/null 2>&1; then \
                 echo "ok (200k samples, 25 traces)"; \
@@ -103,7 +103,7 @@ trace name main:
 
 # Regenerate quint_crawl traces (9x9 integrated spec, 25 traces)
 trace-crawl:
-    quint run --main=quint_crawl_run --mbt --max-samples=200000 --max-steps=40 --n-traces=25 \
+    quint run --main=quint_crawl_run --mbt --max-samples=200000 --max-steps=100 --n-traces=25 \
         --out-itf=traces/quint_crawl_trace.itf.json \
         specs/quint_crawl.qnt
 

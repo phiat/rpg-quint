@@ -1944,10 +1944,11 @@ module quint_crawl {
   action use_bomb = all {
     cb.in_combat, not(meta.game_won), inv.qty_bomb > 0, ch.hp > 0,
     val new_enemy_hp = if (cb.enemy_hp - BOMB_DAMAGE < 0) 0 else cb.enemy_hp - BOMB_DAMAGE
-    val combat_ends = (new_enemy_hp <= 0)
+    val enemy_dead = (new_enemy_hp <= 0)
     val poison_tick = player_poison_tick
-    val incoming = if (combat_ends) 0 else incoming_enemy_dmg
+    val incoming = if (enemy_dead) 0 else incoming_enemy_dmg
     val new_hp = ch.hp - incoming - poison_tick
+    val combat_ends = enemy_dead or new_hp <= 0
     val ticked = tick_statuses(cb, false)
     all {
       ch' = { ...ch, hp: if (new_hp < 0) 0 else new_hp },
