@@ -656,7 +656,6 @@ module quint_crawl {
   action poison_strike = all {
     cb.in_combat, not(meta.game_won), ch.hp > 0, cb.enemy_hp > 0,
     ch.skill_poison, inv.qty_venom_sac > 0,
-    cb.enemy_poison_dur == 0,
     ch.stamina >= ATTACK_STAMINA,
     val new_hp = ch.hp - incoming_enemy_dmg
     val combat_ends = (new_hp <= 0)
@@ -670,7 +669,8 @@ module quint_crawl {
               player_poison_dur: if (combat_ends) 0 else cb.player_poison_dur,
               player_atk_buff_dur: if (combat_ends) 0 else cb.player_atk_buff_dur,
               player_def_buff_dur: if (combat_ends) 0 else cb.player_def_buff_dur,
-              enemy_poison_dur: if (combat_ends) 0 else STATUS_DURATION,
+              // Refresh (not overwrite): allows re-cast on already-poisoned enemy.
+              enemy_poison_dur: if (combat_ends) 0 else (if (cb.enemy_poison_dur > STATUS_DURATION) cb.enemy_poison_dur else STATUS_DURATION),
               cd_heavy_strike: if (combat_ends) 0 else (if (cb.cd_heavy_strike > 0) cb.cd_heavy_strike - 1 else 0),
               cd_battle_cry: if (combat_ends) 0 else (if (cb.cd_battle_cry > 0) cb.cd_battle_cry - 1 else 0),
               cd_fortify: if (combat_ends) 0 else (if (cb.cd_fortify > 0) cb.cd_fortify - 1 else 0),

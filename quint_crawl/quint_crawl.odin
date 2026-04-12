@@ -896,7 +896,6 @@ poison_strike :: proc(g: ^Game_State) -> bool {
 	if !can_act_combat(g) do return false
 	if !g.skill_poison do return false
 	if g.qty_venom_sac <= 0 do return false
-	if g.enemy_poison_dur != 0 do return false  // can't stack
 	if g.stamina < ATTACK_STAMINA do return false
 	g.turn_count += 1
 	g.stamina -= ATTACK_STAMINA
@@ -916,7 +915,8 @@ poison_strike :: proc(g: ^Game_State) -> bool {
 		g.enemy_poison_dur = 0
 		reset_cooldowns(g)
 	} else {
-		g.enemy_poison_dur = STATUS_DURATION
+		// Refresh (not overwrite): allows re-cast on already-poisoned enemy.
+		if g.enemy_poison_dur < STATUS_DURATION do g.enemy_poison_dur = STATUS_DURATION
 		tick_cooldowns(g)
 	}
 	g.combo_count = 0
