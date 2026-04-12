@@ -43,6 +43,7 @@ biome_y=2  Ruins          Shrine        Castle
 | `overlay_fog_of_war.png` | 240x240 | Dark unrevealed-zone mask, semi-transparent edges for adjacent reveals |
 | `icon_waypoint.png` | 32x32 | Waypoint marker drawn on village tiles once unlocked (fast-travel target) |
 | `icon_lock.png` | 32x32 | Lock icon for level-gated zones |
+| `icon_chest.png` | 32x32 | Treasure chest marker — world-placed persistent reward, tier-scaled gold |
 
 ## Character Sprites (64x64)
 
@@ -50,7 +51,9 @@ biome_y=2  Ruins          Shrine        Castle
 |------|-------------|
 | `player.png` | Front-facing adventurer, light armor, empty weapon hand. Reads clearly on any tile. Cyan accent to match in-game marker `#00DCFF`. |
 | `player_sword.png` | Same with sword equipped |
+| `player_dagger.png` | Same with dagger equipped (fast blade, shares blade-combat paths with sword) |
 | `player_pistol.png` | Same with battery-powered pistol equipped (sci-fantasy contrast) |
+| `player_staff.png` | Same with staff equipped (caster stance) |
 | `player_hurt.png` | Damage frame (red tint / stagger pose) |
 
 ## Enemy Sprites (128x128)
@@ -95,12 +98,26 @@ Used in the HUD sidebar inventory and shop/loot panels.
 | `icon_potion.png` | Health Potion | Red flask, +20 HP |
 | `icon_sword.png` | Sword | Steel blade, +5 ATK |
 | `icon_sword_broken.png` | Broken Sword | Cracked/dimmed blade, 0 durability |
+| `icon_dagger.png` | Dagger | Short blade, fast attacks, lower stamina cost |
 | `icon_pistol.png` | Pistol | Battery-powered sidearm (alt weapon type) |
 | `icon_battery.png` | Battery | Pistol ammo cell |
+| `icon_staff.png` | Staff | Caster weapon, gates spell actions |
 | `icon_venom_sac.png` | Venom Sac | Green bulbous sac, poison ingredient |
 | `icon_wood.png` | Wood | Bundle of logs, crafting mat |
 | `icon_iron.png` | Iron Ore | Gray metallic chunk, crafting mat |
 | `icon_gold.png` | Gold | Coin pouch for the gold counter |
+
+### Consumables
+
+Bought at the village or looted. All respect the 30-item inventory cap.
+
+| File | Item | Description |
+|------|------|-------------|
+| `icon_bomb.png` | Bomb | Lit fuse sphere — flat damage in combat, bypasses enemy DEF |
+| `icon_smoke_bomb.png` | Smoke Bomb | Gray puff canister — guaranteed flee from combat |
+| `icon_ration.png` | Ration | Wrapped bread — restores stamina out of combat |
+| `icon_holy_water.png` | Holy Water | Glowing vial — crafted from holy_dust + wood, out-of-combat full heal |
+| `icon_fire_scroll.png` | Fire Scroll | Sealed parchment with flame sigil — bypasses mana gate for fire spell |
 
 ### Trait-keyed loot materials
 
@@ -250,7 +267,8 @@ Data-driven species catalog: 8 species × 3 rarity tiers (Common / Rare / Legend
 | Player sprite | 1 | 64x64 |
 | Enemy archetype sprites | 10 | 128x128 |
 | Castle Boss | 1 | 256x256 |
-| Item icons (core) | 9 | 32x32 |
+| Item icons (core) | 11 | 32x32 |
+| Item icons (consumables) | 5 | 32x32 |
 | Item icons (trait mats) | 6 | 32x32 |
 | Enchantment icons | 4 | 32x32 |
 | Elemental VFX | 4 | 64x64 |
@@ -260,19 +278,20 @@ Data-driven species catalog: 8 species × 3 rarity tiers (Common / Rare / Legend
 | Combo icons | 3 | 24x24 |
 | Skill tree icons | 7 | 32x32 |
 | Companion sprites | 8 | 48x48 |
-| **Total** | **76** | |
+| Treasure chest marker | 1 | 32x32 |
+| **Total** | **84** | |
 
 ### Optional (polish)
 
 | Category | Count |
 |----------|-------|
-| Player variants (sword/pistol/hurt) | 3 |
+| Player variants (sword/dagger/pistol/staff/hurt) | 5 |
 | Enemy hurt/dead frames | 20 |
 | Remaining 10 enemy archetypes | 10 |
 | Weather tile overlays | 3 |
 | Fog-of-war + waypoint + lock overlays | 3 |
 | UI elements (bars, frames, banners) | 14 |
-| **Total** | **53** |
+| **Total** | **55** |
 
 ## Integration Notes
 

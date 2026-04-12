@@ -196,4 +196,4 @@ just verify NAME MAIN INVARIANT # run invariant check (100k traces, 20 steps)
 
 ## Docs
 
-- [Asset Design Guide](docs/assets-design.md) — sprite specs for V2 visual upgrade (26 required assets)
+- [Asset Design Guide](docs/assets-design.md) — sprite specs for V2 visual upgrade (84 required assets)
