@@ -266,6 +266,9 @@ draw_hud :: proc(app: ^App_State) {
 		if qc.zone_has_services(g.pos_x, g.pos_y) {
 			draw_action(x, &y, "[R]", "Rest", g.hp < g.max_hp || g.stamina < g.max_stamina)
 			draw_action(x, &y, "[B]", fmt.ctprintf("Buy Potion (%dg)", qc.POTION_COST), g.gold >= qc.POTION_COST)
+			if !g.skill_magic {
+				draw_action(x, &y, "[[]", fmt.ctprintf("Spellbook (%dg)", qc.SPELLBOOK_COST), g.gold >= qc.SPELLBOOK_COST)
+			}
 			draw_action(x, &y, "[C]", fmt.ctprintf("Craft Sword (Lv%d)", qc.CRAFT_LEVEL_REQ), g.level >= qc.CRAFT_LEVEL_REQ && g.qty_wood >= qc.CRAFT_WOOD_COST && g.qty_iron >= qc.CRAFT_IRON_COST)
 			if g.has_sword && g.sword_dur < g.sword_max_dur {
 				draw_action(x, &y, "[T]", fmt.ctprintf("Repair Sword (%dg)", qc.REPAIR_COST), g.gold >= qc.REPAIR_COST)

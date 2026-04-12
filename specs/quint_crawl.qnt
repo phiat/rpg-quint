@@ -132,6 +132,8 @@ module quint_crawl {
   // purchases raise max_mana and mana regens on move like stamina.
   val MANA_PER_LEVEL = 3
   val MANA_REGEN_PER_MOVE = 1
+  val SPELLBOOK_COST = 40
+  val INITIAL_MAX_MANA = 10
   val INITIAL_HP = 50
   val INITIAL_ATTACK = 10
   val INITIAL_POTIONS = 2
@@ -691,6 +693,26 @@ module quint_crawl {
     inv' = { ...inv, qty_potion: inv.qty_potion + 1 },
     eqp' = eqp,
     cb' = cb,
+    w' = { ...w, turn_count: w.turn_count + 1 },
+    meta' = meta, comp' = comp,
+  }
+
+  // === Buy spellbook (village one-time purchase that unlocks magic) ===
+  // Flips skill_magic, grants starter mana pool. Level-ups from here on
+  // grow max_mana (see level-up branches). Spells themselves are added in
+  // a later slice; this action just switches mana from inert to active.
+  action buy_spellbook = all {
+    not(cb.in_combat), not(meta.game_won), ch.hp > 0,
+    zone_has_services(w.pos_x, w.pos_y),
+    not(ch.skill_magic),
+    ch.gold >= SPELLBOOK_COST,
+    ch' = { ...ch,
+            gold: ch.gold - SPELLBOOK_COST,
+            skill_magic: true,
+            max_mana: INITIAL_MAX_MANA,
+            mana: INITIAL_MAX_MANA,
+    },
+    inv' = inv, eqp' = eqp, cb' = cb,
     w' = { ...w, turn_count: w.turn_count + 1 },
     meta' = meta, comp' = comp,
   }
@@ -1548,7 +1570,7 @@ module quint_crawl {
   action step = any {
     move_up, move_down, move_left, move_right, fast_travel,
     enter_combat, combat_attack, combat_potion, flee_combat,
-    rest_at_village, buy_potion, repair_sword,
+    rest_at_village, buy_potion, repair_sword, buy_spellbook,
     gather_wood, mine_iron, craft_sword, equip_sword, equip_pistol,
     use_antidote, poison_strike, combo_attack,
     heavy_strike, battle_cry, shield_block,

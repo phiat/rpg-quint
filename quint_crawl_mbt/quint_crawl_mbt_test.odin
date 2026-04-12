@@ -42,6 +42,9 @@ crawl_step :: proc(driver: rawptr, action: string, picks: map[string]mbt.ITF_Val
 	case "buy_potion":
 		qc.buy_potion(g)
 		return true
+	case "buy_spellbook":
+		qc.buy_spellbook(g)
+		return true
 	case "gather_wood":
 		qc.gather_wood(g)
 		return true

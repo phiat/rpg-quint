@@ -69,6 +69,8 @@ STAMINA_PER_LEVEL :: 2
 STAMINA_REGEN_PER_MOVE :: 1
 MANA_PER_LEVEL :: 3
 MANA_REGEN_PER_MOVE :: 1
+SPELLBOOK_COST :: 40
+INITIAL_MAX_MANA :: 10
 INITIAL_HP :: 50
 INITIAL_ATTACK :: 10
 INITIAL_POTIONS :: 2
@@ -982,6 +984,19 @@ buy_potion :: proc(g: ^Game_State) -> bool {
 	g.turn_count += 1
 	g.gold -= POTION_COST
 	g.qty_potion += 1
+	return true
+}
+
+buy_spellbook :: proc(g: ^Game_State) -> bool {
+	if !can_act_map(g) do return false
+	if !zone_has_services(g.pos_x, g.pos_y) do return false
+	if g.skill_magic do return false
+	if g.gold < SPELLBOOK_COST do return false
+	g.turn_count += 1
+	g.gold -= SPELLBOOK_COST
+	g.skill_magic = true
+	g.max_mana = INITIAL_MAX_MANA
+	g.mana = INITIAL_MAX_MANA
 	return true
 }
 

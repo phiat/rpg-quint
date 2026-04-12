@@ -119,6 +119,13 @@ handle_map_input :: proc(app: ^App_State) {
 		}
 	}
 
+	// Buy spellbook (village, one-time) — unlocks mana pool
+	if rl.IsKeyPressed(.LEFT_BRACKET) {
+		if qc.buy_spellbook(g) {
+			add_message(app, fmt.tprintf("Spellbook acquired — mana pool unlocked (%d gold).", qc.SPELLBOOK_COST), TEXT_GOLD)
+		}
+	}
+
 	// Gather wood
 	if rl.IsKeyPressed(.G) {
 		if qc.gather_wood(g) {
