@@ -132,6 +132,18 @@ repair_sword :: proc(g: ^Game_State) -> bool {
 }
 
 
+buy_shield :: proc(g: ^Game_State) -> bool {
+	if !can_act_map(g) do return false
+	if !zone_has_services(g.pos_x, g.pos_y) do return false
+	if g.has_shield do return false
+	if g.gold < SHIELD_COST do return false
+	g.turn_count += 1
+	g.gold -= SHIELD_COST
+	g.has_shield = true
+	g.shield_dur = SHIELD_MAX_DUR
+	return true
+}
+
 buy_trinket :: proc(g: ^Game_State) -> bool {
 	if !can_act_map(g) do return false
 	if !zone_has_services(g.pos_x, g.pos_y) do return false

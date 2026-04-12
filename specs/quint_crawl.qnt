@@ -23,6 +23,7 @@ module quint_crawl {
     enchant_slot_1: int, enchant_slot_2: int, enchant_slot_3: int,
     weapon_type: int, // 0=sword, 1=pistol, 2=staff
     trinket: int,     // 0=none, 1=vitality(+max_hp)
+    has_shield: bool, shield_dur: int,
   }
 
   type CombatState = {
@@ -188,6 +189,11 @@ module quint_crawl {
   // equip. Bought at village; removable at village for no refund.
   val TRINKET_COST = 25
   val TRINKET_VITALITY_HP = 5
+  // Shield: passive DEF reduction while equipped. Durability degrades only
+  // via active shield_block skill usage (follow-up beads can extend wear).
+  val SHIELD_COST = 30
+  val SHIELD_MAX_DUR = 5
+  val SHIELD_DEF = 2
   val PISTOL_STAMINA = 2
   val PISTOL_BASE_BONUS = 4
   val CRAFT_LEVEL_REQ = 2
@@ -342,8 +348,9 @@ module quint_crawl {
     if (cb.player_def_buff_dur > STATUS_DURATION) FORTIFY_DEF_REDUCTION
     else if (cb.player_def_buff_dur > 0) DEF_BUFF_REDUCTION
     else 0
+  val shield_def_bonus = if (eqp.has_shield) SHIELD_DEF else 0
   val incoming_enemy_dmg = {
-    val raw = cb.enemy_attack - enchant_def_bonus - def_reduction_active - comp_dmg_reduction
+    val raw = cb.enemy_attack - enchant_def_bonus - def_reduction_active - comp_dmg_reduction - shield_def_bonus
     if (raw < 1) 1 else raw
   }
   val player_poison_tick = if (cb.player_poison_dur > 0) POISON_DMG else 0
@@ -455,6 +462,7 @@ module quint_crawl {
       enchant_slot_1: 0, enchant_slot_2: 0, enchant_slot_3: 0,
       weapon_type: 0,
       trinket: 0,
+      has_shield: false, shield_dur: 0,
     },
     cb' = {
       in_combat: false, enemy_hp: 0, enemy_attack: 0, enemy_element: 0,
@@ -732,6 +740,20 @@ module quint_crawl {
     ch' = { ...ch, gold: ch.gold - POTION_COST },
     inv' = { ...inv, qty_potion: inv.qty_potion + 1 },
     eqp' = eqp,
+    cb' = cb,
+    w' = { ...w, turn_count: w.turn_count + 1 },
+    meta' = meta, comp' = comp,
+  }
+
+  // === Buy shield (village; passive flat DEF, breaks via shield_block wear) ===
+  action buy_shield = all {
+    not(cb.in_combat), not(meta.game_won), ch.hp > 0,
+    zone_has_services(w.pos_x, w.pos_y),
+    not(eqp.has_shield),
+    ch.gold >= SHIELD_COST,
+    ch' = { ...ch, gold: ch.gold - SHIELD_COST },
+    inv' = inv,
+    eqp' = { ...eqp, has_shield: true, shield_dur: SHIELD_MAX_DUR },
     cb' = cb,
     w' = { ...w, turn_count: w.turn_count + 1 },
     meta' = meta, comp' = comp,
@@ -1319,6 +1341,8 @@ module quint_crawl {
     val zone_tier = zone_level(w.pos_x, w.pos_y)
     val apply_poison = (zone_tier >= POISON_APPLY_TIER and cb.player_poison_dur == 0)
     val ticked = tick_statuses(cb, apply_poison)
+    val new_shield_dur = if (eqp.has_shield) eqp.shield_dur - 1 else 0
+    val shield_broken = eqp.has_shield and new_shield_dur <= 0
     all {
       ch' = { ...ch, hp: if (new_hp < 0) 0 else new_hp, stamina: ch.stamina - SHIELD_BLOCK_STAMINA },
       cb' = { in_combat: if (combat_ends) false else true,
@@ -1334,7 +1358,10 @@ module quint_crawl {
               cd_battle_cry: if (combat_ends) 0 else ticked.cd_battle_cry,
               cd_fortify: if (combat_ends) 0 else ticked.cd_fortify,
       },
-      eqp' = eqp, inv' = inv,
+      eqp' = { ...eqp,
+               has_shield: if (shield_broken) false else eqp.has_shield,
+               shield_dur: if (shield_broken) 0 else new_shield_dur },
+      inv' = inv,
       w' = { ...w, turn_count: w.turn_count + 1 },
       meta' = meta, comp' = comp,
     }
@@ -1877,7 +1904,7 @@ module quint_crawl {
   action step = any {
     move_up, move_down, move_left, move_right, fast_travel,
     enter_combat, combat_attack, combat_potion, flee_combat,
-    rest_at_village, buy_potion, repair_sword, buy_spellbook,
+    rest_at_village, buy_potion, buy_shield, repair_sword, buy_spellbook,
     gather_wood, mine_iron, craft_sword, equip_sword, equip_pistol, equip_staff,
     buy_trinket, remove_trinket,
     use_antidote, poison_strike, combo_attack,
@@ -2053,6 +2080,8 @@ module quint_crawl {
   /// Weapon type bounded (0=sword, 1=pistol)
   val weapon_type_bounded = eqp.weapon_type >= 0 and eqp.weapon_type <= 2
   val trinket_bounded = eqp.trinket >= 0 and eqp.trinket <= 1
+  val shield_dur_bounded = eqp.shield_dur >= 0 and eqp.shield_dur <= SHIELD_MAX_DUR
+  val shield_consistent = eqp.has_shield.implies(eqp.shield_dur > 0)
 
   /// Battery quantity bounded [0, BATTERY_CAP]
   val qty_battery_bounded = inv.qty_battery >= 0 and inv.qty_battery <= BATTERY_CAP

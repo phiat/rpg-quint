@@ -111,6 +111,9 @@ STAFF_SPELL_BONUS :: 5
 STAFF_HEAL_BONUS :: 5
 TRINKET_COST :: 25
 TRINKET_VITALITY_HP :: 5
+SHIELD_COST :: 30
+SHIELD_MAX_DUR :: 5
+SHIELD_DEF :: 2
 PISTOL_STAMINA :: 2
 PISTOL_BASE_BONUS :: 4
 CRAFT_LEVEL_REQ :: 2
@@ -151,6 +154,8 @@ Save_Data :: struct {
 	sword_max_dur: int,
 	weapon_type:  int,
 	trinket:      int,
+	has_shield:   bool,
+	shield_dur:   int,
 	turn_count:   int,
 	stamina:      int,
 	max_stamina:  int,
@@ -218,6 +223,8 @@ Game_State :: struct {
 	sword_max_dur: int,
 	weapon_type:  int, // 0=sword, 1=pistol, 2=staff
 	trinket:      int,
+	has_shield:   bool,
+	shield_dur:   int,
 	in_combat:    bool,
 	enemy_hp:     int,
 	enemy_attack: int,
@@ -570,6 +577,8 @@ init_game :: proc(g: ^Game_State) {
 	g.sword_max_dur = SWORD_MAX_DUR
 	g.weapon_type = 0
 	g.trinket = 0
+	g.has_shield = false
+	g.shield_dur = 0
 	g.in_combat = false
 	g.enemy_hp = 0
 	g.enemy_attack = 0

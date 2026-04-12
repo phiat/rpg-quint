@@ -72,7 +72,8 @@ maybe_level_up :: proc(g: ^Game_State) {
 // Flee_combat intentionally bypasses this helper (spec design: flee ignores
 // DEF buff + companion reduction).
 enemy_free_hit_damage :: proc(g: ^Game_State, enchant_def: int) -> int {
-	d := g.enemy_attack - enchant_def - def_reduction_active(g) - comp_dmg_reduction(g)
+	shield_def := SHIELD_DEF if g.has_shield else 0
+	d := g.enemy_attack - enchant_def - def_reduction_active(g) - comp_dmg_reduction(g) - shield_def
 	return max(d, 1)
 }
 
@@ -529,6 +530,15 @@ shield_block :: proc(g: ^Game_State) -> bool {
 		tick_cooldowns(g)
 	}
 	g.combo_count = 0
+
+	// Shield wear: shield_block degrades shield durability. Break at 0.
+	if g.has_shield {
+		g.shield_dur -= 1
+		if g.shield_dur <= 0 {
+			g.has_shield = false
+			g.shield_dur = 0
+		}
+	}
 
 	return true
 }
