@@ -23,8 +23,9 @@ GOLD_PER_LEVEL :: 3    // gold reward per level
 SWORD_MAX_DUR :: 10
 REPAIR_COST :: 5
 POISON_DMG :: 7
-ATK_BUFF_BONUS :: 5
+ATK_BUFF_BONUS :: 8
 DEF_BUFF_REDUCTION :: 3
+FORTIFY_DEF_REDUCTION :: 5
 STATUS_DURATION :: 3
 WEATHER_CYCLE :: 5
 STORM_MOVE_DMG :: 2
@@ -80,7 +81,7 @@ COUNTER_STAMINA :: 3
 SHIELD_BLOCK_STAMINA :: 3
 FORTIFY_STAMINA :: 4
 FORTIFY_CD :: 5
-FORTIFY_DURATION :: 6
+FORTIFY_DURATION :: 8
 CRAFT_VENOM_IRON_COST :: 2
 ENCHANT_COST :: 10
 MAX_INVENTORY :: 30
@@ -429,6 +430,15 @@ comp_dmg_reduction :: proc(g: ^Game_State) -> int {
 	return comp_def_from(g.comp_trait, g.comp_rarity)
 }
 
+// Fortify grants a stronger DEF reduction than shield_block; disambiguated
+// by buff duration (shield_block sets STATUS_DURATION=3, fortify sets
+// FORTIFY_DURATION=8, so any duration > STATUS_DURATION implies fortify).
+def_reduction_active :: proc(g: ^Game_State) -> int {
+	if g.player_def_buff_dur > STATUS_DURATION do return FORTIFY_DEF_REDUCTION
+	if g.player_def_buff_dur > 0 do return DEF_BUFF_REDUCTION
+	return 0
+}
+
 attack_power :: proc(g: ^Game_State) -> int {
 	sword_bonus := SWORD_ATK_BONUS if (g.has_sword && g.sword_dur > 0) else 0
 	atk_buff := ATK_BUFF_BONUS if g.player_atk_buff_dur > 0 else 0
@@ -664,7 +674,7 @@ resolve_combat_hit :: proc(g: ^Game_State, dmg: int) -> bool {
 	poison_dmg := POISON_DMG if g.player_poison_dur > 0 else 0
 	new_hp := g.hp - poison_dmg
 	if new_enemy_hp > 0 {
-		enemy_dmg := g.enemy_attack - enchant_def_bonus(g) - (DEF_BUFF_REDUCTION if g.player_def_buff_dur > 0 else 0) - comp_dmg_reduction(g)
+		enemy_dmg := g.enemy_attack - enchant_def_bonus(g) - def_reduction_active(g) - comp_dmg_reduction(g)
 		if enemy_dmg < 1 do enemy_dmg = 1
 		new_hp -= enemy_dmg
 	}
@@ -891,7 +901,7 @@ poison_strike :: proc(g: ^Game_State) -> bool {
 	g.stamina -= ATTACK_STAMINA
 	g.qty_venom_sac -= 1
 	// Enemy hits back (reduced by enchant DEF + DEF buff)
-	enemy_dmg := g.enemy_attack - enchant_def_bonus(g) - (DEF_BUFF_REDUCTION if g.player_def_buff_dur > 0 else 0)
+	enemy_dmg := g.enemy_attack - enchant_def_bonus(g) - def_reduction_active(g)
 	if enemy_dmg < 1 do enemy_dmg = 1
 	g.hp = max(g.hp - enemy_dmg, 0)
 	if g.hp <= 0 {
@@ -981,11 +991,9 @@ battle_cry :: proc(g: ^Game_State) -> bool {
 	g.turn_count += 1
 	g.stamina -= BATTLE_CRY_STAMINA
 
-	// Enemy hits back (reduced by enchant DEF + DEF buff)
-	enemy_dmg := g.enemy_attack - enchant_def_bonus(g) - (DEF_BUFF_REDUCTION if g.player_def_buff_dur > 0 else 0)
-	if enemy_dmg < 1 do enemy_dmg = 1
+	// Battle cry is a pure setup move — enemy does NOT retaliate (only poison ticks).
 	poison_dmg := POISON_DMG if g.player_poison_dur > 0 else 0
-	g.hp = max(g.hp - enemy_dmg - poison_dmg, 0)
+	g.hp = max(g.hp - poison_dmg, 0)
 
 	combat_ends := (g.hp <= 0)
 
@@ -1028,7 +1036,7 @@ shield_block :: proc(g: ^Game_State) -> bool {
 	g.stamina -= SHIELD_BLOCK_STAMINA
 
 	// Enemy hits back (reduced by enchant DEF + DEF buff)
-	enemy_dmg := g.enemy_attack - enchant_def_bonus(g) - (DEF_BUFF_REDUCTION if g.player_def_buff_dur > 0 else 0)
+	enemy_dmg := g.enemy_attack - enchant_def_bonus(g) - def_reduction_active(g)
 	if enemy_dmg < 1 do enemy_dmg = 1
 	poison_dmg := POISON_DMG if g.player_poison_dur > 0 else 0
 	g.hp = max(g.hp - enemy_dmg - poison_dmg, 0)
@@ -1179,7 +1187,7 @@ counter_attack :: proc(g: ^Game_State) -> bool {
 	g.enemy_hp = max(new_enemy_hp, 0)
 
 	// Enemy hits player (reduced by enchant DEF + DEF buff)
-	enemy_dmg := g.enemy_attack - enchant_def_bonus(g) - (DEF_BUFF_REDUCTION if g.player_def_buff_dur > 0 else 0)
+	enemy_dmg := g.enemy_attack - enchant_def_bonus(g) - def_reduction_active(g)
 	if enemy_dmg < 1 do enemy_dmg = 1
 	poison_dmg := POISON_DMG if g.player_poison_dur > 0 else 0
 	g.hp = max(g.hp - enemy_dmg - poison_dmg, 0)
@@ -1249,7 +1257,7 @@ fortify :: proc(g: ^Game_State) -> bool {
 	g.stamina -= FORTIFY_STAMINA
 
 	// Enemy hits back (reduced by enchant DEF + DEF buff)
-	enemy_dmg := g.enemy_attack - enchant_def_bonus(g) - (DEF_BUFF_REDUCTION if g.player_def_buff_dur > 0 else 0)
+	enemy_dmg := g.enemy_attack - enchant_def_bonus(g) - def_reduction_active(g)
 	if enemy_dmg < 1 do enemy_dmg = 1
 	poison_dmg := POISON_DMG if g.player_poison_dur > 0 else 0
 	g.hp = max(g.hp - enemy_dmg - poison_dmg, 0)

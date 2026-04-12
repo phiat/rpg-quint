@@ -64,8 +64,9 @@ module quint_crawl {
   val SWORD_MAX_DUR = 10
   val REPAIR_COST = 5
   val POISON_DMG = 7
-  val ATK_BUFF_BONUS = 5
+  val ATK_BUFF_BONUS = 8
   val DEF_BUFF_REDUCTION = 3
+  val FORTIFY_DEF_REDUCTION = 5
   val STATUS_DURATION = 3
   val SWORD_ATK_BONUS = 5
   val WEATHER_CYCLE = 5
@@ -125,7 +126,7 @@ module quint_crawl {
   val SHIELD_BLOCK_STAMINA = 3
   val FORTIFY_STAMINA = 4
   val FORTIFY_CD = 5
-  val FORTIFY_DURATION = 6
+  val FORTIFY_DURATION = 8
   val CRAFT_VENOM_IRON_COST = 2
   val ENCHANT_COST = 10
   val MAX_INVENTORY = 30
@@ -259,8 +260,15 @@ module quint_crawl {
     else 0
 
   // Damage-taken helpers (used across all combat actions)
+  // Fortify grants a stronger reduction than shield_block; disambiguated by
+  // buff duration (shield_block sets STATUS_DURATION=3, fortify sets
+  // FORTIFY_DURATION=8, so any duration > STATUS_DURATION implies fortify).
+  val def_reduction_active =
+    if (cb.player_def_buff_dur > STATUS_DURATION) FORTIFY_DEF_REDUCTION
+    else if (cb.player_def_buff_dur > 0) DEF_BUFF_REDUCTION
+    else 0
   val incoming_enemy_dmg = {
-    val raw = cb.enemy_attack - enchant_def_bonus - (if (cb.player_def_buff_dur > 0) DEF_BUFF_REDUCTION else 0) - comp_dmg_reduction
+    val raw = cb.enemy_attack - enchant_def_bonus - def_reduction_active - comp_dmg_reduction
     if (raw < 1) 1 else raw
   }
   val player_poison_tick = if (cb.player_poison_dur > 0) POISON_DMG else 0
@@ -832,7 +840,8 @@ module quint_crawl {
     ch.skill_battle_cry,
     cb.cd_battle_cry == 0,
     ch.stamina >= BATTLE_CRY_STAMINA,
-    val new_hp = ch.hp - incoming_enemy_dmg - player_poison_tick
+    // Battle cry is a pure setup move — enemy does NOT retaliate. Only poison ticks.
+    val new_hp = ch.hp - player_poison_tick
     val combat_ends = (new_hp <= 0)
     val zone_tier = zone_level(w.pos_x, w.pos_y)
     val apply_poison = (zone_tier >= POISON_APPLY_TIER and cb.player_poison_dur == 0)
