@@ -20,6 +20,7 @@ save_game :: proc(g: ^Game_State) -> bool {
 		sword_dur    = g.sword_dur,
 		sword_max_dur = g.sword_max_dur,
 		weapon_type  = g.weapon_type,
+		trinket      = g.trinket,
 		turn_count   = g.turn_count,
 		stamina      = g.stamina,
 		max_stamina  = g.max_stamina,
@@ -90,6 +91,7 @@ load_game :: proc(g: ^Game_State) -> bool {
 	g.sword_dur = s.sword_dur
 	g.sword_max_dur = s.sword_max_dur
 	g.weapon_type = s.weapon_type
+	g.trinket = s.trinket
 	g.turn_count = s.turn_count
 	g.stamina = s.stamina
 	g.max_stamina = s.max_stamina

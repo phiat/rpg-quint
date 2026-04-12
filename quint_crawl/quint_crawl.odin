@@ -109,6 +109,8 @@ STAFF_UNLOCK_COST :: 40
 STAFF_MAX_MANA_BONUS :: 5
 STAFF_SPELL_BONUS :: 5
 STAFF_HEAL_BONUS :: 5
+TRINKET_COST :: 25
+TRINKET_VITALITY_HP :: 5
 PISTOL_STAMINA :: 2
 PISTOL_BASE_BONUS :: 4
 CRAFT_LEVEL_REQ :: 2
@@ -148,6 +150,7 @@ Save_Data :: struct {
 	sword_dur:    int,
 	sword_max_dur: int,
 	weapon_type:  int,
+	trinket:      int,
 	turn_count:   int,
 	stamina:      int,
 	max_stamina:  int,
@@ -213,7 +216,8 @@ Game_State :: struct {
 	has_sword:    bool,
 	sword_dur:    int,
 	sword_max_dur: int,
-	weapon_type:  int, // 0=sword, 1=pistol
+	weapon_type:  int, // 0=sword, 1=pistol, 2=staff
+	trinket:      int,
 	in_combat:    bool,
 	enemy_hp:     int,
 	enemy_attack: int,
@@ -565,6 +569,7 @@ init_game :: proc(g: ^Game_State) {
 	g.sword_dur = 0
 	g.sword_max_dur = SWORD_MAX_DUR
 	g.weapon_type = 0
+	g.trinket = 0
 	g.in_combat = false
 	g.enemy_hp = 0
 	g.enemy_attack = 0

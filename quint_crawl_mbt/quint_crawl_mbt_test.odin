@@ -85,6 +85,12 @@ crawl_step :: proc(driver: rawptr, action: string, picks: map[string]mbt.ITF_Val
 	case "equip_staff":
 		qc.equip_staff(g)
 		return true
+	case "buy_trinket":
+		qc.buy_trinket(g)
+		return true
+	case "remove_trinket":
+		qc.remove_trinket(g)
+		return true
 	case "pistol_shot":
 		qc.pistol_shot(g)
 		return true
@@ -257,6 +263,7 @@ crawl_state :: proc(driver: rawptr) -> map[string]mbt.ITF_Value {
 	eqp["enchant_slot_2"] = mbt.ITF_Int{g.enchant_slot_2}
 	eqp["enchant_slot_3"] = mbt.ITF_Int{g.enchant_slot_3}
 	eqp["weapon_type"] = mbt.ITF_Int{g.weapon_type}
+	eqp["trinket"] = mbt.ITF_Int{g.trinket}
 	state["eqp"] = mbt.ITF_Record{eqp}
 
 	// cb: CombatState

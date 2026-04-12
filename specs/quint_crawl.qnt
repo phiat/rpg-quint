@@ -21,7 +21,8 @@ module quint_crawl {
   type EquipState = {
     sword_dur: int, sword_max_dur: int,
     enchant_slot_1: int, enchant_slot_2: int, enchant_slot_3: int,
-    weapon_type: int, // 0=sword, 1=pistol
+    weapon_type: int, // 0=sword, 1=pistol, 2=staff
+    trinket: int,     // 0=none, 1=vitality(+max_hp)
   }
 
   type CombatState = {
@@ -183,6 +184,10 @@ module quint_crawl {
   val STAFF_MAX_MANA_BONUS = 5
   val STAFF_SPELL_BONUS = 5
   val STAFF_HEAL_BONUS = 5
+  // Trinket slot: single passive modifier. Vitality (1) grants +max_hp on
+  // equip. Bought at village; removable at village for no refund.
+  val TRINKET_COST = 25
+  val TRINKET_VITALITY_HP = 5
   val PISTOL_STAMINA = 2
   val PISTOL_BASE_BONUS = 4
   val CRAFT_LEVEL_REQ = 2
@@ -449,6 +454,7 @@ module quint_crawl {
       sword_dur: 0, sword_max_dur: SWORD_MAX_DUR,
       enchant_slot_1: 0, enchant_slot_2: 0, enchant_slot_3: 0,
       weapon_type: 0,
+      trinket: 0,
     },
     cb' = {
       in_combat: false, enemy_hp: 0, enemy_attack: 0, enemy_element: 0,
@@ -1019,6 +1025,40 @@ module quint_crawl {
     cb' = cb,
     w' = { ...w, turn_count: w.turn_count + 1 },
     meta' = meta, comp' = comp,
+  }
+
+  // === Buy trinket (vitality, +max_hp) at village ===
+  action buy_trinket = all {
+    not(cb.in_combat), not(meta.game_won), ch.hp > 0,
+    zone_has_services(w.pos_x, w.pos_y),
+    eqp.trinket == 0,
+    ch.gold >= TRINKET_COST,
+    ch' = { ...ch,
+            gold: ch.gold - TRINKET_COST,
+            max_hp: ch.max_hp + TRINKET_VITALITY_HP,
+            hp: ch.hp + TRINKET_VITALITY_HP },
+    inv' = inv,
+    eqp' = { ...eqp, trinket: 1 },
+    cb' = cb,
+    w' = { ...w, turn_count: w.turn_count + 1 },
+    meta' = meta, comp' = comp,
+  }
+
+  // === Remove trinket (village, no refund) ===
+  action remove_trinket = all {
+    not(cb.in_combat), not(meta.game_won), ch.hp > 0,
+    zone_has_services(w.pos_x, w.pos_y),
+    eqp.trinket == 1,
+    val new_max_hp = ch.max_hp - TRINKET_VITALITY_HP
+    val new_hp = if (ch.hp > new_max_hp) new_max_hp else ch.hp
+    all {
+      ch' = { ...ch, max_hp: new_max_hp, hp: new_hp },
+      inv' = inv,
+      eqp' = { ...eqp, trinket: 0 },
+      cb' = cb,
+      w' = { ...w, turn_count: w.turn_count + 1 },
+      meta' = meta, comp' = comp,
+    }
   }
 
   // === Use antidote (quick action -- clears player poison, enemy gets a free hit) ===
@@ -1839,6 +1879,7 @@ module quint_crawl {
     enter_combat, combat_attack, combat_potion, flee_combat,
     rest_at_village, buy_potion, repair_sword, buy_spellbook,
     gather_wood, mine_iron, craft_sword, equip_sword, equip_pistol, equip_staff,
+    buy_trinket, remove_trinket,
     use_antidote, poison_strike, combo_attack,
     heavy_strike, battle_cry, shield_block,
     counter_attack, fortify, pistol_shot,
@@ -2011,6 +2052,7 @@ module quint_crawl {
 
   /// Weapon type bounded (0=sword, 1=pistol)
   val weapon_type_bounded = eqp.weapon_type >= 0 and eqp.weapon_type <= 2
+  val trinket_bounded = eqp.trinket >= 0 and eqp.trinket <= 1
 
   /// Battery quantity bounded [0, BATTERY_CAP]
   val qty_battery_bounded = inv.qty_battery >= 0 and inv.qty_battery <= BATTERY_CAP

@@ -132,6 +132,30 @@ repair_sword :: proc(g: ^Game_State) -> bool {
 }
 
 
+buy_trinket :: proc(g: ^Game_State) -> bool {
+	if !can_act_map(g) do return false
+	if !zone_has_services(g.pos_x, g.pos_y) do return false
+	if g.trinket != 0 do return false
+	if g.gold < TRINKET_COST do return false
+	g.turn_count += 1
+	g.gold -= TRINKET_COST
+	g.trinket = 1
+	g.max_hp += TRINKET_VITALITY_HP
+	g.hp += TRINKET_VITALITY_HP
+	return true
+}
+
+remove_trinket :: proc(g: ^Game_State) -> bool {
+	if !can_act_map(g) do return false
+	if !zone_has_services(g.pos_x, g.pos_y) do return false
+	if g.trinket != 1 do return false
+	g.turn_count += 1
+	g.max_hp -= TRINKET_VITALITY_HP
+	if g.hp > g.max_hp do g.hp = g.max_hp
+	g.trinket = 0
+	return true
+}
+
 craft_venom_sac :: proc(g: ^Game_State) -> bool {
 	if !can_act_map(g) do return false
 	if !zone_has_services(g.pos_x, g.pos_y) do return false
