@@ -9,6 +9,7 @@ adopt_companion_abstract :: proc(g: ^Game_State, trait, rarity, perk: int) -> bo
 	if !zone_has_services(g.pos_x, g.pos_y) do return false
 	cost := comp_adopt_cost(rarity)
 	if g.qty_wood < cost do return false
+	g.turn_count += 1
 	g.qty_wood -= cost
 	g.comp_active = true
 	g.comp_species = -1
@@ -31,6 +32,7 @@ adopt_companion :: proc(g: ^Game_State, species_idx: int, rarity: int) -> bool {
 	if def.biome_y >= 0 && g.pos_y % 3 != def.biome_y do return false
 	cost := comp_adopt_cost(rarity)
 	if !consume_material(g, def.material, cost) do return false
+	g.turn_count += 1
 	g.comp_active = true
 	g.comp_species = species_idx
 	g.comp_trait = int(def.trait_affinity)
@@ -48,6 +50,7 @@ feed_companion :: proc(g: ^Game_State) -> bool {
 	if !g.comp_active do return false
 	if g.comp_loyalty >= MAX_LOYALTY do return false
 	if g.qty_potion < 1 do return false
+	g.turn_count += 1
 	g.qty_potion -= 1
 	gain := LOYALTY_GAIN * 2 if g.comp_perk == PERK_LOYALTY_BOND else LOYALTY_GAIN
 	g.comp_loyalty = min(g.comp_loyalty + gain, MAX_LOYALTY)
@@ -60,6 +63,7 @@ dismiss_companion :: proc(g: ^Game_State) -> bool {
 	if !zone_has_services(g.pos_x, g.pos_y) do return false
 	if !g.comp_active do return false
 	refund := comp_adopt_cost(g.comp_rarity)
+	g.turn_count += 1
 	g.qty_wood += refund
 	g.comp_active = false
 	g.comp_species = -1

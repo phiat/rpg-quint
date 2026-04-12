@@ -2182,7 +2182,8 @@ module quint_crawl {
       inv' = { ...inv, qty_wood: inv.qty_wood - cost },
       comp' = { active: true, trait: t, rarity: r, loyalty: INITIAL_LOYALTY, command_used: false, perk: p },
       meta' = { ...meta, cq1_adopted: if (meta.cq1_adopted < CQ1_TARGET) meta.cq1_adopted + 1 else meta.cq1_adopted },
-      ch' = ch, eqp' = eqp, cb' = cb, w' = w,
+      ch' = ch, eqp' = eqp, cb' = cb,
+      w' = { ...w, turn_count: w.turn_count + 1 },
     }
   }
 
@@ -2198,7 +2199,8 @@ module quint_crawl {
       inv' = { ...inv, qty_potion: inv.qty_potion - 1 },
       comp' = { ...comp, loyalty: new_loyalty },
       meta' = { ...meta, cq2_maxed: if (new_loyalty == MAX_LOYALTY and meta.cq2_maxed < CQ2_TARGET) meta.cq2_maxed + 1 else meta.cq2_maxed },
-      ch' = ch, eqp' = eqp, cb' = cb, w' = w,
+      ch' = ch, eqp' = eqp, cb' = cb,
+      w' = { ...w, turn_count: w.turn_count + 1 },
     }
   }
 
@@ -2232,7 +2234,9 @@ module quint_crawl {
     all {
       comp' = { active: false, trait: 0, rarity: 0, loyalty: 0, command_used: false, perk: PERK_NONE },
       inv' = { ...inv, qty_wood: inv.qty_wood + refund },
-      ch' = ch, eqp' = eqp, cb' = cb, w' = w, meta' = meta,
+      ch' = ch, eqp' = eqp, cb' = cb,
+      w' = { ...w, turn_count: w.turn_count + 1 },
+      meta' = meta,
     }
   }
 
