@@ -170,6 +170,8 @@ Save_Data :: struct {
 	cq3_wins:     int,
 	quest_rewards_claimed: int,
 	boss_defeated: bool,
+	visited:      [WORLD_SIZE][WORLD_SIZE]bool,
+	waypoints:    [WORLD_SIZE][WORLD_SIZE]bool,
 }
 
 Game_State :: struct {
@@ -894,7 +896,7 @@ combat_potion :: proc(g: ^Game_State) -> bool {
 	// Heal first
 	g.hp = min(g.hp + POTION_HEAL, g.max_hp)
 	// Enemy gets a free hit (plus player poison tick)
-	enemy_dmg := g.enemy_attack - enchant_def_bonus(g) - def_reduction_active(g)
+	enemy_dmg := g.enemy_attack - enchant_def_bonus(g) - def_reduction_active(g) - comp_dmg_reduction(g)
 	if enemy_dmg < 1 do enemy_dmg = 1
 	poison_dmg := POISON_DMG if g.player_poison_dur > 0 else 0
 	g.hp = max(g.hp - enemy_dmg - poison_dmg, 0)
@@ -1079,7 +1081,7 @@ use_antidote :: proc(g: ^Game_State) -> bool {
 	// Poison cleared this turn — no player poison tick this action.
 	g.player_poison_dur = 0
 	// Enemy gets a free hit
-	enemy_dmg := g.enemy_attack - enchant_def_bonus(g) - def_reduction_active(g)
+	enemy_dmg := g.enemy_attack - enchant_def_bonus(g) - def_reduction_active(g) - comp_dmg_reduction(g)
 	if enemy_dmg < 1 do enemy_dmg = 1
 	g.hp = max(g.hp - enemy_dmg, 0)
 	g.combo_count = 0
@@ -1468,7 +1470,11 @@ counter_attack :: proc(g: ^Game_State) -> bool {
 			// Enemy defeated, player alive
 			g.last_kill_turn = g.turn_count - 1
 			g.xp += zone_xp_reward(g.pos_x, g.pos_y)
+			zone_tier := zone_level(g.pos_x, g.pos_y)
+			if zone_tier == 1 && g.q1_kills < Q1_TARGET do g.q1_kills += 1
+			if zone_tier == MAX_LEVEL && g.q3_kills < Q3_TARGET do g.q3_kills += 1
 			if is_castle_zone(g.pos_x, g.pos_y) do g.boss_defeated = true
+			if comp_active(g) && g.cq3_wins < CQ3_TARGET do g.cq3_wins += 1
 			g.in_combat = false
 			g.enemy_attack = 0
 			g.enemy_element = 0
@@ -1797,6 +1803,8 @@ save_game :: proc(g: ^Game_State) -> bool {
 		cq3_wins = g.cq3_wins,
 		quest_rewards_claimed = g.quest_rewards_claimed,
 		boss_defeated = g.boss_defeated,
+		visited   = g.visited,
+		waypoints = g.waypoints,
 	}
 	return true
 }
@@ -1861,6 +1869,9 @@ load_game :: proc(g: ^Game_State) -> bool {
 	g.cq3_wins = s.cq3_wins
 	g.quest_rewards_claimed = s.quest_rewards_claimed
 	g.boss_defeated = s.boss_defeated
+	g.visited = s.visited
+	g.waypoints = s.waypoints
+	g.visited[s.pos_x][s.pos_y] = true
 	// Clear combat/status state (save is only outside combat)
 	g.in_combat = false
 	g.enemy_hp = 0

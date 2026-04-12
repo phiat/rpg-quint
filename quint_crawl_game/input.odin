@@ -181,6 +181,13 @@ handle_map_input :: proc(app: ^App_State) {
 		}
 	}
 
+	// Claim quest reward
+	if rl.IsKeyPressed(.TAB) {
+		if qc.claim_quest_reward(g) {
+			add_message(app, "Quest reward claimed: +gold, +skill point!", TEXT_GOLD)
+		}
+	}
+
 	// Toggle CRT scanlines
 	if rl.IsKeyPressed(.F6) {
 		app.pipeline.scanlines_on = !app.pipeline.scanlines_on

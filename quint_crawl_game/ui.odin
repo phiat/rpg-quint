@@ -189,6 +189,17 @@ draw_hud :: proc(app: ^App_State) {
 	draw_quest_line(x, &y, "Slime Slayer", g.q1_kills, qc.Q1_TARGET, true)
 	draw_quest_line(x, &y, "Venture Forth", g.q2_zones, qc.Q2_TARGET, q1_done)
 	draw_quest_line(x, &y, "Castle Conqueror", g.q3_kills, qc.Q3_TARGET, q2_done)
+	// Claim hint when the next unclaimed quest is complete
+	claim_ready := false
+	switch g.quest_rewards_claimed {
+	case 0: claim_ready = q1_done
+	case 1: claim_ready = q1_done && g.q2_zones >= qc.Q2_TARGET
+	case 2: claim_ready = q1_done && g.q2_zones >= qc.Q2_TARGET && g.q3_kills >= qc.Q3_TARGET
+	}
+	if claim_ready {
+		rl.DrawText("[TAB] Claim reward", x + 8, y, 13, TEXT_GOLD)
+		y += 16
+	}
 	y += 4
 	cq1_done := g.cq1_adopted >= qc.CQ1_TARGET
 	cq2_done := cq1_done && g.cq2_maxed >= qc.CQ2_TARGET

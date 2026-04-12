@@ -164,7 +164,7 @@ justfile               Task runner for common workflows
 | **healing** | HP + consumable potions | HP capped at max, potions non-negative |
 | **stacking** | Quantity-based item stacks | Quantities non-negative, total bounded |
 | **shop** | Gold economy with buy/sell | Gold conserved, items conserved, gold non-negative |
-| **combat** | Turn-based two-character combat | Turns alternate, HP only decreases, attack constant |
+| **combat** | Turn-based two-character combat | Turns alternate, HP bounded by init, attack constant |
 | **status** | Poison/buff effects with duration | Durations non-negative, effects consistent, HP capped |
 | **crafting** | Recipe-based item crafting | Materials non-negative, total mass conserved |
 | **party** | 3-member party + shared stash | Items conserved across all inventories |

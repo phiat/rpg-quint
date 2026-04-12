@@ -51,7 +51,7 @@ module combat {
   // dead_cant_act is enforced by action guards — game_over blocks both attack actions
   val dead_cant_act = game_over.implies(hp_a + hp_b < 2 * INIT_HP)
 
-  val hp_only_decreases = hp_a <= INIT_HP and hp_b <= INIT_HP
+  val hp_bounded_by_init = hp_a <= INIT_HP and hp_b <= INIT_HP
 
   val atk_constant = atk_a == ATK_A and atk_b == ATK_B
 }

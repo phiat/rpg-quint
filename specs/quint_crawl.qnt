@@ -1599,10 +1599,12 @@ module quint_crawl {
   val dur_max_constant = eqp.sword_max_dur == SWORD_MAX_DUR
 
   /// Broken sword gives no attack bonus: neither SWORD_ATK_BONUS nor enchant atk.
-  /// (ATK buff and companion atk bonuses are independent and may still apply.)
+  /// (ATK buff and companion atk bonuses are independent and may still apply.
+  /// Fog penalty and min-1 clamp from attack_power are also accounted for.)
   val atk_buff_bonus_val = if (cb.player_atk_buff_dur > 0) ATK_BUFF_BONUS else 0
+  val broken_no_bonus_raw = ch.base_attack + atk_buff_bonus_val + comp_atk_bonus - fog_penalty_now
   val broken_no_bonus = (inv.has_sword and eqp.sword_dur == 0).implies(
-    attack_power == ch.base_attack + atk_buff_bonus_val + comp_atk_bonus
+    attack_power == (if (broken_no_bonus_raw < 1) 1 else broken_no_bonus_raw)
   )
 
   /// Status durations are non-negative and bounded

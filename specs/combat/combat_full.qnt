@@ -205,8 +205,8 @@ module combat_full {
     apply_buff_b(amt, dur),
   }
 
-  /// HP never exceeds initial value (no healing).
-  val hp_only_decreases: bool = hp_a <= 100 and hp_b <= 100
+  /// HP never exceeds initial value (no healing in this module).
+  val hp_bounded_by_init: bool = hp_a <= 100 and hp_b <= 100
 
   /// When effect turns reach 0, the effect value must also be 0.
   val effects_consistent: bool =
