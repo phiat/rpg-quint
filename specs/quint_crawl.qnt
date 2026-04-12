@@ -310,6 +310,10 @@ module quint_crawl {
   pure def salvage_iron_yield(slvl: int): int = SALVAGE_IRON_BASE + (slvl - 1)
 
   // --- Helpers ---
+  // HP clamp convention:
+  //   - Death paths (combat damage, poison ticks) clamp to 0 so HP <= 0 ends combat.
+  //   - Survival paths (storm on move, flee_combat) floor at 1 so the player
+  //     never dies from an escape-hatch action or from entering a zone.
   pure def clamp_hp(v: int, mx: int): int =
     if (v > mx) mx else if (v < 0) 0 else v
 
