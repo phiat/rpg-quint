@@ -34,6 +34,7 @@ apply_enchant :: proc(g: ^Game_State, slot: int, etype: int) -> bool {
 	if !zone_has_services(g.pos_x, g.pos_y) do return false
 	if !g.has_sword do return false
 	if g.weapon_type != 0 do return false
+	if g.sword_dur <= 0 do return false
 	if g.gold < ENCHANT_COST do return false
 	if etype < 1 || etype > 4 do return false
 	// Vampiric (etype=3) costs 1 venom_sac; other elements cost 1 iron.

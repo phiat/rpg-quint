@@ -1863,6 +1863,7 @@ module quint_crawl {
       zone_has_services(w.pos_x, w.pos_y),
       inv.has_sword,
       eqp.weapon_type == 0,
+      eqp.sword_dur > 0,
       ch.gold >= ENCHANT_COST,
       if (needs_venom) inv.qty_venom_sac >= ENCHANT_VENOM_COST
       else inv.qty_iron >= ENCHANT_IRON_COST,

@@ -424,3 +424,123 @@ test_quint_crawl_trace_replay :: proc(t: ^testing.T) {
 
 	log.infof("MBT replay: %d/%d steps passed across %d traces", total_passed, total_steps, len(TRACE_FILES))
 }
+
+// Save/load round-trip: persisted fields must survive save → clobber → load unchanged.
+// Guards against Save_Data drift when new fields are added to Game_State.
+@(test)
+test_save_load_round_trip :: proc(t: ^testing.T) {
+	g: qc.Game_State
+	qc.init_game(&g)
+
+	g.hp = 37;             g.max_hp = 50
+	g.base_attack = 9;     g.xp = 142;            g.level = 3
+	g.gold = 215;          g.stamina = 4;         g.max_stamina = 12
+	g.skill_points = 2;    g.skill_combo = true;  g.skill_heavy_strike = true
+	g.qty_potion = 3;      g.qty_wood = 7;        g.qty_iron = 5
+	g.qty_sword = 1;       g.has_sword = true
+	g.sword_dur = 6;       g.sword_max_dur = 10
+	g.weapon_type = 0
+	g.enchant_slot_1 = 1;  g.enchant_slot_2 = 3
+	g.qty_venom_sac = 2;   g.qty_holy_dust = 4;   g.qty_scroll_fire = 1
+	g.qty_bomb = 2;        g.qty_smoke = 1;       g.qty_ration = 3
+	g.pos_x = 4;           g.pos_y = 2;           g.turn_count = 88
+	g.pity_counter = 3;    g.salvage_level = 2;   g.last_kill_turn = 50
+	g.q1_kills = 5;        g.q2_zones = 2;        g.q3_kills = 1
+	g.quest_rewards_claimed = 1
+	g.comp_active = true;  g.comp_species = 2
+	g.comp_trait = 1;      g.comp_rarity = 1;     g.comp_loyalty = 7
+	g.cq1_adopted = 1;     g.cq3_wins = 2
+	g.boss_defeated = false
+	g.skill_magic = true;  g.mana = 8;            g.max_mana = 15
+	g.visited[4][2] = true
+	g.waypoints[0][0] = true
+	g.chests_opened[3][1] = true
+
+	ok := qc.save_game(&g)
+	testing.expect(t, ok, "save_game failed on valid state")
+
+	// Clobber every persisted field so a silent field-drop in load_game shows up.
+	g.hp = 1;              g.max_hp = 1
+	g.base_attack = 0;     g.xp = 0;              g.level = 1
+	g.gold = 0;            g.stamina = 0;         g.max_stamina = 1
+	g.skill_points = 0;    g.skill_combo = false; g.skill_heavy_strike = false
+	g.qty_potion = 0;      g.qty_wood = 0;        g.qty_iron = 0
+	g.qty_sword = 0;       g.has_sword = false
+	g.sword_dur = 0;       g.sword_max_dur = 0
+	g.weapon_type = 99
+	g.enchant_slot_1 = 0;  g.enchant_slot_2 = 0
+	g.qty_venom_sac = 0;   g.qty_holy_dust = 0;   g.qty_scroll_fire = 0
+	g.qty_bomb = 0;        g.qty_smoke = 0;       g.qty_ration = 0
+	g.pos_x = 0;           g.pos_y = 0;           g.turn_count = 0
+	g.pity_counter = 0;    g.salvage_level = 0;   g.last_kill_turn = 0
+	g.q1_kills = 0;        g.q2_zones = 0;        g.q3_kills = 0
+	g.quest_rewards_claimed = 0
+	g.comp_active = false; g.comp_species = 0
+	g.comp_trait = 0;      g.comp_rarity = 0;     g.comp_loyalty = 0
+	g.cq1_adopted = 0;     g.cq3_wins = 0
+	g.skill_magic = false; g.mana = 0;            g.max_mana = 0
+	g.visited = {}
+	g.waypoints = {}
+	g.chests_opened = {}
+
+	ok = qc.load_game(&g)
+	testing.expect(t, ok, "load_game failed after save")
+
+	testing.expect_value(t, g.hp, 37)
+	testing.expect_value(t, g.max_hp, 50)
+	testing.expect_value(t, g.base_attack, 9)
+	testing.expect_value(t, g.xp, 142)
+	testing.expect_value(t, g.level, 3)
+	testing.expect_value(t, g.gold, 215)
+	testing.expect_value(t, g.stamina, 4)
+	testing.expect_value(t, g.max_stamina, 12)
+	testing.expect_value(t, g.skill_points, 2)
+	testing.expect_value(t, g.skill_combo, true)
+	testing.expect_value(t, g.skill_heavy_strike, true)
+	testing.expect_value(t, g.qty_potion, 3)
+	testing.expect_value(t, g.qty_wood, 7)
+	testing.expect_value(t, g.qty_iron, 5)
+	testing.expect_value(t, g.qty_sword, 1)
+	testing.expect_value(t, g.has_sword, true)
+	testing.expect_value(t, g.sword_dur, 6)
+	testing.expect_value(t, g.sword_max_dur, 10)
+	testing.expect_value(t, g.weapon_type, 0)
+	testing.expect_value(t, g.enchant_slot_1, 1)
+	testing.expect_value(t, g.enchant_slot_2, 3)
+	testing.expect_value(t, g.qty_venom_sac, 2)
+	testing.expect_value(t, g.qty_holy_dust, 4)
+	testing.expect_value(t, g.qty_scroll_fire, 1)
+	testing.expect_value(t, g.qty_bomb, 2)
+	testing.expect_value(t, g.qty_smoke, 1)
+	testing.expect_value(t, g.qty_ration, 3)
+	testing.expect_value(t, g.pos_x, 4)
+	testing.expect_value(t, g.pos_y, 2)
+	testing.expect_value(t, g.turn_count, 88)
+	testing.expect_value(t, g.pity_counter, 3)
+	testing.expect_value(t, g.salvage_level, 2)
+	testing.expect_value(t, g.last_kill_turn, 50)
+	testing.expect_value(t, g.q1_kills, 5)
+	testing.expect_value(t, g.q2_zones, 2)
+	testing.expect_value(t, g.q3_kills, 1)
+	testing.expect_value(t, g.quest_rewards_claimed, 1)
+	testing.expect_value(t, g.comp_active, true)
+	testing.expect_value(t, g.comp_species, 2)
+	testing.expect_value(t, g.comp_trait, 1)
+	testing.expect_value(t, g.comp_rarity, 1)
+	testing.expect_value(t, g.comp_loyalty, 7)
+	testing.expect_value(t, g.cq1_adopted, 1)
+	testing.expect_value(t, g.cq3_wins, 2)
+	testing.expect_value(t, g.skill_magic, true)
+	testing.expect_value(t, g.mana, 8)
+	testing.expect_value(t, g.max_mana, 15)
+	testing.expect(t, g.visited[4][2], "visited[4][2] lost in round-trip")
+	testing.expect(t, g.waypoints[0][0], "waypoints[0][0] lost in round-trip")
+	testing.expect(t, g.chests_opened[3][1], "chests_opened[3][1] lost in round-trip")
+
+	// Runtime-only fields must be cleared to safe defaults by load_game.
+	testing.expect_value(t, g.in_combat, false)
+	testing.expect_value(t, g.enemy_hp, 0)
+	testing.expect_value(t, g.combo_count, 0)
+	testing.expect_value(t, g.player_poison_dur, 0)
+	testing.expect_value(t, g.cd_heavy_strike, 0)
+}
