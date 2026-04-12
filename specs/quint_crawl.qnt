@@ -1371,7 +1371,7 @@ module quint_crawl {
     val enemy_defeated_alive = (new_enemy_hp <= 0 and new_hp > 0)
     val loot = compute_loot(meta, total_items, enemy_defeated_alive, w.turn_count, zone_tier, ch.xp, inv.unique_drops_mask)
     // Passive venom infusion: skill_poison turns your combo into a venom carrier.
-    val auto_poison = ch.skill_poison and inv.qty_venom_sac > 0 and new_enemy_hp > 0
+    val auto_poison = ch.skill_poison and inv.qty_venom_sac > 0 and new_enemy_hp > 0 and new_hp > 0
     all {
       ch' = { ...ch,
               hp: if (new_hp < 0) 0 else new_hp,
@@ -1443,7 +1443,7 @@ module quint_crawl {
     val enemy_defeated_alive = (new_enemy_hp <= 0 and new_hp > 0)
     val loot = compute_loot(meta, total_items, enemy_defeated_alive, w.turn_count, zone_tier, ch.xp, inv.unique_drops_mask)
     // Passive venom infusion: skill_poison turns your heavy into a venom carrier.
-    val auto_poison = ch.skill_poison and inv.qty_venom_sac > 0 and new_enemy_hp > 0
+    val auto_poison = ch.skill_poison and inv.qty_venom_sac > 0 and new_enemy_hp > 0 and new_hp > 0
     all {
       ch' = { ...ch,
               hp: if (new_hp < 0) 0 else new_hp,
