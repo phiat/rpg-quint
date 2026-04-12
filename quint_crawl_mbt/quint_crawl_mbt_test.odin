@@ -425,6 +425,13 @@ TRACE_FILES := [?]string{
 	"traces/quint_crawl_trace22.itf.json",
 	"traces/quint_crawl_trace23.itf.json",
 	"traces/quint_crawl_trace24.itf.json",
+	"traces/quint_crawl_trace25.itf.json",
+	"traces/quint_crawl_trace26.itf.json",
+	"traces/quint_crawl_trace27.itf.json",
+	"traces/quint_crawl_trace28.itf.json",
+	"traces/quint_crawl_trace29.itf.json",
+	"traces/quint_crawl_trace30.itf.json",
+	"traces/quint_crawl_trace31.itf.json",
 }
 
 @(test)
