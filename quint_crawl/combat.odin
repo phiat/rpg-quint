@@ -31,6 +31,7 @@ enter_combat :: proc(g: ^Game_State) -> bool {
 			g.comp_trait = 0
 			g.comp_rarity = 0
 			g.comp_loyalty = 0
+			g.comp_perk = PERK_NONE
 		}
 		g.comp_command_used = false
 	}

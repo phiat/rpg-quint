@@ -1,10 +1,11 @@
 package quint_crawl
 
-adopt_companion_abstract :: proc(g: ^Game_State, trait, rarity: int) -> bool {
+adopt_companion_abstract :: proc(g: ^Game_State, trait, rarity, perk: int) -> bool {
 	if !can_act_map(g) do return false
 	if g.comp_active do return false
 	if trait < 0 || trait >= COMP_TRAIT_COUNT do return false
 	if rarity < 0 || rarity >= COMP_RARITY_COUNT do return false
+	if perk < 0 || perk >= PERK_COUNT do return false
 	if !zone_has_services(g.pos_x, g.pos_y) do return false
 	cost := comp_adopt_cost(rarity)
 	if g.qty_wood < cost do return false
@@ -15,6 +16,7 @@ adopt_companion_abstract :: proc(g: ^Game_State, trait, rarity: int) -> bool {
 	g.comp_rarity = rarity
 	g.comp_loyalty = INITIAL_LOYALTY
 	g.comp_command_used = false
+	g.comp_perk = perk
 	if g.cq1_adopted < CQ1_TARGET do g.cq1_adopted += 1
 	return true
 }
@@ -35,6 +37,7 @@ adopt_companion :: proc(g: ^Game_State, species_idx: int, rarity: int) -> bool {
 	g.comp_rarity = rarity
 	g.comp_loyalty = INITIAL_LOYALTY
 	g.comp_command_used = false
+	g.comp_perk = def.perk
 	if g.cq1_adopted < CQ1_TARGET do g.cq1_adopted += 1
 	return true
 }
@@ -46,7 +49,8 @@ feed_companion :: proc(g: ^Game_State) -> bool {
 	if g.comp_loyalty >= MAX_LOYALTY do return false
 	if g.qty_potion < 1 do return false
 	g.qty_potion -= 1
-	g.comp_loyalty = min(g.comp_loyalty + LOYALTY_GAIN, MAX_LOYALTY)
+	gain := LOYALTY_GAIN * 2 if g.comp_perk == PERK_LOYALTY_BOND else LOYALTY_GAIN
+	g.comp_loyalty = min(g.comp_loyalty + gain, MAX_LOYALTY)
 	if g.comp_loyalty == MAX_LOYALTY && g.cq2_maxed < CQ2_TARGET do g.cq2_maxed += 1
 	return true
 }
@@ -63,6 +67,7 @@ dismiss_companion :: proc(g: ^Game_State) -> bool {
 	g.comp_rarity = 0
 	g.comp_loyalty = 0
 	g.comp_command_used = false
+	g.comp_perk = PERK_NONE
 	return true
 }
 

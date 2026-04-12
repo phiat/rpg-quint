@@ -223,7 +223,8 @@ crawl_step :: proc(driver: rawptr, action: string, picks: map[string]mbt.ITF_Val
 		// set the companion fields without the biome check.
 		t := picks["t"].(mbt.ITF_Int) or_return
 		r := picks["r"].(mbt.ITF_Int) or_return
-		qc.adopt_companion_abstract(g, int(t.value), int(r.value))
+		p := picks["p"].(mbt.ITF_Int) or_return
+		qc.adopt_companion_abstract(g, int(t.value), int(r.value), int(p.value))
 		return true
 	case "feed_companion":
 		qc.feed_companion(g)
@@ -389,6 +390,7 @@ crawl_state :: proc(driver: rawptr) -> map[string]mbt.ITF_Value {
 	cp["rarity"] = mbt.ITF_Int{g.comp_rarity}
 	cp["loyalty"] = mbt.ITF_Int{g.comp_loyalty}
 	cp["command_used"] = mbt.ITF_Bool{g.comp_command_used}
+	cp["perk"] = mbt.ITF_Int{g.comp_perk}
 	state["comp"] = mbt.ITF_Record{cp}
 
 	return state

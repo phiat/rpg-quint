@@ -69,6 +69,9 @@ module quint_crawl {
     rarity: int,
     loyalty: int,
     command_used: bool, // resets on enter_combat
+    // Species-derived passive perk (0=none, 1..4 = PERK_*).
+    // Species itself is Odin-only flavor; the spec models the perk effect.
+    perk: int,
   }
 
   // Result of the shared loot-drop helper (see compute_loot). Callers
@@ -141,6 +144,14 @@ module quint_crawl {
   val LOW_LOYALTY = 25
   // Training cost (wood) per target rarity: (new_rarity + 1) * TRAIN_COST
   val TRAIN_COST = 3
+  // Species-derived passive perks. 0 = none. Each species in the Odin
+  // catalog maps to one; the spec verifies perk effects, not species names.
+  val PERK_NONE          = 0
+  val PERK_MANA_REGEN    = 1 // +1 mana per move (on top of base regen)
+  val PERK_HP_REGEN      = 2 // +1 hp per move (clamped to max_hp)
+  val PERK_LOYALTY_BOND  = 3 // doubled LOYALTY_GAIN from feed_companion
+  val PERK_STAMINA_VIGOR = 4 // +1 stamina per move (on top of base regen)
+  val PERK_COUNT         = 5 // 0..4 inclusive
   // Companion trait effect multipliers (scaled by rarity tier)
   //   Attacker(0): atk bonus    | Defender(1): dmg reduction
   //   Scout(2):    small atk    | Support(3):  small dmg reduction
@@ -572,7 +583,7 @@ module quint_crawl {
               cq1_adopted: 0, cq2_maxed: 0, cq3_wins: 0,
               quest_rewards_claimed: 0,
               boss_defeated: false },
-    comp' = { active: false, trait: 0, rarity: 0, loyalty: 0, command_used: false },
+    comp' = { active: false, trait: 0, rarity: 0, loyalty: 0, command_used: false, perk: PERK_NONE },
   }
 
   // === Movement (only when not in combat) ===
@@ -582,14 +593,18 @@ module quint_crawl {
     w.pos_y > 0,
     zone_level(w.pos_x, w.pos_y - 1) <= ch.level,
     val storm_dmg = if (zone_weather(w.pos_x, w.pos_y - 1, w.turn_count + 1) == 3) STORM_MOVE_DMG else 0
+    val hp_regen = if (comp.active and comp.perk == PERK_HP_REGEN) 1 else 0
+    val mana_regen_amt = MANA_REGEN_PER_MOVE + (if (comp.active and comp.perk == PERK_MANA_REGEN) 1 else 0)
+    val stam_regen_amt = STAMINA_REGEN_PER_MOVE + (if (comp.active and comp.perk == PERK_STAMINA_VIGOR) 1 else 0)
+    val hp_after = ch.hp - storm_dmg + hp_regen
     all {
       w' = { ...w, pos_y: w.pos_y - 1, turn_count: w.turn_count + 1,
              visited: w.visited.union(Set((w.pos_x, w.pos_y - 1))),
              waypoints: if (zone_has_services(w.pos_x, w.pos_y - 1)) w.waypoints.union(Set((w.pos_x, w.pos_y - 1))) else w.waypoints },
       ch' = { ...ch,
-              hp: if (ch.hp - storm_dmg < 1) 1 else ch.hp - storm_dmg,
-              stamina: if (ch.stamina + STAMINA_REGEN_PER_MOVE > ch.max_stamina) ch.max_stamina else ch.stamina + STAMINA_REGEN_PER_MOVE,
-              mana: if (ch.max_mana == 0) ch.mana else if (ch.mana + MANA_REGEN_PER_MOVE > ch.max_mana) ch.max_mana else ch.mana + MANA_REGEN_PER_MOVE },
+              hp: if (hp_after < 1) 1 else if (hp_after > ch.max_hp) ch.max_hp else hp_after,
+              stamina: if (ch.stamina + stam_regen_amt > ch.max_stamina) ch.max_stamina else ch.stamina + stam_regen_amt,
+              mana: if (ch.max_mana == 0) ch.mana else if (ch.mana + mana_regen_amt > ch.max_mana) ch.max_mana else ch.mana + mana_regen_amt },
       inv' = inv, eqp' = eqp,
       cb' = cb,
       meta' = { ...meta, q2_zones: if (quest1_complete and zone_level(w.pos_x, w.pos_y - 1) >= 2 and not(w.visited.contains((w.pos_x, w.pos_y - 1))) and meta.q2_zones < Q2_TARGET) meta.q2_zones + 1 else meta.q2_zones },
@@ -602,14 +617,18 @@ module quint_crawl {
     w.pos_y < WORLD_SIZE - 1,
     zone_level(w.pos_x, w.pos_y + 1) <= ch.level,
     val storm_dmg = if (zone_weather(w.pos_x, w.pos_y + 1, w.turn_count + 1) == 3) STORM_MOVE_DMG else 0
+    val hp_regen = if (comp.active and comp.perk == PERK_HP_REGEN) 1 else 0
+    val mana_regen_amt = MANA_REGEN_PER_MOVE + (if (comp.active and comp.perk == PERK_MANA_REGEN) 1 else 0)
+    val stam_regen_amt = STAMINA_REGEN_PER_MOVE + (if (comp.active and comp.perk == PERK_STAMINA_VIGOR) 1 else 0)
+    val hp_after = ch.hp - storm_dmg + hp_regen
     all {
       w' = { ...w, pos_y: w.pos_y + 1, turn_count: w.turn_count + 1,
              visited: w.visited.union(Set((w.pos_x, w.pos_y + 1))),
              waypoints: if (zone_has_services(w.pos_x, w.pos_y + 1)) w.waypoints.union(Set((w.pos_x, w.pos_y + 1))) else w.waypoints },
       ch' = { ...ch,
-              hp: if (ch.hp - storm_dmg < 1) 1 else ch.hp - storm_dmg,
-              stamina: if (ch.stamina + STAMINA_REGEN_PER_MOVE > ch.max_stamina) ch.max_stamina else ch.stamina + STAMINA_REGEN_PER_MOVE,
-              mana: if (ch.max_mana == 0) ch.mana else if (ch.mana + MANA_REGEN_PER_MOVE > ch.max_mana) ch.max_mana else ch.mana + MANA_REGEN_PER_MOVE },
+              hp: if (hp_after < 1) 1 else if (hp_after > ch.max_hp) ch.max_hp else hp_after,
+              stamina: if (ch.stamina + stam_regen_amt > ch.max_stamina) ch.max_stamina else ch.stamina + stam_regen_amt,
+              mana: if (ch.max_mana == 0) ch.mana else if (ch.mana + mana_regen_amt > ch.max_mana) ch.max_mana else ch.mana + mana_regen_amt },
       inv' = inv, eqp' = eqp,
       cb' = cb,
       meta' = { ...meta, q2_zones: if (quest1_complete and zone_level(w.pos_x, w.pos_y + 1) >= 2 and not(w.visited.contains((w.pos_x, w.pos_y + 1))) and meta.q2_zones < Q2_TARGET) meta.q2_zones + 1 else meta.q2_zones },
@@ -622,14 +641,18 @@ module quint_crawl {
     w.pos_x > 0,
     zone_level(w.pos_x - 1, w.pos_y) <= ch.level,
     val storm_dmg = if (zone_weather(w.pos_x - 1, w.pos_y, w.turn_count + 1) == 3) STORM_MOVE_DMG else 0
+    val hp_regen = if (comp.active and comp.perk == PERK_HP_REGEN) 1 else 0
+    val mana_regen_amt = MANA_REGEN_PER_MOVE + (if (comp.active and comp.perk == PERK_MANA_REGEN) 1 else 0)
+    val stam_regen_amt = STAMINA_REGEN_PER_MOVE + (if (comp.active and comp.perk == PERK_STAMINA_VIGOR) 1 else 0)
+    val hp_after = ch.hp - storm_dmg + hp_regen
     all {
       w' = { ...w, pos_x: w.pos_x - 1, turn_count: w.turn_count + 1,
              visited: w.visited.union(Set((w.pos_x - 1, w.pos_y))),
              waypoints: if (zone_has_services(w.pos_x - 1, w.pos_y)) w.waypoints.union(Set((w.pos_x - 1, w.pos_y))) else w.waypoints },
       ch' = { ...ch,
-              hp: if (ch.hp - storm_dmg < 1) 1 else ch.hp - storm_dmg,
-              stamina: if (ch.stamina + STAMINA_REGEN_PER_MOVE > ch.max_stamina) ch.max_stamina else ch.stamina + STAMINA_REGEN_PER_MOVE,
-              mana: if (ch.max_mana == 0) ch.mana else if (ch.mana + MANA_REGEN_PER_MOVE > ch.max_mana) ch.max_mana else ch.mana + MANA_REGEN_PER_MOVE },
+              hp: if (hp_after < 1) 1 else if (hp_after > ch.max_hp) ch.max_hp else hp_after,
+              stamina: if (ch.stamina + stam_regen_amt > ch.max_stamina) ch.max_stamina else ch.stamina + stam_regen_amt,
+              mana: if (ch.max_mana == 0) ch.mana else if (ch.mana + mana_regen_amt > ch.max_mana) ch.max_mana else ch.mana + mana_regen_amt },
       inv' = inv, eqp' = eqp,
       cb' = cb,
       meta' = { ...meta, q2_zones: if (quest1_complete and zone_level(w.pos_x - 1, w.pos_y) >= 2 and not(w.visited.contains((w.pos_x - 1, w.pos_y))) and meta.q2_zones < Q2_TARGET) meta.q2_zones + 1 else meta.q2_zones },
@@ -642,14 +665,18 @@ module quint_crawl {
     w.pos_x < WORLD_SIZE - 1,
     zone_level(w.pos_x + 1, w.pos_y) <= ch.level,
     val storm_dmg = if (zone_weather(w.pos_x + 1, w.pos_y, w.turn_count + 1) == 3) STORM_MOVE_DMG else 0
+    val hp_regen = if (comp.active and comp.perk == PERK_HP_REGEN) 1 else 0
+    val mana_regen_amt = MANA_REGEN_PER_MOVE + (if (comp.active and comp.perk == PERK_MANA_REGEN) 1 else 0)
+    val stam_regen_amt = STAMINA_REGEN_PER_MOVE + (if (comp.active and comp.perk == PERK_STAMINA_VIGOR) 1 else 0)
+    val hp_after = ch.hp - storm_dmg + hp_regen
     all {
       w' = { ...w, pos_x: w.pos_x + 1, turn_count: w.turn_count + 1,
              visited: w.visited.union(Set((w.pos_x + 1, w.pos_y))),
              waypoints: if (zone_has_services(w.pos_x + 1, w.pos_y)) w.waypoints.union(Set((w.pos_x + 1, w.pos_y))) else w.waypoints },
       ch' = { ...ch,
-              hp: if (ch.hp - storm_dmg < 1) 1 else ch.hp - storm_dmg,
-              stamina: if (ch.stamina + STAMINA_REGEN_PER_MOVE > ch.max_stamina) ch.max_stamina else ch.stamina + STAMINA_REGEN_PER_MOVE,
-              mana: if (ch.max_mana == 0) ch.mana else if (ch.mana + MANA_REGEN_PER_MOVE > ch.max_mana) ch.max_mana else ch.mana + MANA_REGEN_PER_MOVE },
+              hp: if (hp_after < 1) 1 else if (hp_after > ch.max_hp) ch.max_hp else hp_after,
+              stamina: if (ch.stamina + stam_regen_amt > ch.max_stamina) ch.max_stamina else ch.stamina + stam_regen_amt,
+              mana: if (ch.max_mana == 0) ch.mana else if (ch.mana + mana_regen_amt > ch.max_mana) ch.max_mana else ch.mana + mana_regen_amt },
       inv' = inv, eqp' = eqp,
       cb' = cb,
       meta' = { ...meta, q2_zones: if (quest1_complete and zone_level(w.pos_x + 1, w.pos_y) >= 2 and not(w.visited.contains((w.pos_x + 1, w.pos_y))) and meta.q2_zones < Q2_TARGET) meta.q2_zones + 1 else meta.q2_zones },
@@ -688,7 +715,7 @@ module quint_crawl {
       // Loyalty tick: departure zeroes trait/rarity to match dismiss_companion
       // (keeps comp_inactive_zeroed invariant tight).
       comp' = if (comp.active and comp.loyalty - LOYALTY_COMBAT_COST <= 0)
-                { active: false, trait: 0, rarity: 0, loyalty: 0, command_used: false }
+                { active: false, trait: 0, rarity: 0, loyalty: 0, command_used: false, perk: PERK_NONE }
               else
                 { ...comp,
                   loyalty: if (comp.loyalty - LOYALTY_COMBAT_COST < 0) 0 else comp.loyalty - LOYALTY_COMBAT_COST,
@@ -2124,13 +2151,14 @@ module quint_crawl {
     not(comp.active),
     nondet t = oneOf(Set(0, 1, 2, 3))
     nondet r = oneOf(Set(0, 1, 2))
+    nondet p = oneOf(Set(0, 1, 2, 3, 4))
     val cost = (r + 1) * ADOPT_BASE_COST
     all {
       // Any service zone gates adoption (sanctuary/village abstraction)
       zone_has_services(w.pos_x, w.pos_y),
       inv.qty_wood >= cost,
       inv' = { ...inv, qty_wood: inv.qty_wood - cost },
-      comp' = { active: true, trait: t, rarity: r, loyalty: INITIAL_LOYALTY, command_used: false },
+      comp' = { active: true, trait: t, rarity: r, loyalty: INITIAL_LOYALTY, command_used: false, perk: p },
       meta' = { ...meta, cq1_adopted: if (meta.cq1_adopted < CQ1_TARGET) meta.cq1_adopted + 1 else meta.cq1_adopted },
       ch' = ch, eqp' = eqp, cb' = cb, w' = w,
     }
@@ -2142,7 +2170,8 @@ module quint_crawl {
     zone_has_services(w.pos_x, w.pos_y),
     comp.active, comp.loyalty < MAX_LOYALTY,
     inv.qty_potion >= 1,
-    val new_loyalty = if (comp.loyalty + LOYALTY_GAIN > MAX_LOYALTY) MAX_LOYALTY else comp.loyalty + LOYALTY_GAIN
+    val gain = if (comp.perk == PERK_LOYALTY_BOND) LOYALTY_GAIN * 2 else LOYALTY_GAIN
+    val new_loyalty = if (comp.loyalty + gain > MAX_LOYALTY) MAX_LOYALTY else comp.loyalty + gain
     all {
       inv' = { ...inv, qty_potion: inv.qty_potion - 1 },
       comp' = { ...comp, loyalty: new_loyalty },
@@ -2179,7 +2208,7 @@ module quint_crawl {
     comp.active,
     val refund = (comp.rarity + 1) * ADOPT_BASE_COST
     all {
-      comp' = { active: false, trait: 0, rarity: 0, loyalty: 0, command_used: false },
+      comp' = { active: false, trait: 0, rarity: 0, loyalty: 0, command_used: false, perk: PERK_NONE },
       inv' = { ...inv, qty_wood: inv.qty_wood + refund },
       ch' = ch, eqp' = eqp, cb' = cb, w' = w, meta' = meta,
     }
@@ -2474,8 +2503,11 @@ module quint_crawl {
 
   /// Inactive companion has fully zeroed effect tuple (no ghost trait/rarity).
   val comp_inactive_zeroed = (not(comp.active)).implies(
-    comp.trait == 0 and comp.rarity == 0 and comp.loyalty == 0
+    comp.trait == 0 and comp.rarity == 0 and comp.loyalty == 0 and comp.perk == PERK_NONE
   )
+
+  /// Companion perk stays in the declared enum range.
+  val comp_perk_bounded = comp.perk >= 0 and comp.perk < PERK_COUNT
 
   /// Companion quest counters bounded
   val companion_quest_counters_bounded = and {

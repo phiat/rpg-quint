@@ -55,6 +55,15 @@ LOYALTY_COMBAT_COST :: 5
 HIGH_LOYALTY :: 75
 LOW_LOYALTY :: 25
 TRAIN_COST :: 3
+// Species-derived passive perks — mirror spec PERK_* enum.
+// Each species in SPECIES_DEFS maps to one. Spec verifies the effects,
+// the catalog decides which species has which perk.
+PERK_NONE          :: 0
+PERK_MANA_REGEN    :: 1
+PERK_HP_REGEN      :: 2
+PERK_LOYALTY_BOND  :: 3
+PERK_STAMINA_VIGOR :: 4
+PERK_COUNT         :: 5
 // Companion trait base effects (scaled by rarity tier+1)
 COMP_ATK_BASE_ATTACKER :: 2
 COMP_ATK_BASE_SCOUT    :: 1
@@ -216,6 +225,7 @@ Save_Data :: struct {
 	comp_trait:   int,   // 0=Attacker, 1=Defender, 2=Scout, 3=Support
 	comp_rarity:  int,   // 0=Common, 1=Rare, 2=Legendary
 	comp_loyalty: int,
+	comp_perk:    int,   // species-derived passive (PERK_*); 0 = none
 	cq1_adopted:  int,
 	cq2_maxed:    int,
 	cq3_wins:     int,
@@ -348,6 +358,7 @@ Game_State :: struct {
 	comp_rarity:         int,  // 0=Common, 1=Rare, 2=Legendary
 	comp_loyalty:        int,  // [0, MAX_LOYALTY]
 	comp_command_used:   bool, // per-combat flag
+	comp_perk:           int,  // species-derived passive (PERK_*); 0 = none
 	// Companion quests
 	cq1_adopted:         int,  // 0..CQ1_TARGET
 	cq2_maxed:           int,  // 0..CQ2_TARGET
@@ -499,17 +510,18 @@ Species_Def :: struct {
 	biome_y:        int,          // pos_y % 3 adoption biome (-1 = any)
 	trait_affinity: Comp_Trait,
 	material:       Material_Kind,
+	perk:           int,          // PERK_* — passive bonus effect
 }
 
 SPECIES_DEFS := [?]Species_Def{
-	{ name = "Wolf",   biome_x =  1, biome_y =  0, trait_affinity = .Attacker, material = .Iron },
-	{ name = "Hawk",   biome_x =  1, biome_y =  2, trait_affinity = .Scout,    material = .Venom_Sac },
-	{ name = "Turtle", biome_x =  2, biome_y =  0, trait_affinity = .Defender, material = .Wood },
-	{ name = "Fox",    biome_x =  0, biome_y =  1, trait_affinity = .Scout,    material = .Wood },
-	{ name = "Bear",   biome_x =  2, biome_y =  2, trait_affinity = .Defender, material = .Iron },
-	{ name = "Owl",    biome_x =  0, biome_y =  2, trait_affinity = .Support,  material = .Wood },
-	{ name = "Lynx",   biome_x =  2, biome_y =  1, trait_affinity = .Attacker, material = .Wood },
-	{ name = "Sprite", biome_x =  0, biome_y =  0, trait_affinity = .Support,  material = .Venom_Sac },
+	{ name = "Wolf",   biome_x =  1, biome_y =  0, trait_affinity = .Attacker, material = .Iron,      perk = PERK_LOYALTY_BOND },
+	{ name = "Hawk",   biome_x =  1, biome_y =  2, trait_affinity = .Scout,    material = .Venom_Sac, perk = PERK_STAMINA_VIGOR },
+	{ name = "Turtle", biome_x =  2, biome_y =  0, trait_affinity = .Defender, material = .Wood,      perk = PERK_HP_REGEN },
+	{ name = "Fox",    biome_x =  0, biome_y =  1, trait_affinity = .Scout,    material = .Wood,      perk = PERK_LOYALTY_BOND },
+	{ name = "Bear",   biome_x =  2, biome_y =  2, trait_affinity = .Defender, material = .Iron,      perk = PERK_HP_REGEN },
+	{ name = "Owl",    biome_x =  0, biome_y =  2, trait_affinity = .Support,  material = .Wood,      perk = PERK_MANA_REGEN },
+	{ name = "Lynx",   biome_x =  2, biome_y =  1, trait_affinity = .Attacker, material = .Wood,      perk = PERK_STAMINA_VIGOR },
+	{ name = "Sprite", biome_x =  0, biome_y =  0, trait_affinity = .Support,  material = .Venom_Sac, perk = PERK_MANA_REGEN },
 }
 
 species_count :: proc() -> int { return len(SPECIES_DEFS) }
@@ -758,6 +770,7 @@ init_game :: proc(g: ^Game_State) {
 	g.comp_rarity = 0
 	g.comp_loyalty = 0
 	g.comp_command_used = false
+	g.comp_perk = PERK_NONE
 	g.cq1_adopted = 0
 	g.cq2_maxed = 0
 	g.cq3_wins = 0

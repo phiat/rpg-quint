@@ -68,6 +68,7 @@ save_game :: proc(g: ^Game_State) -> bool {
 		comp_trait = g.comp_trait,
 		comp_rarity = g.comp_rarity,
 		comp_loyalty = g.comp_loyalty,
+		comp_perk = g.comp_perk,
 		cq1_adopted = g.cq1_adopted,
 		cq2_maxed = g.cq2_maxed,
 		cq3_wins = g.cq3_wins,
@@ -150,6 +151,7 @@ load_game :: proc(g: ^Game_State) -> bool {
 	g.comp_trait = s.comp_trait
 	g.comp_rarity = s.comp_rarity
 	g.comp_loyalty = s.comp_loyalty
+	g.comp_perk = s.comp_perk
 	g.comp_command_used = false
 	g.cq1_adopted = s.cq1_adopted
 	g.cq2_maxed = s.cq2_maxed

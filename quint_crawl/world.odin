@@ -58,8 +58,13 @@ move :: proc(g: ^Game_State, dx, dy: int) -> bool {
 	if zone_weather(nx, ny, g.turn_count) == 3 {
 		g.hp = max(g.hp - STORM_MOVE_DMG, 1)
 	}
-	g.stamina = min(g.stamina + STAMINA_REGEN_PER_MOVE, g.max_stamina)
-	if g.max_mana > 0 do g.mana = min(g.mana + MANA_REGEN_PER_MOVE, g.max_mana)
+	// Companion perk bonuses: applied after storm dmg, clamped to max.
+	hp_regen := 1 if g.comp_active && g.comp_perk == PERK_HP_REGEN else 0
+	mana_regen := MANA_REGEN_PER_MOVE + (1 if g.comp_active && g.comp_perk == PERK_MANA_REGEN else 0)
+	stam_regen := STAMINA_REGEN_PER_MOVE + (1 if g.comp_active && g.comp_perk == PERK_STAMINA_VIGOR else 0)
+	if hp_regen > 0 do g.hp = min(g.hp + hp_regen, g.max_hp)
+	g.stamina = min(g.stamina + stam_regen, g.max_stamina)
+	if g.max_mana > 0 do g.mana = min(g.mana + mana_regen, g.max_mana)
 	return true
 }
 
