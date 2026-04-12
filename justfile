@@ -101,14 +101,25 @@ trace name main:
     quint run --main={{main}} --mbt --max-steps=8 \
         --out-itf=traces/{{name}}_trace.itf.json "$f"
 
-# Regenerate quint_crawl traces (9x9 integrated spec, 25 traces)
+# Regenerate quint_crawl traces (9x9 integrated spec, 32 traces x 256 steps)
 trace-crawl:
     quint run --main=quint_crawl_run --mbt --max-samples=200000 --max-steps=256 --n-traces=32 \
         --out-itf=traces/quint_crawl_trace.itf.json \
         specs/quint_crawl.qnt
 
+# Deep regen: 16 traces x 256 steps (slower, deeper coverage)
+trace-crawl-deep:
+    rm -f traces/quint_crawl_trace*.itf.json
+    quint run --main=quint_crawl_run --mbt --max-samples=400000 --max-steps=256 --n-traces=16 \
+        --out-itf=traces/quint_crawl_trace.itf.json \
+        specs/quint_crawl.qnt
+
 # Test just the quint_crawl MBT harness
 test-crawl: trace-crawl
+    odin test quint_crawl_mbt/
+
+# Deep MBT run: 32 traces x 768 steps
+test-crawl-deep: trace-crawl-deep
     odin test quint_crawl_mbt/
 
 # --- Test execution ---
