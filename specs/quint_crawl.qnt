@@ -195,7 +195,7 @@ module quint_crawl {
   val COUNTER_STAMINA = 3
   val SHIELD_BLOCK_STAMINA = 3
   val FORTIFY_STAMINA = 4
-  val FORTIFY_CD = 5
+  val FORTIFY_CD = 8
   val FORTIFY_DURATION = 8
   val CRAFT_VENOM_IRON_COST = 2
   val ENCHANT_COST = 25
