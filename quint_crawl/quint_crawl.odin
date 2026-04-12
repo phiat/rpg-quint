@@ -651,6 +651,9 @@ reset_cooldowns :: proc(g: ^Game_State) {
 }
 
 // Resolve loot drop on enemy defeat. Uses pre-increment turn for determinism (matches spec).
+// TODO(archetype-loot): future — branch loot table on the active enemy's
+// trait tag (Undead → holy dust, Beast → pelt, Construct → core, ...).
+// v1 ignores the archetype here so the spec contract stays unchanged.
 resolve_loot :: proc(g: ^Game_State) {
 	// turn_count was already incremented before resolve_combat_hit, so use -1 to match spec
 	pre_turn := g.turn_count - 1

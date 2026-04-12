@@ -42,8 +42,13 @@ handle_map_input :: proc(app: ^App_State) {
 	// Enter combat
 	if rl.IsKeyPressed(.E) {
 		if qc.enter_combat(g) {
-			tier := qc.zone_level(g.pos_x, g.pos_y) - 1
-			add_message(app, fmt.tprintf("A %s appears!", ENEMY_NAMES[tier]), BAR_HP_FG)
+			// Pick a named enemy from the data-driven catalog. Seed from
+			// turn_count so re-encounters at the same tile vary.
+			arch := qc.select_enemy_archetype(g.pos_x, g.pos_y, g.turn_count)
+			name := qc.select_enemy_name(arch, g.pos_x, g.pos_y, g.turn_count)
+			app.current_archetype = arch
+			app.current_enemy_name = name
+			add_message(app, fmt.tprintf("A %s appears!", name), BAR_HP_FG)
 		} else if !g.in_combat && g.last_kill_turn != 0 && g.turn_count - g.last_kill_turn < qc.RESPAWN_TURNS {
 			remaining := qc.RESPAWN_TURNS - (g.turn_count - g.last_kill_turn)
 			add_message(app, fmt.tprintf("No enemies yet... %d turns until respawn.", remaining), TEXT_DIM)

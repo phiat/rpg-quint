@@ -28,9 +28,12 @@ draw_combat :: proc(app: ^App_State) {
 	enemy_cx := f32(HUD_X) / 2
 	enemy_cy := f32(200)
 
-	// Enemy name
-	name := ENEMY_NAMES[tier]
-	rl.DrawText(fmt.ctprintf("%s", name), i32(enemy_cx) - 40, 60, 28, ENEMY_COLORS[tier])
+	// Enemy name — pulled from the data-driven archetype catalog
+	// (selected at enter_combat time), not a hardcoded tier array.
+	name := app.current_enemy_name
+	if name == "" do name = ENEMY_NAMES[tier] // fallback for fresh/loaded states
+	name_w := rl.MeasureText(fmt.ctprintf("%s", name), 28)
+	rl.DrawText(fmt.ctprintf("%s", name), i32(enemy_cx) - name_w / 2, 60, 28, ENEMY_COLORS[tier])
 
 	// Enemy shape with shake + dissolve on death
 	shake := app.shake_timer * 20 if app.shake_timer > 0 else 0

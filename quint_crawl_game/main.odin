@@ -57,6 +57,9 @@ App_State :: struct {
 	// Confirmation windows for destructive actions (seconds remaining)
 	confirm_load_timer:    f32,
 	confirm_salvage_timer: f32,
+	// Active enemy identity (flavor; spec does not model this)
+	current_archetype:  int,     // index into qc.ENEMY_ARCHETYPES, -1 if none
+	current_enemy_name: string,
 }
 
 begin_victory_rewards :: proc(app: ^App_State, xp_gained, gold_gained: int, leveled_up: bool, new_level, hp_gained, atk_gained: int) {
@@ -168,6 +171,7 @@ main :: proc() {
 
 	app: App_State
 	app.screen = .Title
+	app.current_archetype = -1
 	qc.init_game(&app.game)
 	app.prev_level = app.game.level
 	init_shaders(&app.pipeline)
