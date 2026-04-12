@@ -300,12 +300,6 @@ module quint_crawl {
   }
   val player_poison_tick = if (cb.player_poison_dur > 0) POISON_DMG else 0
 
-  // Tick all 4 per-turn combat status durations. Returns a CombatState with
-  // player_poison_dur / player_atk_buff_dur / player_def_buff_dur / enemy_poison_dur
-  // advanced one step; other fields pass through unchanged. Callers that
-  // override a specific field (battle_cry sets atk_buff, shield_block/
-  // counter_attack/fortify set def_buff) simply assign over the ticked value
-  // in their cb' record.
   // Shared loot-drop + pity logic used by every killing combat action.
   // Returns inventory increments (potion vs venom sac) and updated pity
   // counter / last_drop marker. Kill-on-hit actions simply add the
@@ -324,6 +318,13 @@ module quint_crawl {
     }
   }
 
+  // Tick per-turn combat decay in one pass: 4 status durations + 3
+  // ability cooldowns. Returns a CombatState with those 7 fields
+  // advanced one step; other fields pass through unchanged. Callers
+  // that need to override a field (battle_cry sets atk_buff and
+  // battle_cry CD, shield_block/counter_attack/fortify set def_buff,
+  // heavy_strike sets heavy CD) simply assign over the ticked value
+  // in their cb' record.
   pure def tick_statuses(c: CombatState, apply_poison_now: bool): CombatState = {
     ...c,
     player_poison_dur: if (apply_poison_now) STATUS_DURATION
@@ -332,6 +333,9 @@ module quint_crawl {
     player_atk_buff_dur: if (c.player_atk_buff_dur > 0) c.player_atk_buff_dur - 1 else 0,
     player_def_buff_dur: if (c.player_def_buff_dur > 0) c.player_def_buff_dur - 1 else 0,
     enemy_poison_dur: if (c.enemy_poison_dur > 0) c.enemy_poison_dur - 1 else 0,
+    cd_heavy_strike: if (c.cd_heavy_strike > 0) c.cd_heavy_strike - 1 else 0,
+    cd_battle_cry: if (c.cd_battle_cry > 0) c.cd_battle_cry - 1 else 0,
+    cd_fortify: if (c.cd_fortify > 0) c.cd_fortify - 1 else 0,
   }
 
   // Quest completion predicates
@@ -546,9 +550,9 @@ module quint_crawl {
               player_atk_buff_dur: if (combat_ends) 0 else ticked.player_atk_buff_dur,
               player_def_buff_dur: if (combat_ends) 0 else ticked.player_def_buff_dur,
               enemy_poison_dur: if (combat_ends) 0 else ticked.enemy_poison_dur,
-              cd_heavy_strike: if (combat_ends) 0 else (if (cb.cd_heavy_strike > 0) cb.cd_heavy_strike - 1 else 0),
-              cd_battle_cry: if (combat_ends) 0 else (if (cb.cd_battle_cry > 0) cb.cd_battle_cry - 1 else 0),
-              cd_fortify: if (combat_ends) 0 else (if (cb.cd_fortify > 0) cb.cd_fortify - 1 else 0),
+              cd_heavy_strike: if (combat_ends) 0 else ticked.cd_heavy_strike,
+              cd_battle_cry: if (combat_ends) 0 else ticked.cd_battle_cry,
+              cd_fortify: if (combat_ends) 0 else ticked.cd_fortify,
       },
       // If durability hits 0 this strike, enchants are lost with the broken sword.
       eqp' = if (eqp.sword_dur > 0 and new_sword_dur == 0)
@@ -739,6 +743,7 @@ module quint_crawl {
     ch.stamina >= ATTACK_STAMINA,
     val new_hp = ch.hp - incoming_enemy_dmg
     val combat_ends = (new_hp <= 0)
+    val ticked = tick_statuses(cb, false)
     all {
       ch' = { ...ch, hp: if (new_hp < 0) 0 else new_hp, stamina: ch.stamina - ATTACK_STAMINA },
       cb' = { in_combat: if (combat_ends) false else true,
@@ -751,9 +756,9 @@ module quint_crawl {
               player_def_buff_dur: if (combat_ends) 0 else cb.player_def_buff_dur,
               // Refresh (not overwrite): allows re-cast on already-poisoned enemy.
               enemy_poison_dur: if (combat_ends) 0 else (if (cb.enemy_poison_dur > STATUS_DURATION) cb.enemy_poison_dur else STATUS_DURATION),
-              cd_heavy_strike: if (combat_ends) 0 else (if (cb.cd_heavy_strike > 0) cb.cd_heavy_strike - 1 else 0),
-              cd_battle_cry: if (combat_ends) 0 else (if (cb.cd_battle_cry > 0) cb.cd_battle_cry - 1 else 0),
-              cd_fortify: if (combat_ends) 0 else (if (cb.cd_fortify > 0) cb.cd_fortify - 1 else 0),
+              cd_heavy_strike: if (combat_ends) 0 else ticked.cd_heavy_strike,
+              cd_battle_cry: if (combat_ends) 0 else ticked.cd_battle_cry,
+              cd_fortify: if (combat_ends) 0 else ticked.cd_fortify,
       },
       inv' = { ...inv, qty_venom_sac: inv.qty_venom_sac - 1 },
       eqp' = eqp,
@@ -816,9 +821,9 @@ module quint_crawl {
               player_atk_buff_dur: if (combat_ends) 0 else ticked.player_atk_buff_dur,
               player_def_buff_dur: if (combat_ends) 0 else ticked.player_def_buff_dur,
               enemy_poison_dur: if (combat_ends) 0 else ticked.enemy_poison_dur,
-              cd_heavy_strike: if (combat_ends) 0 else (if (cb.cd_heavy_strike > 0) cb.cd_heavy_strike - 1 else 0),
-              cd_battle_cry: if (combat_ends) 0 else (if (cb.cd_battle_cry > 0) cb.cd_battle_cry - 1 else 0),
-              cd_fortify: if (combat_ends) 0 else (if (cb.cd_fortify > 0) cb.cd_fortify - 1 else 0),
+              cd_heavy_strike: if (combat_ends) 0 else ticked.cd_heavy_strike,
+              cd_battle_cry: if (combat_ends) 0 else ticked.cd_battle_cry,
+              cd_fortify: if (combat_ends) 0 else ticked.cd_fortify,
       },
       // If durability hits 0 this strike, enchants are lost with the broken sword.
       eqp' = if (eqp.sword_dur > 0 and new_sword_dur == 0)
@@ -881,8 +886,8 @@ module quint_crawl {
               player_def_buff_dur: if (combat_ends) 0 else ticked.player_def_buff_dur,
               enemy_poison_dur: if (combat_ends) 0 else ticked.enemy_poison_dur,
               cd_heavy_strike: if (combat_ends) 0 else HEAVY_STRIKE_CD,
-              cd_battle_cry: if (combat_ends) 0 else (if (cb.cd_battle_cry > 0) cb.cd_battle_cry - 1 else 0),
-              cd_fortify: if (combat_ends) 0 else (if (cb.cd_fortify > 0) cb.cd_fortify - 1 else 0),
+              cd_battle_cry: if (combat_ends) 0 else ticked.cd_battle_cry,
+              cd_fortify: if (combat_ends) 0 else ticked.cd_fortify,
       },
       // If durability hits 0 this strike, enchants are lost with the broken sword.
       eqp' = if (eqp.sword_dur > 0 and new_sword_dur == 0)
@@ -927,9 +932,9 @@ module quint_crawl {
               player_atk_buff_dur: if (combat_ends) 0 else STATUS_DURATION,
               player_def_buff_dur: if (combat_ends) 0 else ticked.player_def_buff_dur,
               enemy_poison_dur: if (combat_ends) 0 else ticked.enemy_poison_dur,
-              cd_heavy_strike: if (combat_ends) 0 else (if (cb.cd_heavy_strike > 0) cb.cd_heavy_strike - 1 else 0),
+              cd_heavy_strike: if (combat_ends) 0 else ticked.cd_heavy_strike,
               cd_battle_cry: if (combat_ends) 0 else BATTLE_CRY_CD,
-              cd_fortify: if (combat_ends) 0 else (if (cb.cd_fortify > 0) cb.cd_fortify - 1 else 0),
+              cd_fortify: if (combat_ends) 0 else ticked.cd_fortify,
       },
       eqp' = eqp, inv' = inv,
       w' = { ...w, turn_count: w.turn_count + 1 },
@@ -959,9 +964,9 @@ module quint_crawl {
               player_atk_buff_dur: if (combat_ends) 0 else ticked.player_atk_buff_dur,
               player_def_buff_dur: if (combat_ends) 0 else STATUS_DURATION,
               enemy_poison_dur: if (combat_ends) 0 else ticked.enemy_poison_dur,
-              cd_heavy_strike: if (combat_ends) 0 else (if (cb.cd_heavy_strike > 0) cb.cd_heavy_strike - 1 else 0),
-              cd_battle_cry: if (combat_ends) 0 else (if (cb.cd_battle_cry > 0) cb.cd_battle_cry - 1 else 0),
-              cd_fortify: if (combat_ends) 0 else (if (cb.cd_fortify > 0) cb.cd_fortify - 1 else 0),
+              cd_heavy_strike: if (combat_ends) 0 else ticked.cd_heavy_strike,
+              cd_battle_cry: if (combat_ends) 0 else ticked.cd_battle_cry,
+              cd_fortify: if (combat_ends) 0 else ticked.cd_fortify,
       },
       eqp' = eqp, inv' = inv,
       w' = { ...w, turn_count: w.turn_count + 1 },
@@ -1110,9 +1115,9 @@ module quint_crawl {
               player_atk_buff_dur: if (combat_ends) 0 else ticked.player_atk_buff_dur,
               player_def_buff_dur: if (combat_ends) 0 else STATUS_DURATION,
               enemy_poison_dur: if (combat_ends) 0 else ticked.enemy_poison_dur,
-              cd_heavy_strike: if (combat_ends) 0 else (if (cb.cd_heavy_strike > 0) cb.cd_heavy_strike - 1 else 0),
-              cd_battle_cry: if (combat_ends) 0 else (if (cb.cd_battle_cry > 0) cb.cd_battle_cry - 1 else 0),
-              cd_fortify: if (combat_ends) 0 else (if (cb.cd_fortify > 0) cb.cd_fortify - 1 else 0),
+              cd_heavy_strike: if (combat_ends) 0 else ticked.cd_heavy_strike,
+              cd_battle_cry: if (combat_ends) 0 else ticked.cd_battle_cry,
+              cd_fortify: if (combat_ends) 0 else ticked.cd_fortify,
       },
       // If this counter breaks the sword, enchants go with it.
       eqp' = if (eqp.sword_dur > 0 and eqp.sword_dur - dur_cost == 0)
@@ -1155,8 +1160,8 @@ module quint_crawl {
               player_atk_buff_dur: if (combat_ends) 0 else ticked.player_atk_buff_dur,
               player_def_buff_dur: if (combat_ends) 0 else FORTIFY_DURATION,
               enemy_poison_dur: if (combat_ends) 0 else ticked.enemy_poison_dur,
-              cd_heavy_strike: if (combat_ends) 0 else (if (cb.cd_heavy_strike > 0) cb.cd_heavy_strike - 1 else 0),
-              cd_battle_cry: if (combat_ends) 0 else (if (cb.cd_battle_cry > 0) cb.cd_battle_cry - 1 else 0),
+              cd_heavy_strike: if (combat_ends) 0 else ticked.cd_heavy_strike,
+              cd_battle_cry: if (combat_ends) 0 else ticked.cd_battle_cry,
               cd_fortify: if (combat_ends) 0 else FORTIFY_CD,
       },
       eqp' = eqp, inv' = inv,
@@ -1204,9 +1209,9 @@ module quint_crawl {
               player_atk_buff_dur: if (combat_ends) 0 else ticked.player_atk_buff_dur,
               player_def_buff_dur: if (combat_ends) 0 else ticked.player_def_buff_dur,
               enemy_poison_dur: if (combat_ends) 0 else ticked.enemy_poison_dur,
-              cd_heavy_strike: if (combat_ends) 0 else (if (cb.cd_heavy_strike > 0) cb.cd_heavy_strike - 1 else 0),
-              cd_battle_cry: if (combat_ends) 0 else (if (cb.cd_battle_cry > 0) cb.cd_battle_cry - 1 else 0),
-              cd_fortify: if (combat_ends) 0 else (if (cb.cd_fortify > 0) cb.cd_fortify - 1 else 0),
+              cd_heavy_strike: if (combat_ends) 0 else ticked.cd_heavy_strike,
+              cd_battle_cry: if (combat_ends) 0 else ticked.cd_battle_cry,
+              cd_fortify: if (combat_ends) 0 else ticked.cd_fortify,
       },
       eqp' = eqp,
       inv' = { ...inv,
