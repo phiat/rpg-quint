@@ -333,6 +333,23 @@ handle_map_input :: proc(app: ^App_State) {
 		}
 	}
 
+	// Recycle (village): 3 commons -> 1 uncommon
+	if rl.IsKeyPressed(.F1) {
+		if qc.recycle_wood(g) {
+			add_message(app, fmt.tprintf("Recycled %d wood into 1 Ration.", qc.RECYCLE_RATIO), {200, 220, 140, 255})
+		}
+	}
+	if rl.IsKeyPressed(.F2) {
+		if qc.recycle_iron(g) {
+			add_message(app, fmt.tprintf("Recycled %d iron into 1 Battery.", qc.RECYCLE_RATIO), {220, 220, 255, 255})
+		}
+	}
+	if rl.IsKeyPressed(.F3) {
+		if qc.recycle_potion(g) {
+			add_message(app, fmt.tprintf("Recycled %d potions into 1 Holy Water.", qc.RECYCLE_RATIO), {220, 240, 255, 255})
+		}
+	}
+
 	// Open treasure chest (chest zones, one-time)
 	if rl.IsKeyPressed(.Z) {
 		if qc.chest_present(g.pos_x, g.pos_y) && !g.chests_opened[g.pos_x][g.pos_y] {

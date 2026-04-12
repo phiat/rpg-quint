@@ -267,6 +267,36 @@ buy_ration :: proc(g: ^Game_State) -> bool {
 	return true
 }
 
+recycle_wood :: proc(g: ^Game_State) -> bool {
+	if !can_act_map(g) do return false
+	if !zone_has_services(g.pos_x, g.pos_y) do return false
+	if g.qty_wood < RECYCLE_RATIO do return false
+	g.turn_count += 1
+	g.qty_wood -= RECYCLE_RATIO
+	g.qty_ration += 1
+	return true
+}
+
+recycle_iron :: proc(g: ^Game_State) -> bool {
+	if !can_act_map(g) do return false
+	if !zone_has_services(g.pos_x, g.pos_y) do return false
+	if g.qty_iron < RECYCLE_RATIO do return false
+	g.turn_count += 1
+	g.qty_iron -= RECYCLE_RATIO
+	g.qty_battery += 1
+	return true
+}
+
+recycle_potion :: proc(g: ^Game_State) -> bool {
+	if !can_act_map(g) do return false
+	if !zone_has_services(g.pos_x, g.pos_y) do return false
+	if g.qty_potion < RECYCLE_RATIO do return false
+	g.turn_count += 1
+	g.qty_potion -= RECYCLE_RATIO
+	g.qty_holy_water += 1
+	return true
+}
+
 use_ration :: proc(g: ^Game_State) -> bool {
 	if !can_act_map(g) do return false
 	if g.qty_ration < 1 do return false

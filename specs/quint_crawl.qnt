@@ -179,6 +179,7 @@ module quint_crawl {
   val SCROLL_FIRE_COST = 25
   // Holy water: crafted at village from holy_dust + wood; out-of-combat full heal.
   val CRAFT_HOLY_WATER_WOOD = 2
+  val RECYCLE_RATIO = 3
   val INITIAL_HP = 50
   val INITIAL_ATTACK = 10
   val INITIAL_POTIONS = 2
@@ -1823,6 +1824,38 @@ module quint_crawl {
     meta' = meta, comp' = comp,
   }
 
+  // === Loot recycling (village; trade 3x common -> 1x uncommon) ===
+  // Net delta -2 items: always safe under inventory cap.
+  action recycle_wood = all {
+    not(cb.in_combat), not(meta.game_won), ch.hp > 0,
+    zone_has_services(w.pos_x, w.pos_y),
+    inv.qty_wood >= RECYCLE_RATIO,
+    inv' = { ...inv, qty_wood: inv.qty_wood - RECYCLE_RATIO, qty_ration: inv.qty_ration + 1 },
+    ch' = ch, eqp' = eqp, cb' = cb,
+    w' = { ...w, turn_count: w.turn_count + 1 },
+    meta' = meta, comp' = comp,
+  }
+
+  action recycle_iron = all {
+    not(cb.in_combat), not(meta.game_won), ch.hp > 0,
+    zone_has_services(w.pos_x, w.pos_y),
+    inv.qty_iron >= RECYCLE_RATIO,
+    inv' = { ...inv, qty_iron: inv.qty_iron - RECYCLE_RATIO, qty_battery: inv.qty_battery + 1 },
+    ch' = ch, eqp' = eqp, cb' = cb,
+    w' = { ...w, turn_count: w.turn_count + 1 },
+    meta' = meta, comp' = comp,
+  }
+
+  action recycle_potion = all {
+    not(cb.in_combat), not(meta.game_won), ch.hp > 0,
+    zone_has_services(w.pos_x, w.pos_y),
+    inv.qty_potion >= RECYCLE_RATIO,
+    inv' = { ...inv, qty_potion: inv.qty_potion - RECYCLE_RATIO, qty_holy_water: inv.qty_holy_water + 1 },
+    ch' = ch, eqp' = eqp, cb' = cb,
+    w' = { ...w, turn_count: w.turn_count + 1 },
+    meta' = meta, comp' = comp,
+  }
+
   // === Open treasure chest (out-of-combat, awards gold, one-shot) ===
   action open_chest = all {
     not(cb.in_combat), not(meta.game_won), ch.hp > 0,
@@ -2210,6 +2243,7 @@ module quint_crawl {
     open_chest,
     buy_bomb, buy_smoke, buy_ration,
     use_bomb, use_smoke, use_ration,
+    recycle_wood, recycle_iron, recycle_potion,
   }
 
   // === Invariants ===

@@ -97,6 +97,15 @@ crawl_step :: proc(driver: rawptr, action: string, picks: map[string]mbt.ITF_Val
 	case "use_ration":
 		qc.use_ration(g)
 		return true
+	case "recycle_wood":
+		qc.recycle_wood(g)
+		return true
+	case "recycle_iron":
+		qc.recycle_iron(g)
+		return true
+	case "recycle_potion":
+		qc.recycle_potion(g)
+		return true
 	case "gather_wood":
 		qc.gather_wood(g)
 		return true

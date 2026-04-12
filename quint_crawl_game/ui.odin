@@ -311,6 +311,9 @@ draw_hud :: proc(app: ^App_State) {
 				draw_action(x, &y, "[T]", fmt.ctprintf("Repair Sword (%dg)", qc.REPAIR_COST), g.gold >= qc.REPAIR_COST)
 			}
 			draw_action(x, &y, "[O]", fmt.ctprintf("Craft Venom (%di)", qc.CRAFT_VENOM_IRON_COST), g.qty_iron >= qc.CRAFT_VENOM_IRON_COST)
+			draw_action(x, &y, "[F1]", fmt.ctprintf("Recycle %dw -> Ration", qc.RECYCLE_RATIO), g.qty_wood >= qc.RECYCLE_RATIO)
+			draw_action(x, &y, "[F2]", fmt.ctprintf("Recycle %di -> Battery", qc.RECYCLE_RATIO), g.qty_iron >= qc.RECYCLE_RATIO)
+			draw_action(x, &y, "[F3]", fmt.ctprintf("Recycle %d pot -> Holy Water", qc.RECYCLE_RATIO), g.qty_potion >= qc.RECYCLE_RATIO)
 			if g.qty_holy_dust >= 1 {
 				draw_action(x, &y, "[V]", fmt.ctprintf("Craft Holy Water (%dw)", qc.CRAFT_HOLY_WATER_WOOD), g.qty_wood >= qc.CRAFT_HOLY_WATER_WOOD)
 			}
