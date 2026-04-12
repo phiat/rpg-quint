@@ -60,6 +60,8 @@ App_State :: struct {
 	// Active enemy identity (flavor; spec does not model this)
 	current_archetype:  int,     // index into qc.ENEMY_ARCHETYPES, -1 if none
 	current_enemy_name: string,
+	// Inventory overlay (toggle with I / ESC)
+	inventory_open:     bool,
 }
 
 begin_victory_rewards :: proc(app: ^App_State, xp_gained, gold_gained: int, leveled_up: bool, new_level, hp_gained, atk_gained: int) {
@@ -200,6 +202,9 @@ main :: proc() {
 		case .Map:
 			draw_map(&app)
 			draw_hud(&app)
+			if app.inventory_open {
+				draw_inventory_overlay(&app)
+			}
 		case .Combat:
 			draw_combat(&app)
 			draw_hud(&app)

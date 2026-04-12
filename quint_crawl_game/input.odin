@@ -17,6 +17,19 @@ handle_title_input :: proc(app: ^App_State) {
 handle_map_input :: proc(app: ^App_State) {
 	g := &app.game
 
+	// Inventory overlay: toggle with I, close with ESC.
+	// When open, consume all other map input so keys don't leak through.
+	if app.inventory_open {
+		if rl.IsKeyPressed(.I) || rl.IsKeyPressed(.ESCAPE) {
+			app.inventory_open = false
+		}
+		return
+	}
+	if rl.IsKeyPressed(.I) {
+		app.inventory_open = true
+		return
+	}
+
 	// Movement
 	moved := false
 	if rl.IsKeyPressed(.W) || rl.IsKeyPressed(.UP) {
@@ -283,7 +296,7 @@ handle_map_input :: proc(app: ^App_State) {
 	}
 
 	// Use holy water (anywhere — full heal)
-	if rl.IsKeyPressed(.I) {
+	if rl.IsKeyPressed(.INSERT) {
 		old_hp := g.hp
 		if qc.use_holy_water(g) {
 			add_message(app, fmt.tprintf("Holy Water restored %d HP!", g.hp - old_hp), {220, 240, 255, 255})
