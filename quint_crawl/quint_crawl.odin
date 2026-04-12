@@ -731,6 +731,47 @@ reset_cooldowns :: proc(g: ^Game_State) {
 	g.cd_fortify = 0
 }
 
+// Level-up check called at every kill site. Matches the spec's inline
+// `if (new_level > ch.level)` branch. Idempotent — safe to call anywhere.
+maybe_level_up :: proc(g: ^Game_State) {
+	if g.level < MAX_LEVEL && g.xp >= XP_THRESHOLDS[g.level + 1] {
+		g.level += 1
+		g.max_hp += HP_PER_LEVEL
+		g.base_attack += ATK_PER_LEVEL_UP
+		g.max_stamina += STAMINA_PER_LEVEL
+		if g.skill_magic do g.max_mana += MANA_PER_LEVEL
+		g.skill_points += SKILL_POINTS_PER_LEVEL
+	}
+}
+
+// Damage dealt by the enemy's "free hit" that follows non-attack combat
+// actions (potion, antidote, shield_block, fortify, counter_attack, and the
+// standard resolve_combat_hit retaliation). Always subtracts the three DEF
+// sources and clamps to min 1. Callers pass the enchant_def value they
+// already computed — some sites snapshot it before the sword may break.
+// Flee_combat intentionally bypasses this helper (spec design: flee ignores
+// DEF buff + companion reduction).
+enemy_free_hit_damage :: proc(g: ^Game_State, enchant_def: int) -> int {
+	d := g.enemy_attack - enchant_def - def_reduction_active(g) - comp_dmg_reduction(g)
+	return max(d, 1)
+}
+
+// Shared kill-accounting: called from every kill path (resolve_combat_hit,
+// counter_attack, and any future site). Handles xp, quest counters, boss
+// flag, companion win, loot, and level-up. The caller is still responsible
+// for in_combat/enemy_* teardown since those differ per action.
+kill_accounting :: proc(g: ^Game_State) {
+	g.last_kill_turn = g.turn_count - 1
+	g.xp += zone_xp_reward(g.pos_x, g.pos_y)
+	zone_tier := zone_level(g.pos_x, g.pos_y)
+	if zone_tier == 1 && g.q1_kills < Q1_TARGET do g.q1_kills += 1
+	if zone_tier == MAX_LEVEL && g.q3_kills < Q3_TARGET do g.q3_kills += 1
+	if is_castle_zone(g.pos_x, g.pos_y) do g.boss_defeated = true
+	if comp_active(g) && g.cq3_wins < CQ3_TARGET do g.cq3_wins += 1
+	resolve_loot(g)
+	maybe_level_up(g)
+}
+
 // Resolve loot drop on enemy defeat. Uses pre-increment turn for determinism (matches spec).
 // Primary drop follows the zone-tier table (potion / venom sac). A secondary
 // trait-keyed drop fires on ~25% of kills, flavored by the archetype trait
@@ -803,9 +844,7 @@ resolve_combat_hit :: proc(g: ^Game_State, dmg: int) -> bool {
 	poison_dmg := POISON_DMG if g.player_poison_dur > 0 else 0
 	new_hp := g.hp - poison_dmg
 	if new_enemy_hp > 0 {
-		enemy_dmg := g.enemy_attack - pre_enchant_def - def_reduction_active(g) - comp_dmg_reduction(g)
-		if enemy_dmg < 1 do enemy_dmg = 1
-		new_hp -= enemy_dmg
+		new_hp -= enemy_free_hit_damage(g, pre_enchant_def)
 	}
 	g.enemy_hp = max(new_enemy_hp, 0)
 	g.hp = max(new_hp, 0)
@@ -847,28 +886,10 @@ resolve_combat_hit :: proc(g: ^Game_State, dmg: int) -> bool {
 	}
 
 	if new_enemy_hp <= 0 {
-		// Enemy defeated, player alive — XP, loot, level-up, respawn timer
-		g.last_kill_turn = g.turn_count - 1
-		g.xp += zone_xp_reward(g.pos_x, g.pos_y)
-		// Quest 1 / 3: count slime / dragon kills
-		zone_tier := zone_level(g.pos_x, g.pos_y)
-		if zone_tier == 1 && g.q1_kills < Q1_TARGET do g.q1_kills += 1
-		if zone_tier == MAX_LEVEL && g.q3_kills < Q3_TARGET do g.q3_kills += 1
-		if is_castle_zone(g.pos_x, g.pos_y) do g.boss_defeated = true
-		// Companion Quest 3: count wins with active companion
-		if comp_active(g) && g.cq3_wins < CQ3_TARGET do g.cq3_wins += 1
 		g.in_combat = false
 		g.enemy_attack = 0
 		g.enemy_element = 0
-		resolve_loot(g)
-		if g.level < MAX_LEVEL && g.xp >= XP_THRESHOLDS[g.level + 1] {
-			g.level += 1
-			g.max_hp += HP_PER_LEVEL
-			g.base_attack += ATK_PER_LEVEL_UP
-			g.max_stamina += STAMINA_PER_LEVEL
-			if g.skill_magic do g.max_mana += MANA_PER_LEVEL
-			g.skill_points += SKILL_POINTS_PER_LEVEL
-		}
+		kill_accounting(g)
 	}
 	return combat_ends
 }
@@ -912,8 +933,7 @@ combat_potion :: proc(g: ^Game_State) -> bool {
 	// Heal first
 	g.hp = min(g.hp + POTION_HEAL, g.max_hp)
 	// Enemy gets a free hit (plus player poison tick)
-	enemy_dmg := g.enemy_attack - enchant_def_bonus(g) - def_reduction_active(g) - comp_dmg_reduction(g)
-	if enemy_dmg < 1 do enemy_dmg = 1
+	enemy_dmg := enemy_free_hit_damage(g, enchant_def_bonus(g))
 	poison_dmg := POISON_DMG if g.player_poison_dur > 0 else 0
 	g.hp = max(g.hp - enemy_dmg - poison_dmg, 0)
 	g.combo_count = 0
@@ -1111,8 +1131,7 @@ use_antidote :: proc(g: ^Game_State) -> bool {
 	// Poison cleared this turn — no player poison tick this action.
 	g.player_poison_dur = 0
 	// Enemy gets a free hit
-	enemy_dmg := g.enemy_attack - enchant_def_bonus(g) - def_reduction_active(g) - comp_dmg_reduction(g)
-	if enemy_dmg < 1 do enemy_dmg = 1
+	enemy_dmg := enemy_free_hit_damage(g, enchant_def_bonus(g))
 	g.hp = max(g.hp - enemy_dmg, 0)
 	g.combo_count = 0
 	if g.hp <= 0 {
@@ -1142,9 +1161,7 @@ poison_strike :: proc(g: ^Game_State) -> bool {
 	g.turn_count += 1
 	g.stamina -= ATTACK_STAMINA
 	g.qty_venom_sac -= 1
-	// Enemy hits back (reduced by enchant DEF + DEF buff)
-	enemy_dmg := g.enemy_attack - enchant_def_bonus(g) - def_reduction_active(g)
-	if enemy_dmg < 1 do enemy_dmg = 1
+	enemy_dmg := enemy_free_hit_damage(g, enchant_def_bonus(g))
 	g.hp = max(g.hp - enemy_dmg, 0)
 	if g.hp <= 0 {
 		g.in_combat = false
@@ -1298,9 +1315,7 @@ shield_block :: proc(g: ^Game_State) -> bool {
 	g.turn_count += 1
 	g.stamina -= SHIELD_BLOCK_STAMINA
 
-	// Enemy hits back (reduced by enchant DEF + DEF buff)
-	enemy_dmg := g.enemy_attack - enchant_def_bonus(g) - def_reduction_active(g)
-	if enemy_dmg < 1 do enemy_dmg = 1
+	enemy_dmg := enemy_free_hit_damage(g, enchant_def_bonus(g))
 	poison_dmg := POISON_DMG if g.player_poison_dur > 0 else 0
 	g.hp = max(g.hp - enemy_dmg - poison_dmg, 0)
 
@@ -1473,9 +1488,7 @@ counter_attack :: proc(g: ^Game_State) -> bool {
 	new_enemy_hp := g.enemy_hp - elem_dmg - enemy_poison_dmg
 	g.enemy_hp = max(new_enemy_hp, 0)
 
-	// Enemy hits player (reduced by enchant DEF + DEF buff)
-	enemy_dmg := g.enemy_attack - pre_enchant_def - def_reduction_active(g)
-	if enemy_dmg < 1 do enemy_dmg = 1
+	enemy_dmg := enemy_free_hit_damage(g, pre_enchant_def)
 	poison_dmg := POISON_DMG if g.player_poison_dur > 0 else 0
 	g.hp = max(g.hp - enemy_dmg - poison_dmg, 0)
 
@@ -1498,13 +1511,6 @@ counter_attack :: proc(g: ^Game_State) -> bool {
 			reset_cooldowns(g)
 		} else {
 			// Enemy defeated, player alive
-			g.last_kill_turn = g.turn_count - 1
-			g.xp += zone_xp_reward(g.pos_x, g.pos_y)
-			zone_tier := zone_level(g.pos_x, g.pos_y)
-			if zone_tier == 1 && g.q1_kills < Q1_TARGET do g.q1_kills += 1
-			if zone_tier == MAX_LEVEL && g.q3_kills < Q3_TARGET do g.q3_kills += 1
-			if is_castle_zone(g.pos_x, g.pos_y) do g.boss_defeated = true
-			if comp_active(g) && g.cq3_wins < CQ3_TARGET do g.cq3_wins += 1
 			g.in_combat = false
 			g.enemy_attack = 0
 			g.enemy_element = 0
@@ -1513,15 +1519,7 @@ counter_attack :: proc(g: ^Game_State) -> bool {
 			g.player_def_buff_dur = 0
 			g.enemy_poison_dur = 0
 			reset_cooldowns(g)
-			resolve_loot(g)
-			if g.level < MAX_LEVEL && g.xp >= XP_THRESHOLDS[g.level + 1] {
-				g.level += 1
-				g.max_hp += HP_PER_LEVEL
-				g.base_attack += ATK_PER_LEVEL_UP
-				g.max_stamina += STAMINA_PER_LEVEL
-			if g.skill_magic do g.max_mana += MANA_PER_LEVEL
-				g.skill_points += SKILL_POINTS_PER_LEVEL
-			}
+			kill_accounting(g)
 		}
 	} else {
 		// Grant DEF + ATK buffs on counter (atk buff differentiates from shield_block)
@@ -1550,9 +1548,7 @@ fortify :: proc(g: ^Game_State) -> bool {
 	g.turn_count += 1
 	g.stamina -= FORTIFY_STAMINA
 
-	// Enemy hits back (reduced by enchant DEF + DEF buff)
-	enemy_dmg := g.enemy_attack - enchant_def_bonus(g) - def_reduction_active(g)
-	if enemy_dmg < 1 do enemy_dmg = 1
+	enemy_dmg := enemy_free_hit_damage(g, enchant_def_bonus(g))
 	poison_dmg := POISON_DMG if g.player_poison_dur > 0 else 0
 	g.hp = max(g.hp - enemy_dmg - poison_dmg, 0)
 
