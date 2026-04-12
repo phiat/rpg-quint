@@ -6,7 +6,7 @@ import "core:fmt"
 import "core:math"
 
 Shader_Pipeline :: struct {
-	rt:               [2]rl.RenderTexture2D,
+	rt:               rl.RenderTexture2D,
 	effects_shader:   rl.Shader,
 	loc_zone_tint:    i32,
 	loc_aberration:   i32,
@@ -18,8 +18,7 @@ Shader_Pipeline :: struct {
 }
 
 init_shaders :: proc(pipeline: ^Shader_Pipeline) {
-	pipeline.rt[0] = rl.LoadRenderTexture(WINDOW_W, WINDOW_H)
-	pipeline.rt[1] = rl.LoadRenderTexture(WINDOW_W, WINDOW_H)
+	pipeline.rt = rl.LoadRenderTexture(WINDOW_W, WINDOW_H)
 
 	pipeline.effects_shader = rl.LoadShader(nil, "quint_crawl_game/assets/effects.fs")
 
@@ -43,13 +42,12 @@ init_shaders :: proc(pipeline: ^Shader_Pipeline) {
 
 destroy_shaders :: proc(pipeline: ^Shader_Pipeline) {
 	if pipeline.effects_shader.id != 0 do rl.UnloadShader(pipeline.effects_shader)
-	rl.UnloadRenderTexture(pipeline.rt[0])
-	rl.UnloadRenderTexture(pipeline.rt[1])
+	rl.UnloadRenderTexture(pipeline.rt)
 }
 
 begin_pipeline :: proc(pipeline: ^Shader_Pipeline) {
 	if !pipeline.pipeline_enabled do return
-	rl.BeginTextureMode(pipeline.rt[0])
+	rl.BeginTextureMode(pipeline.rt)
 	rl.ClearBackground(BG_COLOR)
 }
 
@@ -109,15 +107,10 @@ end_pipeline :: proc(pipeline: ^Shader_Pipeline, app: ^App_State) {
 	poison: f32 = f32(g.player_poison_dur) / f32(qc.STATUS_DURATION)
 	rl.SetShaderValue(pipeline.effects_shader, pipeline.loc_poison, &poison, .FLOAT)
 
-	rl.BeginTextureMode(pipeline.rt[1])
-	rl.ClearBackground(BG_COLOR)
+	// --- Draw shaded rt directly to default framebuffer ---
 	rl.BeginShaderMode(pipeline.effects_shader)
-	rl.DrawTextureRec(pipeline.rt[0].texture, flip_rect, {0, 0}, rl.WHITE)
+	rl.DrawTextureRec(pipeline.rt.texture, flip_rect, {0, 0}, rl.WHITE)
 	rl.EndShaderMode()
-	rl.EndTextureMode()
-
-	// --- Final output to screen ---
-	rl.DrawTextureRec(pipeline.rt[1].texture, flip_rect, {0, 0}, rl.WHITE)
 }
 
 clamp :: proc(v, lo, hi: f32) -> f32 {

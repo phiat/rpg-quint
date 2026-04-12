@@ -43,9 +43,7 @@ replay_trace :: proc(
 		actual := get_state(driver)
 		defer {
 			for _, val in actual {
-				if rec, is_rec := val.(ITF_Record); is_rec {
-					delete(rec.fields)
-				}
+				free_actual_value(val)
 			}
 			delete(actual)
 		}
@@ -85,6 +83,22 @@ replay_trace :: proc(
 	return result
 }
 
+// Recursively free heap allocations in a state-getter-produced value.
+// Safe to call on ITF values built by harness code (ITF_Int/Bool/None/Str/List/Set/Record).
+free_actual_value :: proc(v: ITF_Value) {
+	#partial switch val in v {
+	case ITF_List:
+		for item in val.items do free_actual_value(item)
+		delete(val.items)
+	case ITF_Set:
+		for item in val.items do free_actual_value(item)
+		delete(val.items)
+	case ITF_Record:
+		for _, field in val.fields do free_actual_value(field)
+		delete(val.fields)
+	}
+}
+
 // Compare two ITF values for equality
 values_equal :: proc(a, b: ITF_Value) -> bool {
 	switch va in a {
@@ -105,6 +119,19 @@ values_equal :: proc(a, b: ITF_Value) -> bool {
 			if len(va.items) != len(vb.items) do return false
 			for i in 0 ..< len(va.items) {
 				if !values_equal(va.items[i], vb.items[i]) do return false
+			}
+			return true
+		}
+	case ITF_Set:
+		if vb, ok := b.(ITF_Set); ok {
+			if len(va.items) != len(vb.items) do return false
+			// Unordered comparison: every element of a must have a match in b
+			for ai in va.items {
+				found := false
+				for bi in vb.items {
+					if values_equal(ai, bi) { found = true; break }
+				}
+				if !found do return false
 			}
 			return true
 		}
@@ -146,6 +173,19 @@ format_value :: proc(v: ITF_Value) -> string {
 		}
 		joined := strings.join(parts[:], ", ")
 		result := fmt.aprintf("[%s]", joined)
+		delete(joined)
+		return result
+	case ITF_Set:
+		parts := make([dynamic]string)
+		defer {
+			for part in parts do delete(part)
+			delete(parts)
+		}
+		for item in val.items {
+			append(&parts, format_value(item))
+		}
+		joined := strings.join(parts[:], ", ")
+		result := fmt.aprintf("Set(%s)", joined)
 		delete(joined)
 		return result
 	case ITF_Record:

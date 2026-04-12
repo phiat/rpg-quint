@@ -27,6 +27,8 @@ module quint_crawl {
 
   type WorldState = {
     pos_x: int, pos_y: int, turn_count: int,
+    visited: Set[(int, int)],
+    waypoints: Set[(int, int)],
   }
 
   type MetaState = {
@@ -198,6 +200,12 @@ module quint_crawl {
 
   val enchant_atk_bonus = atk_for(eqp.enchant_slot_1) + atk_for(eqp.enchant_slot_2) + atk_for(eqp.enchant_slot_3)
   val enchant_def_bonus = def_for(eqp.enchant_slot_1) + def_for(eqp.enchant_slot_2) + def_for(eqp.enchant_slot_3)
+  // Damage-taken helpers (used across all combat actions)
+  val incoming_enemy_dmg = {
+    val raw = cb.enemy_attack - enchant_def_bonus - (if (cb.player_def_buff_dur > 0) DEF_BUFF_REDUCTION else 0)
+    if (raw < 1) 1 else raw
+  }
+  val player_poison_tick = if (cb.player_poison_dur > 0) POISON_DMG else 0
   val player_element = if (has_fire_enchant) 1
                        else if (has_ice_enchant) 2
                        else if (eqp.enchant_slot_1 == 4 or eqp.enchant_slot_2 == 4 or eqp.enchant_slot_3 == 4) 3
@@ -242,7 +250,8 @@ module quint_crawl {
       player_def_buff_dur: 0, enemy_poison_dur: 0,
       cd_heavy_strike: 0, cd_battle_cry: 0, cd_fortify: 0,
     },
-    w' = { pos_x: 0, pos_y: 0, turn_count: 0 },
+    w' = { pos_x: 0, pos_y: 0, turn_count: 0,
+           visited: Set((0, 0)), waypoints: Set((0, 0)) },
     meta' = { game_won: false, saved_exists: false, pity_counter: 0, last_drop: 0, last_kill_turn: 0 },
   }
 
@@ -254,7 +263,9 @@ module quint_crawl {
     zone_level(w.pos_x, w.pos_y - 1) <= ch.level,
     val storm_dmg = if (zone_weather(w.pos_x, w.pos_y - 1, w.turn_count + 1) == 3) STORM_MOVE_DMG else 0
     all {
-      w' = { ...w, pos_y: w.pos_y - 1, turn_count: w.turn_count + 1 },
+      w' = { ...w, pos_y: w.pos_y - 1, turn_count: w.turn_count + 1,
+             visited: w.visited.union(Set((w.pos_x, w.pos_y - 1))),
+             waypoints: if (zone_has_services(w.pos_x, w.pos_y - 1)) w.waypoints.union(Set((w.pos_x, w.pos_y - 1))) else w.waypoints },
       ch' = { ...ch, hp: if (ch.hp - storm_dmg < 1) 1 else ch.hp - storm_dmg },
       inv' = inv, eqp' = eqp,
       cb' = cb,
@@ -268,7 +279,9 @@ module quint_crawl {
     zone_level(w.pos_x, w.pos_y + 1) <= ch.level,
     val storm_dmg = if (zone_weather(w.pos_x, w.pos_y + 1, w.turn_count + 1) == 3) STORM_MOVE_DMG else 0
     all {
-      w' = { ...w, pos_y: w.pos_y + 1, turn_count: w.turn_count + 1 },
+      w' = { ...w, pos_y: w.pos_y + 1, turn_count: w.turn_count + 1,
+             visited: w.visited.union(Set((w.pos_x, w.pos_y + 1))),
+             waypoints: if (zone_has_services(w.pos_x, w.pos_y + 1)) w.waypoints.union(Set((w.pos_x, w.pos_y + 1))) else w.waypoints },
       ch' = { ...ch, hp: if (ch.hp - storm_dmg < 1) 1 else ch.hp - storm_dmg },
       inv' = inv, eqp' = eqp,
       cb' = cb,
@@ -282,7 +295,9 @@ module quint_crawl {
     zone_level(w.pos_x - 1, w.pos_y) <= ch.level,
     val storm_dmg = if (zone_weather(w.pos_x - 1, w.pos_y, w.turn_count + 1) == 3) STORM_MOVE_DMG else 0
     all {
-      w' = { ...w, pos_x: w.pos_x - 1, turn_count: w.turn_count + 1 },
+      w' = { ...w, pos_x: w.pos_x - 1, turn_count: w.turn_count + 1,
+             visited: w.visited.union(Set((w.pos_x - 1, w.pos_y))),
+             waypoints: if (zone_has_services(w.pos_x - 1, w.pos_y)) w.waypoints.union(Set((w.pos_x - 1, w.pos_y))) else w.waypoints },
       ch' = { ...ch, hp: if (ch.hp - storm_dmg < 1) 1 else ch.hp - storm_dmg },
       inv' = inv, eqp' = eqp,
       cb' = cb,
@@ -296,7 +311,9 @@ module quint_crawl {
     zone_level(w.pos_x + 1, w.pos_y) <= ch.level,
     val storm_dmg = if (zone_weather(w.pos_x + 1, w.pos_y, w.turn_count + 1) == 3) STORM_MOVE_DMG else 0
     all {
-      w' = { ...w, pos_x: w.pos_x + 1, turn_count: w.turn_count + 1 },
+      w' = { ...w, pos_x: w.pos_x + 1, turn_count: w.turn_count + 1,
+             visited: w.visited.union(Set((w.pos_x + 1, w.pos_y))),
+             waypoints: if (zone_has_services(w.pos_x + 1, w.pos_y)) w.waypoints.union(Set((w.pos_x + 1, w.pos_y))) else w.waypoints },
       ch' = { ...ch, hp: if (ch.hp - storm_dmg < 1) 1 else ch.hp - storm_dmg },
       inv' = inv, eqp' = eqp,
       cb' = cb,
@@ -337,10 +354,7 @@ module quint_crawl {
     val elem_atk = effective_damage(attack_power, player_elem_mult)
     val new_enemy_hp = cb.enemy_hp - elem_atk - enemy_poison_dmg
     // Player takes enemy hit (reduced by DEF buff + enchant DEF) + poison damage
-    val enemy_dmg = cb.enemy_attack - enchant_def_bonus - (if (cb.player_def_buff_dur > 0) DEF_BUFF_REDUCTION else 0)
-    val effective_enemy_dmg = if (enemy_dmg < 1) 1 else enemy_dmg
-    val poison_dmg = if (cb.player_poison_dur > 0) POISON_DMG else 0
-    val new_hp = if (new_enemy_hp > 0) ch.hp - effective_enemy_dmg - poison_dmg else ch.hp - poison_dmg
+    val new_hp = if (new_enemy_hp > 0) ch.hp - incoming_enemy_dmg - player_poison_tick else ch.hp - player_poison_tick
     val gained_xp = if (new_enemy_hp <= 0 and new_hp > 0) ch.xp + zone_xp_reward(w.pos_x, w.pos_y) else ch.xp
     val new_level = if (ch.level < MAX_LEVEL and gained_xp >= xp_threshold(ch.level + 1)) ch.level + 1 else ch.level
     // Tier 2+ enemies apply poison
@@ -540,9 +554,7 @@ module quint_crawl {
     ch.skill_poison, inv.qty_venom_sac > 0,
     cb.enemy_poison_dur == 0,
     ch.stamina >= ATTACK_STAMINA,
-    val dmg_taken = cb.enemy_attack - enchant_def_bonus - (if (cb.player_def_buff_dur > 0) DEF_BUFF_REDUCTION else 0)
-    val effective_dmg = if (dmg_taken < 1) 1 else dmg_taken
-    val new_hp = ch.hp - effective_dmg
+    val new_hp = ch.hp - incoming_enemy_dmg
     val combat_ends = (new_hp <= 0)
     all {
       ch' = { ...ch, hp: if (new_hp < 0) 0 else new_hp, stamina: ch.stamina - ATTACK_STAMINA },
@@ -584,10 +596,7 @@ module quint_crawl {
     val elem_combo = effective_damage(combo_dmg, player_elem_mult)
     val new_enemy_hp = cb.enemy_hp - elem_combo - enemy_poison_dmg
     // Player takes enemy hit (reduced by DEF buff + enchant DEF) + poison
-    val enemy_dmg = cb.enemy_attack - enchant_def_bonus - (if (cb.player_def_buff_dur > 0) DEF_BUFF_REDUCTION else 0)
-    val effective_enemy_dmg = if (enemy_dmg < 1) 1 else enemy_dmg
-    val poison_dmg = if (cb.player_poison_dur > 0) POISON_DMG else 0
-    val new_hp = if (new_enemy_hp > 0) ch.hp - effective_enemy_dmg - poison_dmg else ch.hp - poison_dmg
+    val new_hp = if (new_enemy_hp > 0) ch.hp - incoming_enemy_dmg - player_poison_tick else ch.hp - player_poison_tick
     val gained_xp = if (new_enemy_hp <= 0 and new_hp > 0) ch.xp + zone_xp_reward(w.pos_x, w.pos_y) else ch.xp
     val new_level = if (ch.level < MAX_LEVEL and gained_xp >= xp_threshold(ch.level + 1)) ch.level + 1 else ch.level
     // Status ticking
@@ -659,10 +668,7 @@ module quint_crawl {
     val enemy_poison_dmg = if (cb.enemy_poison_dur > 0) POISON_DMG else 0
     val elem_heavy = effective_damage(heavy_dmg, player_elem_mult)
     val new_enemy_hp = cb.enemy_hp - elem_heavy - enemy_poison_dmg
-    val enemy_dmg = cb.enemy_attack - enchant_def_bonus - (if (cb.player_def_buff_dur > 0) DEF_BUFF_REDUCTION else 0)
-    val effective_enemy_dmg = if (enemy_dmg < 1) 1 else enemy_dmg
-    val poison_dmg = if (cb.player_poison_dur > 0) POISON_DMG else 0
-    val new_hp = if (new_enemy_hp > 0) ch.hp - effective_enemy_dmg - poison_dmg else ch.hp - poison_dmg
+    val new_hp = if (new_enemy_hp > 0) ch.hp - incoming_enemy_dmg - player_poison_tick else ch.hp - player_poison_tick
     val gained_xp = if (new_enemy_hp <= 0 and new_hp > 0) ch.xp + zone_xp_reward(w.pos_x, w.pos_y) else ch.xp
     val new_level = if (ch.level < MAX_LEVEL and gained_xp >= xp_threshold(ch.level + 1)) ch.level + 1 else ch.level
     val zone_tier = zone_level(w.pos_x, w.pos_y)
@@ -725,10 +731,7 @@ module quint_crawl {
     ch.skill_battle_cry,
     cb.cd_battle_cry == 0,
     ch.stamina >= BATTLE_CRY_STAMINA,
-    val enemy_dmg = cb.enemy_attack - enchant_def_bonus - (if (cb.player_def_buff_dur > 0) DEF_BUFF_REDUCTION else 0)
-    val effective_enemy_dmg = if (enemy_dmg < 1) 1 else enemy_dmg
-    val poison_dmg = if (cb.player_poison_dur > 0) POISON_DMG else 0
-    val new_hp = ch.hp - effective_enemy_dmg - poison_dmg
+    val new_hp = ch.hp - incoming_enemy_dmg - player_poison_tick
     val combat_ends = (new_hp <= 0)
     val zone_tier = zone_level(w.pos_x, w.pos_y)
     val apply_poison = (zone_tier >= POISON_APPLY_TIER and cb.player_poison_dur == 0)
@@ -763,10 +766,7 @@ module quint_crawl {
     cb.in_combat, not(meta.game_won), ch.hp > 0, cb.enemy_hp > 0,
     ch.skill_shield_block,
     ch.stamina >= SHIELD_BLOCK_STAMINA,
-    val enemy_dmg = cb.enemy_attack - enchant_def_bonus - (if (cb.player_def_buff_dur > 0) DEF_BUFF_REDUCTION else 0)
-    val effective_enemy_dmg = if (enemy_dmg < 1) 1 else enemy_dmg
-    val poison_dmg = if (cb.player_poison_dur > 0) POISON_DMG else 0
-    val new_hp = ch.hp - effective_enemy_dmg - poison_dmg
+    val new_hp = ch.hp - incoming_enemy_dmg - player_poison_tick
     val combat_ends = (new_hp <= 0)
     val zone_tier = zone_level(w.pos_x, w.pos_y)
     val apply_poison = (zone_tier >= POISON_APPLY_TIER and cb.player_poison_dur == 0)
@@ -881,12 +881,9 @@ module quint_crawl {
     ch.stamina >= COUNTER_STAMINA,
     val player_dmg = effective_damage(attack_power, player_elem_mult)
     val new_enemy_hp = if (cb.enemy_hp - player_dmg < 0) 0 else cb.enemy_hp - player_dmg
-    val enemy_dmg = cb.enemy_attack - enchant_def_bonus - (if (cb.player_def_buff_dur > 0) DEF_BUFF_REDUCTION else 0)
-    val effective_enemy_dmg = if (enemy_dmg < 1) 1 else enemy_dmg
-    val poison_dmg = if (cb.player_poison_dur > 0) POISON_DMG else 0
     val enemy_poison_dmg = if (cb.enemy_poison_dur > 0) POISON_DMG else 0
     val final_enemy_hp = if (new_enemy_hp - enemy_poison_dmg < 0) 0 else new_enemy_hp - enemy_poison_dmg
-    val new_hp = ch.hp - effective_enemy_dmg - poison_dmg
+    val new_hp = ch.hp - incoming_enemy_dmg - player_poison_tick
     val combat_ends = (new_hp <= 0 or final_enemy_hp <= 0)
     val zone_tier = zone_level(w.pos_x, w.pos_y)
     val xp_reward = if (final_enemy_hp <= 0 and new_hp > 0) zone_xp_reward(w.pos_x, w.pos_y) else 0
@@ -949,10 +946,7 @@ module quint_crawl {
     ch.skill_fortify,
     cb.cd_fortify == 0,
     ch.stamina >= FORTIFY_STAMINA,
-    val enemy_dmg = cb.enemy_attack - enchant_def_bonus - (if (cb.player_def_buff_dur > 0) DEF_BUFF_REDUCTION else 0)
-    val effective_enemy_dmg = if (enemy_dmg < 1) 1 else enemy_dmg
-    val poison_dmg = if (cb.player_poison_dur > 0) POISON_DMG else 0
-    val new_hp = ch.hp - effective_enemy_dmg - poison_dmg
+    val new_hp = ch.hp - incoming_enemy_dmg - player_poison_tick
     val combat_ends = (new_hp <= 0)
     val zone_tier = zone_level(w.pos_x, w.pos_y)
     val apply_poison = (zone_tier >= POISON_APPLY_TIER and cb.player_poison_dur == 0)
@@ -1083,9 +1077,22 @@ module quint_crawl {
     w' = w,
   }
 
+  // === Fast travel to an unlocked waypoint ===
+  action fast_travel = {
+    nondet target = w.waypoints.oneOf()
+    all {
+      not(cb.in_combat), not(meta.game_won), ch.hp > 0,
+      target._1 != w.pos_x or target._2 != w.pos_y,
+      zone_level(target._1, target._2) <= ch.level,
+      w' = { ...w, pos_x: target._1, pos_y: target._2, turn_count: w.turn_count + 1,
+             visited: w.visited.union(Set((target._1, target._2))) },
+      ch' = ch, inv' = inv, eqp' = eqp, cb' = cb, meta' = meta,
+    }
+  }
+
   // === Step ===
   action step = any {
-    move_up, move_down, move_left, move_right,
+    move_up, move_down, move_left, move_right, fast_travel,
     enter_combat, combat_attack, combat_potion, flee_combat,
     rest_at_village, buy_potion, repair_sword,
     gather_wood, mine_iron, craft_sword, equip_sword,
@@ -1114,6 +1121,9 @@ module quint_crawl {
 
   /// Position stays on the grid
   val position_bounded = w.pos_x >= 0 and w.pos_x < WORLD_SIZE and w.pos_y >= 0 and w.pos_y < WORLD_SIZE
+  val current_pos_visited = w.visited.contains((w.pos_x, w.pos_y))
+  val start_is_waypoint = w.waypoints.contains((0, 0))
+  val waypoints_are_visited = w.waypoints.forall(p => w.visited.contains(p))
 
   /// Quantities never go negative
   val quantities_non_negative = and {

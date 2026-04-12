@@ -126,6 +126,13 @@ crawl_step :: proc(driver: rawptr, action: string, picks: map[string]mbt.ITF_Val
 	case "upgrade_salvage":
 		qc.upgrade_salvage(g)
 		return true
+	case "fast_travel":
+		target_val := picks["target"].(mbt.ITF_List) or_return
+		if len(target_val.items) != 2 do return false
+		tx := target_val.items[0].(mbt.ITF_Int) or_return
+		ty := target_val.items[1].(mbt.ITF_Int) or_return
+		qc.fast_travel(g, int(tx.value), int(ty.value))
+		return true
 	case "save_game":
 		qc.save_game(g)
 		return true
@@ -202,6 +209,26 @@ crawl_state :: proc(driver: rawptr) -> map[string]mbt.ITF_Value {
 	w["pos_x"] = mbt.ITF_Int{g.pos_x}
 	w["pos_y"] = mbt.ITF_Int{g.pos_y}
 	w["turn_count"] = mbt.ITF_Int{g.turn_count}
+	visited_items := make([dynamic]mbt.ITF_Value)
+	waypoint_items := make([dynamic]mbt.ITF_Value)
+	for x in 0 ..< qc.WORLD_SIZE {
+		for y in 0 ..< qc.WORLD_SIZE {
+			if g.visited[x][y] {
+				pair := make([dynamic]mbt.ITF_Value)
+				append(&pair, mbt.ITF_Int{x})
+				append(&pair, mbt.ITF_Int{y})
+				append(&visited_items, mbt.ITF_List{pair})
+			}
+			if g.waypoints[x][y] {
+				pair := make([dynamic]mbt.ITF_Value)
+				append(&pair, mbt.ITF_Int{x})
+				append(&pair, mbt.ITF_Int{y})
+				append(&waypoint_items, mbt.ITF_List{pair})
+			}
+		}
+	}
+	w["visited"] = mbt.ITF_Set{visited_items}
+	w["waypoints"] = mbt.ITF_Set{waypoint_items}
 	state["w"] = mbt.ITF_Record{w}
 
 	// meta: MetaState

@@ -11,6 +11,7 @@ ITF_Value :: union {
 	ITF_Str,
 	ITF_Bool,
 	ITF_List,
+	ITF_Set,
 	ITF_Record,
 	ITF_None,
 }
@@ -25,6 +26,9 @@ ITF_Bool :: struct {
 	value: bool,
 }
 ITF_List :: struct {
+	items: [dynamic]ITF_Value,
+}
+ITF_Set :: struct {
 	items: [dynamic]ITF_Value,
 }
 ITF_Record :: struct {
@@ -204,12 +208,12 @@ convert_json_value :: proc(val: json.Value, allocator := context.allocator) -> I
 		// Check for #set encoding: {"#set": [...]}
 		if set_val, has_set := obj["#set"]; has_set {
 			if set_arr, set_ok := set_val.(json.Array); set_ok {
-				list := ITF_List{}
-				list.items = make([dynamic]ITF_Value, 0, len(set_arr), allocator)
+				s := ITF_Set{}
+				s.items = make([dynamic]ITF_Value, 0, len(set_arr), allocator)
 				for elem in set_arr {
-					append(&list.items, convert_json_value(elem, allocator))
+					append(&s.items, convert_json_value(elem, allocator))
 				}
-				return list
+				return s
 			}
 		}
 		// Fallback: treat as record (key-value fields)
@@ -276,6 +280,11 @@ delete_itf_value :: proc(v: ITF_Value, allocator := context.allocator) {
 	case ITF_Str:
 		delete(val.value, allocator)
 	case ITF_List:
+		for item in val.items {
+			delete_itf_value(item, allocator)
+		}
+		delete(val.items)
+	case ITF_Set:
 		for item in val.items {
 			delete_itf_value(item, allocator)
 		}
