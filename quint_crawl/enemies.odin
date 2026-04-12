@@ -18,11 +18,12 @@ package quint_crawl
 // is deliberately held off in v1 — the spec does not model per-encounter
 // variance and adding it here would diverge the Odin side from the MBT
 // harness's abstract contract. Element comes from `zone_element`, not the
-// archetype row, matching the spec.
+// archetype row, matching the spec — so the archetype struct no longer
+// carries an `element` field.
 //
-// Trait tags feed future systems (loot tables, elemental weakness, quest
-// targets). For v1 they are wired in the struct but not consumed —
-// `resolve_loot` has a TODO hook.
+// Trait tags drive `resolve_loot`: each archetype's trait keys a secondary
+// drop (holy dust, pelt, core, essence, trophy coin, ichor) on top of the
+// zone-tier primary drop. See resolve_loot in quint_crawl.odin.
 
 Enemy_Trait :: enum {
 	Undead,
@@ -34,11 +35,10 @@ Enemy_Trait :: enum {
 }
 
 Enemy_Archetype :: struct {
-	name_pool:   []string,  // ~10 distinct names for this archetype
-	tier:        int,       // 1..MAX_LEVEL, matches zone_level
-	base_hp:     int,       // flavor baseline; actual HP comes from zone_enemy_hp
-	base_attack: int,       // flavor baseline; actual ATK comes from zone_enemy_atk
-	element:     int,       // 0=none,1=fire,2=ice,3=lightning,4=earth (flavor)
+	name_pool:   []string,   // ~10 distinct names for this archetype
+	tier:        int,        // 1..MAX_LEVEL, matches zone_level
+	base_hp:     int,        // flavor baseline; actual HP comes from zone_enemy_hp
+	base_attack: int,        // flavor baseline; actual ATK comes from zone_enemy_atk
 	trait:       Enemy_Trait,
 }
 
@@ -46,11 +46,11 @@ ENEMY_ARCHETYPES := [?]Enemy_Archetype{
 	// --- Tier 1: weak vermin, slimes, wisps, imps ---
 	{
 		name_pool   = []string{
-			"Green Slime", "Blue Slime", "Acid Slime", "Mud Slime",
-			"Toxic Slime", "Ember Slime", "Frost Slime", "Ooze",
-			"Pudding", "Jelly",
+			"Ooze", "Acidic Ooze", "Foul Pudding", "Black Pudding",
+			"Jelly", "Quivering Jelly", "Gelatinous Cube", "Gelatinous Sphere",
+			"Primordial Ooze", "Mother Jelly",
 		},
-		tier = 1, base_hp = 12, base_attack = 3, element = 0, trait = .Aberration,
+		tier = 1, base_hp = 12, base_attack = 3, trait = .Aberration,
 	},
 	{
 		name_pool   = []string{
@@ -58,7 +58,7 @@ ENEMY_ARCHETYPES := [?]Enemy_Archetype{
 			"Vampire Bat", "Dire Rat", "Pack Rat", "Shadow Bat",
 			"Rot Rat", "Blood Bat",
 		},
-		tier = 1, base_hp = 10, base_attack = 4, element = 0, trait = .Beast,
+		tier = 1, base_hp = 10, base_attack = 4, trait = .Beast,
 	},
 	{
 		name_pool   = []string{
@@ -66,7 +66,7 @@ ENEMY_ARCHETYPES := [?]Enemy_Archetype{
 			"Scamp", "Mischief Imp", "Needletooth Imp", "Coal Imp",
 			"Ash Imp", "Spark Imp",
 		},
-		tier = 1, base_hp = 11, base_attack = 4, element = 1, trait = .Aberration,
+		tier = 1, base_hp = 11, base_attack = 4, trait = .Aberration,
 	},
 	{
 		name_pool   = []string{
@@ -74,7 +74,7 @@ ENEMY_ARCHETYPES := [?]Enemy_Archetype{
 			"Corpse Candle", "Moon Wisp", "Dusk Wisp", "Spark Mote",
 			"Glimmer", "Hollow Light",
 		},
-		tier = 1, base_hp = 9, base_attack = 3, element = 3, trait = .Elemental,
+		tier = 1, base_hp = 9, base_attack = 3, trait = .Elemental,
 	},
 
 	// --- Tier 2: skeletons, wolves, bandits, lesser elementals ---
@@ -84,7 +84,7 @@ ENEMY_ARCHETYPES := [?]Enemy_Archetype{
 			"Cracked Skeleton", "Grave Skeleton", "Rusted Skeleton", "Tomb Skeleton",
 			"Husk Skeleton", "Dust Skeleton",
 		},
-		tier = 2, base_hp = 22, base_attack = 6, element = 0, trait = .Undead,
+		tier = 2, base_hp = 22, base_attack = 6, trait = .Undead,
 	},
 	{
 		name_pool   = []string{
@@ -92,15 +92,15 @@ ENEMY_ARCHETYPES := [?]Enemy_Archetype{
 			"Alpha Wolf", "Snow Wolf", "Dusk Wolf", "Rabid Wolf",
 			"Moon Wolf", "Bone Wolf",
 		},
-		tier = 2, base_hp = 24, base_attack = 7, element = 0, trait = .Beast,
+		tier = 2, base_hp = 24, base_attack = 7, trait = .Beast,
 	},
 	{
 		name_pool   = []string{
-			"Highway Bandit", "Forest Bandit", "Thug", "Cutpurse",
-			"Marauder", "Brigand", "Raider", "Outlaw",
-			"Deserter", "Mercenary",
+			"Highway Bandit", "Forest Bandit", "Brigand Captain", "Blackguard",
+			"Marauder", "Brigand", "Deserter-Knight", "Outlaw",
+			"Rogue Scout", "Mercenary",
 		},
-		tier = 2, base_hp = 26, base_attack = 6, element = 0, trait = .Humanoid,
+		tier = 2, base_hp = 26, base_attack = 6, trait = .Humanoid,
 	},
 	{
 		name_pool   = []string{
@@ -108,7 +108,7 @@ ENEMY_ARCHETYPES := [?]Enemy_Archetype{
 			"Ember Spirit", "Frost Spirit", "Storm Mote", "Clay Spirit",
 			"Flame Wisp", "Hail Wisp",
 		},
-		tier = 2, base_hp = 20, base_attack = 7, element = 1, trait = .Elemental,
+		tier = 2, base_hp = 20, base_attack = 7, trait = .Elemental,
 	},
 
 	// --- Tier 3: wraiths, trolls, gargoyles, harpies ---
@@ -118,7 +118,7 @@ ENEMY_ARCHETYPES := [?]Enemy_Archetype{
 			"Specter", "Phantom", "Hollow Wraith", "Veil Wraith",
 			"Death Shade", "Ashen Wraith",
 		},
-		tier = 3, base_hp = 40, base_attack = 10, element = 2, trait = .Undead,
+		tier = 3, base_hp = 40, base_attack = 10, trait = .Undead,
 	},
 	{
 		name_pool   = []string{
@@ -126,7 +126,7 @@ ENEMY_ARCHETYPES := [?]Enemy_Archetype{
 			"Stone Troll", "Frost Troll", "River Troll", "Ogre",
 			"Hill Giant", "Brute Troll",
 		},
-		tier = 3, base_hp = 50, base_attack = 9, element = 4, trait = .Humanoid,
+		tier = 3, base_hp = 50, base_attack = 9, trait = .Humanoid,
 	},
 	{
 		name_pool   = []string{
@@ -134,7 +134,7 @@ ENEMY_ARCHETYPES := [?]Enemy_Archetype{
 			"Winged Statue", "Temple Guardian", "Grim Sentinel", "Chapel Gargoyle",
 			"Basalt Gargoyle", "Granite Watcher",
 		},
-		tier = 3, base_hp = 44, base_attack = 10, element = 4, trait = .Construct,
+		tier = 3, base_hp = 44, base_attack = 10, trait = .Construct,
 	},
 	{
 		name_pool   = []string{
@@ -142,7 +142,7 @@ ENEMY_ARCHETYPES := [?]Enemy_Archetype{
 			"Manticore Cub", "Chimera Whelp", "Wyvern Scout", "Dire Eagle",
 			"Razor Harpy", "Screech Harpy",
 		},
-		tier = 3, base_hp = 38, base_attack = 11, element = 3, trait = .Beast,
+		tier = 3, base_hp = 38, base_attack = 11, trait = .Beast,
 	},
 
 	// --- Tier 4: liches, golems, demons, greater elementals ---
@@ -152,7 +152,8 @@ ENEMY_ARCHETYPES := [?]Enemy_Archetype{
 			"Tomb Lord", "Crypt Lich", "Wight King", "Revenant",
 			"Bone Pharaoh", "Shadow Lich",
 		},
-		tier = 4, base_hp = 70, base_attack = 14, element = 2, trait = .Undead,
+		// Lich: caster — middling HP, strong ATK
+		tier = 4, base_hp = 68, base_attack = 14, trait = .Undead,
 	},
 	{
 		name_pool   = []string{
@@ -160,7 +161,8 @@ ENEMY_ARCHETYPES := [?]Enemy_Archetype{
 			"Obsidian Golem", "Bronze Golem", "Rune Golem", "War Golem",
 			"Marble Golem", "Forge Golem",
 		},
-		tier = 4, base_hp = 80, base_attack = 13, element = 4, trait = .Construct,
+		// Golem: tank — highest HP, lowest ATK
+		tier = 4, base_hp = 85, base_attack = 12, trait = .Construct,
 	},
 	{
 		name_pool   = []string{
@@ -168,7 +170,8 @@ ENEMY_ARCHETYPES := [?]Enemy_Archetype{
 			"Incubus", "Succubus", "Horned Demon", "Shadow Demon",
 			"Flame Demon", "Abyssal Demon",
 		},
-		tier = 4, base_hp = 72, base_attack = 15, element = 1, trait = .Aberration,
+		// Demon: bruiser — high HP, high ATK
+		tier = 4, base_hp = 75, base_attack = 15, trait = .Aberration,
 	},
 	{
 		name_pool   = []string{
@@ -176,7 +179,8 @@ ENEMY_ARCHETYPES := [?]Enemy_Archetype{
 			"Magma Elemental", "Glacier Elemental", "Thunder Elemental", "Mountain Elemental",
 			"Ash Elemental", "Tempest Elemental",
 		},
-		tier = 4, base_hp = 68, base_attack = 14, element = 3, trait = .Elemental,
+		// Elemental: glass cannon — lowest HP, highest ATK
+		tier = 4, base_hp = 62, base_attack = 16, trait = .Elemental,
 	},
 
 	// --- Tier 5: dragons, archdemons, ancient liches, titans ---
@@ -186,7 +190,7 @@ ENEMY_ARCHETYPES := [?]Enemy_Archetype{
 			"Blue Dragon", "Bronze Dragon", "Shadow Dragon", "Frost Wyrm",
 			"Elder Wyrm", "Volcanic Dragon",
 		},
-		tier = 5, base_hp = 120, base_attack = 20, element = 1, trait = .Beast,
+		tier = 5, base_hp = 120, base_attack = 20, trait = .Beast,
 	},
 	{
 		name_pool   = []string{
@@ -194,7 +198,7 @@ ENEMY_ARCHETYPES := [?]Enemy_Archetype{
 			"Infernal Overlord", "Void Demon", "Throne of Ash", "Doom Bringer",
 			"Pit Lord", "Black Seraph",
 		},
-		tier = 5, base_hp = 110, base_attack = 22, element = 1, trait = .Aberration,
+		tier = 5, base_hp = 110, base_attack = 22, trait = .Aberration,
 	},
 	{
 		name_pool   = []string{
@@ -202,7 +206,7 @@ ENEMY_ARCHETYPES := [?]Enemy_Archetype{
 			"Mummy Lord", "Death Sovereign", "Bone Emperor", "Necrarch",
 			"Grave Sovereign", "Crown of Dust",
 		},
-		tier = 5, base_hp = 115, base_attack = 19, element = 2, trait = .Undead,
+		tier = 5, base_hp = 115, base_attack = 19, trait = .Undead,
 	},
 	{
 		name_pool   = []string{
@@ -210,7 +214,7 @@ ENEMY_ARCHETYPES := [?]Enemy_Archetype{
 			"Primordial Titan", "World Shaker", "Mountain Titan", "Sky Colossus",
 			"Obsidian Titan", "Runebound Colossus",
 		},
-		tier = 5, base_hp = 130, base_attack = 18, element = 4, trait = .Construct,
+		tier = 5, base_hp = 130, base_attack = 18, trait = .Construct,
 	},
 }
 
