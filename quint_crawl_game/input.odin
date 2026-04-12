@@ -57,6 +57,45 @@ handle_map_input :: proc(app: ^App_State) {
 		}
 	}
 
+	// Companion: adopt local species (data-driven lookup)
+	if rl.IsKeyPressed(.COMMA) {
+		if g.comp_active {
+			add_message(app, "You already have a companion. Dismiss it first.", TEXT_DIM)
+		} else {
+			found_species := -1
+			for def, idx in qc.SPECIES_DEFS {
+				if def.biome_x == g.pos_x % 3 && def.biome_y == g.pos_y % 3 {
+					found_species = idx
+					break
+				}
+			}
+			if found_species < 0 {
+				add_message(app, "No companion can be adopted in this biome.", TEXT_DIM)
+			} else {
+				def := qc.SPECIES_DEFS[found_species]
+				if qc.adopt_companion(g, found_species, 0) {
+					add_message(app, fmt.tprintf("Adopted a %s!", def.name), {200, 220, 120, 255})
+				} else {
+					add_message(app, fmt.tprintf("Not enough materials to adopt a %s.", def.name), TEXT_DIM)
+				}
+			}
+		}
+	}
+
+	// Companion: feed (village)
+	if rl.IsKeyPressed(.PERIOD) {
+		if qc.feed_companion(g) {
+			add_message(app, "Fed companion. Loyalty rising!", {200, 220, 120, 255})
+		}
+	}
+
+	// Companion: dismiss (village)
+	if rl.IsKeyPressed(.SEMICOLON) {
+		if qc.dismiss_companion(g) {
+			add_message(app, "Dismissed companion.", TEXT_DIM)
+		}
+	}
+
 	// Buy potion
 	if rl.IsKeyPressed(.B) {
 		if qc.buy_potion(g) {
@@ -451,6 +490,13 @@ handle_combat_input :: proc(app: ^App_State) {
 			if g.hp < old_hp {
 				handle_combat_damage(app, old_hp, old_poison, {80, 200, 200, 60})
 			}
+		}
+	}
+
+	// Companion command (once per combat, requires high loyalty)
+	if rl.IsKeyPressed(.APOSTROPHE) {
+		if qc.companion_command(g) {
+			add_message(app, "Companion answers your call!", {200, 220, 120, 255})
 		}
 	}
 

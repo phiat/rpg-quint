@@ -21,7 +21,7 @@ Inspired by: [Model-Based Testing for D&D](https://www.loskutoff.com/blog/model-
 just play             # build and run the game
 ```
 
-Controls: WASD to move, E to fight, A to attack, K for combo, H for heavy strike, Y for battle cry, Z for shield block, N for counter-attack, I for fortify, P for potions, V to poison, X for antidote, F to flee, R to rest, B to buy potions, G to gather wood, M to mine iron, C to craft (Lv2+), Q to equip, T to repair, O to craft venom sac, U to respec skills, \ to salvage sword, = to upgrade salvage, J to fast travel, L to claim victory (at Level 5 Castle), 1-7 to unlock skills (when points available), 8-0 to enchant sword slots 1-3 (at village), F5 to save, F9 to load. See the HUD sidebar for zone-specific actions.
+Controls: WASD to move, E to fight, A to attack, K for combo, H for heavy strike, Y for battle cry, Z for shield block, N for counter-attack, I for fortify, P for potions, V to poison, X for antidote, F to flee, R to rest, B to buy potions, G to gather wood, M to mine iron, C to craft (Lv2+), Q to equip, T to repair, O to craft venom sac, U to respec skills, \ to salvage sword, = to upgrade salvage, J to fast travel, L to claim victory (at Level 5 Castle), 1-7 to unlock skills (when points available), 8-0 to enchant sword slots 1-3 (at village), `,` to adopt local companion, `.` to feed companion, `;` to dismiss companion, `'` for companion command in combat, F5 to save, F9 to load. See the HUD sidebar for zone-specific actions.
 
 Features:
 - 9x9 world grid with 5 difficulty levels and biome tiling (3x3 pattern repeats across regions)
@@ -37,6 +37,7 @@ Features:
 - Per-zone weather (Clear/Rain/Fog/Storm) affecting combat, gathering, and movement
 - Enemy respawn timer — 5-turn cooldown after defeating an enemy before new combat available
 - Quest chain — 3 prerequisite-gated quests (Slime Slayer → Venture Forth → Castle Conqueror) tracked in the HUD
+- Data-driven companion system — species catalog (Wolf/Hawk/Turtle/Fox/Bear/Owl/Lynx/Sprite) with biome-gated adoption, trait affinities (Attacker/Defender/Scout/Support), rarity tiers (Common/Rare/Legendary), loyalty-on-combat loop, in-combat command, and a 3-stage companion quest chain. Spec verifies the abstract (trait × rarity) effect space; Odin grows the catalog freely without code changes.
 - Loot drops with pity-counter guarantee system
 - Resource gathering (wood, iron), crafting, and equipment
 - Elemental damage — 4-element cycle (Fire>Ice>Lightning>Earth>Fire) with 2x/1x/0.5x multipliers
@@ -135,7 +136,7 @@ justfile               Task runner for common workflows
 | **fog_of_war** | Exploration reveal system | Revealed tiles monotonic, visibility radius bounded |
 | **permadeath** | Permadeath with legacy bonuses | Death permanent, legacy bonuses carry forward |
 | **bounty** | Bounty board quest system | Bounty rewards match difficulty, completion tracked |
-| **quint_crawl** | Full RPG game state machine (9x9 grid, 5 levels) | HP bounded, gold non-negative, level gates, durability bounded, combo bounded, stamina bounded, cooldowns bounded (incl. fortify), loot pity bounded, status effects bounded, weather deterministic, skill points non-negative, skill prereqs respected, venom sac non-negative, enemy element bounded, enchant slots bounded, no fire/ice incompatible, enemy element only in combat, inventory bounded, salvage level bounded, quest counters bounded, quest prereqs respected, win condition correct |
+| **quint_crawl** | Full RPG game state machine (9x9 grid, 5 levels, data-driven companions) | HP bounded, gold non-negative, level gates, durability bounded, combo bounded, stamina bounded, cooldowns bounded (incl. fortify), loot pity bounded, status effects bounded, weather deterministic, skill points non-negative, skill prereqs respected, venom sac non-negative, enemy element bounded, enchant slots bounded, no fire/ice incompatible, enemy element only in combat, inventory bounded, salvage level bounded, quest counters bounded, quest prereqs respected, companion trait+rarity bounded, loyalty bounded, inactive=no loyalty, comp atk/def derived effects bounded, companion quest counters+prereqs respected, win condition correct |
 
 ## Quick start
 

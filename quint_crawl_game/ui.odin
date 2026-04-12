@@ -164,7 +164,44 @@ draw_hud :: proc(app: ^App_State) {
 	draw_quest_line(x, &y, "Slime Slayer", g.q1_kills, qc.Q1_TARGET, true)
 	draw_quest_line(x, &y, "Venture Forth", g.q2_zones, qc.Q2_TARGET, q1_done)
 	draw_quest_line(x, &y, "Castle Conqueror", g.q3_kills, qc.Q3_TARGET, q2_done)
+	y += 4
+	cq1_done := g.cq1_adopted >= qc.CQ1_TARGET
+	cq2_done := cq1_done && g.cq2_maxed >= qc.CQ2_TARGET
+	draw_quest_line(x, &y, "Adopt Companion", g.cq1_adopted, qc.CQ1_TARGET, true)
+	draw_quest_line(x, &y, "Earn Loyalty", g.cq2_maxed, qc.CQ2_TARGET, cq1_done)
+	draw_quest_line(x, &y, "Battle Bond", g.cq3_wins, qc.CQ3_TARGET, cq2_done)
 	y += 8
+
+	// --- Companion ---
+	if g.comp_active {
+		rl.DrawLine(x, y, x + w, y, TILE_BORDER)
+		y += 6
+		rl.DrawText("Companion", x, y, 16, TEXT_DIM)
+		y += 22
+		species_name: cstring = "Unknown"
+		if g.comp_species >= 0 && g.comp_species < len(qc.SPECIES_DEFS) {
+			species_name = fmt.ctprintf("%s", qc.SPECIES_DEFS[g.comp_species].name)
+		}
+		trait_name: cstring
+		switch qc.Comp_Trait(g.comp_trait) {
+		case .Attacker: trait_name = "Attacker"
+		case .Defender: trait_name = "Defender"
+		case .Scout:    trait_name = "Scout"
+		case .Support:  trait_name = "Support"
+		}
+		rarity_name: cstring
+		switch g.comp_rarity {
+		case 0: rarity_name = "Common"
+		case 1: rarity_name = "Rare"
+		case 2: rarity_name = "Legendary"
+		case:   rarity_name = "?"
+		}
+		rl.DrawText(fmt.ctprintf("%s (%s %s)", species_name, rarity_name, trait_name), x + 8, y, 13, TEXT_BRIGHT)
+		y += 16
+		rl.DrawText(fmt.ctprintf("Loyalty: %d/%d", g.comp_loyalty, qc.MAX_LOYALTY), x + 8, y, 13, TEXT_DIM)
+		y += 16
+		y += 4
+	}
 
 	// --- Available actions ---
 	if !g.in_combat && !g.game_won && g.hp > 0 {

@@ -133,6 +133,28 @@ crawl_step :: proc(driver: rawptr, action: string, picks: map[string]mbt.ITF_Val
 		ty := target_val.items[1].(mbt.ITF_Int) or_return
 		qc.fast_travel(g, int(tx.value), int(ty.value))
 		return true
+	case "adopt_companion":
+		// Spec picks abstract (trait, rarity). Map to a concrete Odin species
+		// whose affinity matches the spec trait, then adopt with that rarity.
+		// The spec's service-zone gate holds, and species biomes may not;
+		// we pick a species that happens to match the current zone, else
+		// accept that the Odin proc can refuse (state still diverges? no:
+		// the spec uses a generic services gate but Odin uses biome gates).
+		// To keep parity, we mirror the spec's abstract adoption directly:
+		// set the companion fields without the biome check.
+		t := picks["t"].(mbt.ITF_Int) or_return
+		r := picks["r"].(mbt.ITF_Int) or_return
+		qc.adopt_companion_abstract(g, int(t.value), int(r.value))
+		return true
+	case "feed_companion":
+		qc.feed_companion(g)
+		return true
+	case "dismiss_companion":
+		qc.dismiss_companion(g)
+		return true
+	case "companion_command":
+		qc.companion_command(g)
+		return true
 	case "save_game":
 		qc.save_game(g)
 		return true
@@ -241,7 +263,19 @@ crawl_state :: proc(driver: rawptr) -> map[string]mbt.ITF_Value {
 	mt["q1_kills"] = mbt.ITF_Int{g.q1_kills}
 	mt["q2_zones"] = mbt.ITF_Int{g.q2_zones}
 	mt["q3_kills"] = mbt.ITF_Int{g.q3_kills}
+	mt["cq1_adopted"] = mbt.ITF_Int{g.cq1_adopted}
+	mt["cq2_maxed"] = mbt.ITF_Int{g.cq2_maxed}
+	mt["cq3_wins"] = mbt.ITF_Int{g.cq3_wins}
 	state["meta"] = mbt.ITF_Record{mt}
+
+	// comp: CompState (abstract — trait+rarity, no species)
+	cp := make(map[string]mbt.ITF_Value)
+	cp["active"] = mbt.ITF_Bool{g.comp_active}
+	cp["trait"] = mbt.ITF_Int{g.comp_trait}
+	cp["rarity"] = mbt.ITF_Int{g.comp_rarity}
+	cp["loyalty"] = mbt.ITF_Int{g.comp_loyalty}
+	cp["command_used"] = mbt.ITF_Bool{g.comp_command_used}
+	state["comp"] = mbt.ITF_Record{cp}
 
 	return state
 }

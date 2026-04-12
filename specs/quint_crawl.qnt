@@ -35,6 +35,20 @@ module quint_crawl {
     game_won: bool, saved_exists: bool, pity_counter: int, last_drop: int,
     last_kill_turn: int,
     q1_kills: int, q2_zones: int, q3_kills: int,
+    cq1_adopted: int, cq2_maxed: int, cq3_wins: int,
+  }
+
+  // Companion is represented abstractly by its trait + rarity.
+  // Species is flavor (lives in the game catalog); the spec only sees effects.
+  // active = true when a companion is bound; false = no companion.
+  //   trait:  0=Attacker, 1=Defender, 2=Scout, 3=Support
+  //   rarity: 0=Common,   1=Rare,     2=Legendary
+  type CompState = {
+    active: bool,
+    trait: int,
+    rarity: int,
+    loyalty: int,
+    command_used: bool, // resets on enter_combat
   }
 
   // === State variables ===
@@ -44,6 +58,7 @@ module quint_crawl {
   var cb: CombatState
   var w: WorldState
   var meta: MetaState
+  var comp: CompState
 
   // --- Constants ---
   val SWORD_MAX_DUR = 10
@@ -68,6 +83,28 @@ module quint_crawl {
   val Q1_TARGET = 2
   val Q2_TARGET = 3
   val Q3_TARGET = 2
+  // Companion quest targets (CQ1: adopt, CQ2: loyalty max, CQ3: win combats)
+  val CQ1_TARGET = 1
+  val CQ2_TARGET = 1
+  val CQ3_TARGET = 5
+  // Companion constants
+  val MAX_LOYALTY = 100
+  val INITIAL_LOYALTY = 50
+  val LOYALTY_GAIN = 10
+  val LOYALTY_COMBAT_COST = 5
+  val HIGH_LOYALTY = 75
+  // Companion trait effect multipliers (scaled by rarity tier)
+  //   Attacker(0): atk bonus    | Defender(1): dmg reduction
+  //   Scout(2):    small atk    | Support(3):  small dmg reduction
+  val COMP_ATK_BASE_ATTACKER = 2
+  val COMP_ATK_BASE_SCOUT    = 1
+  val COMP_DEF_BASE_DEFENDER = 1
+  val COMP_DEF_BASE_SUPPORT  = 1
+  val COMP_TRAIT_COUNT  = 4
+  val COMP_RARITY_COUNT = 3
+  // Rarity scales (common=1, rare=2, legendary=3) — applied to the base trait effect
+  // Adoption material cost is abstracted to a single "material cost" of rarity+1 in spec
+  val ADOPT_BASE_COST = 1
   val POTION_COST = 15
   val HP_PER_LEVEL = 15
   val ATK_PER_LEVEL_UP = 2
@@ -205,9 +242,25 @@ module quint_crawl {
 
   val enchant_atk_bonus = atk_for(eqp.enchant_slot_1) + atk_for(eqp.enchant_slot_2) + atk_for(eqp.enchant_slot_3)
   val enchant_def_bonus = def_for(eqp.enchant_slot_1) + def_for(eqp.enchant_slot_2) + def_for(eqp.enchant_slot_3)
+  // Companion passives
+  val comp_active = comp.active and comp.loyalty > 0
+  // Rarity scale: common=1, rare=2, legendary=3
+  val comp_rarity_scale = comp.rarity + 1
+  // Attacker(0)/Scout(2) contribute to atk; Defender(1)/Support(3) contribute to dmg reduction
+  val comp_atk_bonus =
+    if (not(comp_active)) 0
+    else if (comp.trait == 0) COMP_ATK_BASE_ATTACKER * comp_rarity_scale
+    else if (comp.trait == 2) COMP_ATK_BASE_SCOUT    * comp_rarity_scale
+    else 0
+  val comp_dmg_reduction =
+    if (not(comp_active)) 0
+    else if (comp.trait == 1) COMP_DEF_BASE_DEFENDER * comp_rarity_scale
+    else if (comp.trait == 3) COMP_DEF_BASE_SUPPORT  * comp_rarity_scale
+    else 0
+
   // Damage-taken helpers (used across all combat actions)
   val incoming_enemy_dmg = {
-    val raw = cb.enemy_attack - enchant_def_bonus - (if (cb.player_def_buff_dur > 0) DEF_BUFF_REDUCTION else 0)
+    val raw = cb.enemy_attack - enchant_def_bonus - (if (cb.player_def_buff_dur > 0) DEF_BUFF_REDUCTION else 0) - comp_dmg_reduction
     if (raw < 1) 1 else raw
   }
   val player_poison_tick = if (cb.player_poison_dur > 0) POISON_DMG else 0
@@ -218,13 +271,16 @@ module quint_crawl {
   val quest3_complete = quest2_complete and meta.q3_kills >= Q3_TARGET
   val quest2_unlocked = quest1_complete
   val quest3_unlocked = quest2_complete
+  val cquest1_complete = meta.cq1_adopted >= CQ1_TARGET
+  val cquest2_complete = cquest1_complete and meta.cq2_maxed >= CQ2_TARGET
+  val cquest3_complete = cquest2_complete and meta.cq3_wins >= CQ3_TARGET
   val player_element = if (has_fire_enchant) 1
                        else if (has_ice_enchant) 2
                        else if (eqp.enchant_slot_1 == 4 or eqp.enchant_slot_2 == 4 or eqp.enchant_slot_3 == 4) 3
                        else 0
 
   // Total attack power (sword bonus only if equipped AND not broken, plus ATK buff, plus enchant bonus)
-  val attack_power = ch.base_attack + (if (inv.has_sword and eqp.sword_dur > 0) SWORD_ATK_BONUS else 0) + (if (cb.player_atk_buff_dur > 0) ATK_BUFF_BONUS else 0) + enchant_atk_bonus
+  val attack_power = ch.base_attack + (if (inv.has_sword and eqp.sword_dur > 0) SWORD_ATK_BONUS else 0) + (if (cb.player_atk_buff_dur > 0) ATK_BUFF_BONUS else 0) + enchant_atk_bonus + comp_atk_bonus
   val player_elem_mult = damage_multiplier(player_element, cb.enemy_element)
 
   // --- Inventory helpers ---
@@ -265,7 +321,9 @@ module quint_crawl {
     w' = { pos_x: 0, pos_y: 0, turn_count: 0,
            visited: Set((0, 0)), waypoints: Set((0, 0)) },
     meta' = { game_won: false, saved_exists: false, pity_counter: 0, last_drop: 0, last_kill_turn: 0,
-              q1_kills: 0, q2_zones: 0, q3_kills: 0 },
+              q1_kills: 0, q2_zones: 0, q3_kills: 0,
+              cq1_adopted: 0, cq2_maxed: 0, cq3_wins: 0 },
+    comp' = { active: false, trait: 0, rarity: 0, loyalty: 0, command_used: false },
   }
 
   // === Movement (only when not in combat) ===
@@ -283,6 +341,7 @@ module quint_crawl {
       inv' = inv, eqp' = eqp,
       cb' = cb,
       meta' = { ...meta, q2_zones: if (quest1_complete and zone_level(w.pos_x, w.pos_y - 1) >= 2 and meta.q2_zones < Q2_TARGET) meta.q2_zones + 1 else meta.q2_zones },
+      comp' = comp,
     }
   }
 
@@ -299,6 +358,7 @@ module quint_crawl {
       inv' = inv, eqp' = eqp,
       cb' = cb,
       meta' = { ...meta, q2_zones: if (quest1_complete and zone_level(w.pos_x, w.pos_y + 1) >= 2 and meta.q2_zones < Q2_TARGET) meta.q2_zones + 1 else meta.q2_zones },
+      comp' = comp,
     }
   }
 
@@ -315,6 +375,7 @@ module quint_crawl {
       inv' = inv, eqp' = eqp,
       cb' = cb,
       meta' = { ...meta, q2_zones: if (quest1_complete and zone_level(w.pos_x - 1, w.pos_y) >= 2 and meta.q2_zones < Q2_TARGET) meta.q2_zones + 1 else meta.q2_zones },
+      comp' = comp,
     }
   }
 
@@ -331,6 +392,7 @@ module quint_crawl {
       inv' = inv, eqp' = eqp,
       cb' = cb,
       meta' = { ...meta, q2_zones: if (quest1_complete and zone_level(w.pos_x + 1, w.pos_y) >= 2 and meta.q2_zones < Q2_TARGET) meta.q2_zones + 1 else meta.q2_zones },
+      comp' = comp,
     }
   }
 
@@ -353,6 +415,14 @@ module quint_crawl {
       w' = { ...w, turn_count: w.turn_count + 1 },
       ch' = ch, inv' = inv, eqp' = eqp,
       meta' = { ...meta, last_drop: 0 },
+      // Loyalty tick: departure zeroes trait/rarity to match dismiss_companion
+      // (keeps comp_inactive_zeroed invariant tight).
+      comp' = if (comp.active and comp.loyalty - LOYALTY_COMBAT_COST <= 0)
+                { active: false, trait: 0, rarity: 0, loyalty: 0, command_used: false }
+              else
+                { ...comp,
+                  loyalty: if (comp.loyalty - LOYALTY_COMBAT_COST < 0) 0 else comp.loyalty - LOYALTY_COMBAT_COST,
+                  command_used: false },
     }
   }
 
@@ -423,7 +493,9 @@ module quint_crawl {
       meta' = { ...meta, pity_counter: new_pity, last_drop: new_last_drop,
                last_kill_turn: if (enemy_defeated_alive) w.turn_count + 1 else meta.last_kill_turn,
                q1_kills: if (enemy_defeated_alive and zone_tier == 1 and meta.q1_kills < Q1_TARGET) meta.q1_kills + 1 else meta.q1_kills,
-               q3_kills: if (enemy_defeated_alive and zone_tier == MAX_LEVEL and meta.q3_kills < Q3_TARGET) meta.q3_kills + 1 else meta.q3_kills },
+               q3_kills: if (enemy_defeated_alive and zone_tier == MAX_LEVEL and meta.q3_kills < Q3_TARGET) meta.q3_kills + 1 else meta.q3_kills,
+               cq3_wins: if (enemy_defeated_alive and comp_active and meta.cq3_wins < CQ3_TARGET) meta.cq3_wins + 1 else meta.cq3_wins },
+      comp' = comp,
     }
   }
 
@@ -435,7 +507,7 @@ module quint_crawl {
     eqp' = eqp,
     cb' = { ...cb, combo_count: 0 },
     w' = { ...w, turn_count: w.turn_count + 1 },
-    meta' = meta,
+    meta' = meta, comp' = comp,
   }
 
   // === Flee combat ===
@@ -450,7 +522,7 @@ module quint_crawl {
               player_def_buff_dur: 0, enemy_poison_dur: 0,
               cd_heavy_strike: 0, cd_battle_cry: 0, cd_fortify: 0 },
       w' = { ...w, turn_count: w.turn_count + 1 },
-      inv' = inv, eqp' = eqp, meta' = meta,
+      inv' = inv, eqp' = eqp, meta' = meta, comp' = comp,
     }
   }
 
@@ -459,11 +531,17 @@ module quint_crawl {
     not(cb.in_combat), not(meta.game_won), ch.hp > 0,
     zone_has_services(w.pos_x, w.pos_y),
     ch.hp < ch.max_hp or ch.stamina < ch.max_stamina,
-    ch' = { ...ch, hp: ch.max_hp, stamina: ch.max_stamina },
-    inv' = inv, eqp' = eqp,
-    cb' = cb,
-    w' = { ...w, turn_count: w.turn_count + 1 },
-    meta' = meta,
+    val new_loyalty = if (comp.active and comp.loyalty + LOYALTY_GAIN > MAX_LOYALTY) MAX_LOYALTY
+                      else if (comp.active) comp.loyalty + LOYALTY_GAIN
+                      else comp.loyalty
+    all {
+      ch' = { ...ch, hp: ch.max_hp, stamina: ch.max_stamina },
+      inv' = inv, eqp' = eqp,
+      cb' = cb,
+      w' = { ...w, turn_count: w.turn_count + 1 },
+      meta' = { ...meta, cq2_maxed: if (new_loyalty == MAX_LOYALTY and meta.cq2_maxed < CQ2_TARGET) CQ2_TARGET else meta.cq2_maxed },
+      comp' = { ...comp, loyalty: new_loyalty },
+    }
   }
 
   // === Buy potion (at town, costs 15 gold) ===
@@ -477,7 +555,7 @@ module quint_crawl {
     eqp' = eqp,
     cb' = cb,
     w' = { ...w, turn_count: w.turn_count + 1 },
-    meta' = meta,
+    meta' = meta, comp' = comp,
   }
 
   // === Repair sword (at town, costs gold) ===
@@ -492,7 +570,7 @@ module quint_crawl {
     inv' = inv,
     cb' = cb,
     w' = { ...w, turn_count: w.turn_count + 1 },
-    meta' = meta,
+    meta' = meta, comp' = comp,
   }
 
   // === Gather wood (in forest zone) ===
@@ -507,7 +585,7 @@ module quint_crawl {
       ch' = ch, eqp' = eqp,
       cb' = cb,
       w' = { ...w, turn_count: w.turn_count + 1 },
-      meta' = meta,
+      meta' = meta, comp' = comp,
     }
   }
 
@@ -523,7 +601,7 @@ module quint_crawl {
       ch' = ch, eqp' = eqp,
       cb' = cb,
       w' = { ...w, turn_count: w.turn_count + 1 },
-      meta' = meta,
+      meta' = meta, comp' = comp,
     }
   }
 
@@ -537,7 +615,7 @@ module quint_crawl {
     ch' = ch, eqp' = eqp,
     cb' = cb,
     w' = { ...w, turn_count: w.turn_count + 1 },
-    meta' = meta,
+    meta' = meta, comp' = comp,
   }
 
   // === Equip sword (sets durability to max) ===
@@ -549,7 +627,7 @@ module quint_crawl {
     ch' = ch,
     cb' = cb,
     w' = { ...w, turn_count: w.turn_count + 1 },
-    meta' = meta,
+    meta' = meta, comp' = comp,
   }
 
   // === Use antidote (quick action -- costs 1 potion, clears player poison, no CD tick) ===
@@ -560,7 +638,7 @@ module quint_crawl {
     cb' = { ...cb, player_poison_dur: 0, combo_count: 0 },
     ch' = ch, eqp' = eqp,
     w' = { ...w, turn_count: w.turn_count + 1 },
-    meta' = meta,
+    meta' = meta, comp' = comp,
   }
 
   // === Poison strike (apply poison to enemy, enemy hits back) ===
@@ -589,7 +667,7 @@ module quint_crawl {
       inv' = { ...inv, qty_venom_sac: inv.qty_venom_sac - 1 },
       eqp' = eqp,
       w' = { ...w, turn_count: w.turn_count + 1 },
-      meta' = meta,
+      meta' = meta, comp' = comp,
     }
   }
 
@@ -670,7 +748,9 @@ module quint_crawl {
       meta' = { ...meta, pity_counter: new_pity, last_drop: new_last_drop,
                last_kill_turn: if (enemy_defeated_alive) w.turn_count + 1 else meta.last_kill_turn,
                q1_kills: if (enemy_defeated_alive and zone_tier == 1 and meta.q1_kills < Q1_TARGET) meta.q1_kills + 1 else meta.q1_kills,
-               q3_kills: if (enemy_defeated_alive and zone_tier == MAX_LEVEL and meta.q3_kills < Q3_TARGET) meta.q3_kills + 1 else meta.q3_kills },
+               q3_kills: if (enemy_defeated_alive and zone_tier == MAX_LEVEL and meta.q3_kills < Q3_TARGET) meta.q3_kills + 1 else meta.q3_kills,
+               cq3_wins: if (enemy_defeated_alive and comp_active and meta.cq3_wins < CQ3_TARGET) meta.cq3_wins + 1 else meta.cq3_wins },
+      comp' = comp,
     }
   }
 
@@ -739,7 +819,9 @@ module quint_crawl {
       meta' = { ...meta, pity_counter: new_pity, last_drop: new_last_drop,
                last_kill_turn: if (enemy_defeated_alive) w.turn_count + 1 else meta.last_kill_turn,
                q1_kills: if (enemy_defeated_alive and zone_tier == 1 and meta.q1_kills < Q1_TARGET) meta.q1_kills + 1 else meta.q1_kills,
-               q3_kills: if (enemy_defeated_alive and zone_tier == MAX_LEVEL and meta.q3_kills < Q3_TARGET) meta.q3_kills + 1 else meta.q3_kills },
+               q3_kills: if (enemy_defeated_alive and zone_tier == MAX_LEVEL and meta.q3_kills < Q3_TARGET) meta.q3_kills + 1 else meta.q3_kills,
+               cq3_wins: if (enemy_defeated_alive and comp_active and meta.cq3_wins < CQ3_TARGET) meta.cq3_wins + 1 else meta.cq3_wins },
+      comp' = comp,
     }
   }
 
@@ -776,7 +858,7 @@ module quint_crawl {
       },
       eqp' = eqp, inv' = inv,
       w' = { ...w, turn_count: w.turn_count + 1 },
-      meta' = meta,
+      meta' = meta, comp' = comp,
     }
   }
 
@@ -811,7 +893,7 @@ module quint_crawl {
       },
       eqp' = eqp, inv' = inv,
       w' = { ...w, turn_count: w.turn_count + 1 },
-      meta' = meta,
+      meta' = meta, comp' = comp,
     }
   }
 
@@ -820,7 +902,7 @@ module quint_crawl {
     not(cb.in_combat), not(meta.game_won), ch.hp > 0,
     not(ch.skill_combo), ch.skill_points >= 1,
     ch' = { ...ch, skill_combo: true, skill_points: ch.skill_points - 1 },
-    inv' = inv, eqp' = eqp, cb' = cb, w' = w, meta' = meta,
+    inv' = inv, eqp' = eqp, cb' = cb, w' = w, meta' = meta, comp' = comp,
   }
 
   // === Skill unlock: Poison Strike (tier 1 utility, no prereq) ===
@@ -828,7 +910,7 @@ module quint_crawl {
     not(cb.in_combat), not(meta.game_won), ch.hp > 0,
     not(ch.skill_poison), ch.skill_points >= 1,
     ch' = { ...ch, skill_poison: true, skill_points: ch.skill_points - 1 },
-    inv' = inv, eqp' = eqp, cb' = cb, w' = w, meta' = meta,
+    inv' = inv, eqp' = eqp, cb' = cb, w' = w, meta' = meta, comp' = comp,
   }
 
   // === Skill unlock: Shield Block (tier 1 defense, no prereq) ===
@@ -836,7 +918,7 @@ module quint_crawl {
     not(cb.in_combat), not(meta.game_won), ch.hp > 0,
     not(ch.skill_shield_block), ch.skill_points >= 1,
     ch' = { ...ch, skill_shield_block: true, skill_points: ch.skill_points - 1 },
-    inv' = inv, eqp' = eqp, cb' = cb, w' = w, meta' = meta,
+    inv' = inv, eqp' = eqp, cb' = cb, w' = w, meta' = meta, comp' = comp,
   }
 
   // === Skill unlock: Heavy Strike (tier 2 offense, requires Combo) ===
@@ -844,7 +926,7 @@ module quint_crawl {
     not(cb.in_combat), not(meta.game_won), ch.hp > 0,
     not(ch.skill_heavy_strike), ch.skill_combo, ch.skill_points >= 1,
     ch' = { ...ch, skill_heavy_strike: true, skill_points: ch.skill_points - 1 },
-    inv' = inv, eqp' = eqp, cb' = cb, w' = w, meta' = meta,
+    inv' = inv, eqp' = eqp, cb' = cb, w' = w, meta' = meta, comp' = comp,
   }
 
   // === Skill unlock: Counter-Attack (tier 2 defense, requires Shield Block) ===
@@ -852,7 +934,7 @@ module quint_crawl {
     not(cb.in_combat), not(meta.game_won), ch.hp > 0,
     not(ch.skill_counter_attack), ch.skill_shield_block, ch.skill_points >= 1,
     ch' = { ...ch, skill_counter_attack: true, skill_points: ch.skill_points - 1 },
-    inv' = inv, eqp' = eqp, cb' = cb, w' = w, meta' = meta,
+    inv' = inv, eqp' = eqp, cb' = cb, w' = w, meta' = meta, comp' = comp,
   }
 
   // === Skill unlock: Battle Cry (tier 3 offense, requires Heavy Strike, costs 2pt) ===
@@ -860,7 +942,7 @@ module quint_crawl {
     not(cb.in_combat), not(meta.game_won), ch.hp > 0,
     not(ch.skill_battle_cry), ch.skill_heavy_strike, ch.skill_points >= 2,
     ch' = { ...ch, skill_battle_cry: true, skill_points: ch.skill_points - 2 },
-    inv' = inv, eqp' = eqp, cb' = cb, w' = w, meta' = meta,
+    inv' = inv, eqp' = eqp, cb' = cb, w' = w, meta' = meta, comp' = comp,
   }
 
   // === Skill unlock: Fortify (tier 3 defense, requires Counter-Attack, costs 2pt) ===
@@ -868,7 +950,7 @@ module quint_crawl {
     not(cb.in_combat), not(meta.game_won), ch.hp > 0,
     not(ch.skill_fortify), ch.skill_counter_attack, ch.skill_points >= 2,
     ch' = { ...ch, skill_fortify: true, skill_points: ch.skill_points - 2 },
-    inv' = inv, eqp' = eqp, cb' = cb, w' = w, meta' = meta,
+    inv' = inv, eqp' = eqp, cb' = cb, w' = w, meta' = meta, comp' = comp,
   }
 
   // === Respec skills (at village, costs gold) ===
@@ -889,7 +971,7 @@ module quint_crawl {
               skill_heavy_strike: false, skill_counter_attack: false,
               skill_battle_cry: false, skill_fortify: false,
       },
-      inv' = inv, eqp' = eqp, cb' = cb, w' = w, meta' = meta,
+      inv' = inv, eqp' = eqp, cb' = cb, w' = w, meta' = meta, comp' = comp,
     }
   }
 
@@ -957,7 +1039,9 @@ module quint_crawl {
       meta' = { ...meta, pity_counter: new_pity, last_drop: new_last_drop,
                last_kill_turn: if (enemy_defeated_alive) w.turn_count + 1 else meta.last_kill_turn,
                q1_kills: if (enemy_defeated_alive and zone_tier == 1 and meta.q1_kills < Q1_TARGET) meta.q1_kills + 1 else meta.q1_kills,
-               q3_kills: if (enemy_defeated_alive and zone_tier == MAX_LEVEL and meta.q3_kills < Q3_TARGET) meta.q3_kills + 1 else meta.q3_kills },
+               q3_kills: if (enemy_defeated_alive and zone_tier == MAX_LEVEL and meta.q3_kills < Q3_TARGET) meta.q3_kills + 1 else meta.q3_kills,
+               cq3_wins: if (enemy_defeated_alive and comp_active and meta.cq3_wins < CQ3_TARGET) meta.cq3_wins + 1 else meta.cq3_wins },
+      comp' = comp,
     }
   }
 
@@ -993,7 +1077,7 @@ module quint_crawl {
       },
       eqp' = eqp, inv' = inv,
       w' = { ...w, turn_count: w.turn_count + 1 },
-      meta' = meta,
+      meta' = meta, comp' = comp,
     }
   }
 
@@ -1003,7 +1087,7 @@ module quint_crawl {
     zone_has_services(w.pos_x, w.pos_y),
     inv.qty_iron >= CRAFT_VENOM_IRON_COST,
     inv' = { ...inv, qty_iron: inv.qty_iron - CRAFT_VENOM_IRON_COST, qty_venom_sac: inv.qty_venom_sac + 1 },
-    ch' = ch, eqp' = eqp, cb' = cb, w' = w, meta' = meta,
+    ch' = ch, eqp' = eqp, cb' = cb, w' = w, meta' = meta, comp' = comp,
   }
 
   // === Apply enchantment to slot 1 (at village, costs gold, requires sword) ===
@@ -1020,7 +1104,7 @@ module quint_crawl {
       not(etype == 2 and has_fire_enchant),
       ch' = { ...ch, gold: ch.gold - ENCHANT_COST },
       eqp' = set_enchant_slot(eqp, slot, etype),
-      inv' = inv, cb' = cb, w' = w, meta' = meta,
+      inv' = inv, cb' = cb, w' = w, meta' = meta, comp' = comp,
     }
   }
 
@@ -1033,7 +1117,7 @@ module quint_crawl {
       inv.has_sword,
       get_enchant_slot(eqp, slot) != 0,
       eqp' = set_enchant_slot(eqp, slot, 0),
-      ch' = ch, inv' = inv, cb' = cb, w' = w, meta' = meta,
+      ch' = ch, inv' = inv, cb' = cb, w' = w, meta' = meta, comp' = comp,
     }
   }
 
@@ -1050,7 +1134,7 @@ module quint_crawl {
     ch' = ch, eqp' = eqp,
     cb' = cb,
     w' = { ...w, turn_count: w.turn_count + 1 },
-    meta' = meta,
+    meta' = meta, comp' = comp,
   }
 
   // === Upgrade salvage (at village -- spend gold to improve material recovery) ===
@@ -1064,13 +1148,14 @@ module quint_crawl {
     eqp' = eqp,
     cb' = cb,
     w' = { ...w, turn_count: w.turn_count + 1 },
-    meta' = meta,
+    meta' = meta, comp' = comp,
   }
 
   // === Save game (only outside combat, alive, not won) ===
   action save_game = all {
     not(cb.in_combat), not(meta.game_won), ch.hp > 0,
     meta' = { ...meta, saved_exists: true },
+    comp' = comp,
     ch' = ch, inv' = inv, eqp' = eqp, cb' = cb, w' = w,
   }
 
@@ -1083,7 +1168,7 @@ module quint_crawl {
   // correctness is tested independently in the game runtime.
   action load_game = all {
     meta.saved_exists,
-    ch' = ch, inv' = inv, eqp' = eqp, cb' = cb, w' = w, meta' = meta,
+    ch' = ch, inv' = inv, eqp' = eqp, cb' = cb, w' = w, meta' = meta, comp' = comp,
   }
 
   // === Claim Victory ===
@@ -1093,6 +1178,7 @@ module quint_crawl {
     zone_biome_x(w.pos_x) == 2, zone_biome_y(w.pos_y) == 2,
     zone_level(w.pos_x, w.pos_y) >= MAX_LEVEL,
     meta' = { ...meta, game_won: true },
+    comp' = comp,
     ch' = ch, inv' = inv, eqp' = eqp,
     cb' = cb,
     w' = w,
@@ -1109,7 +1195,77 @@ module quint_crawl {
              visited: w.visited.union(Set((target._1, target._2))) },
       ch' = ch, inv' = inv, eqp' = eqp, cb' = cb,
       meta' = { ...meta, q2_zones: if (quest1_complete and zone_level(target._1, target._2) >= 2 and meta.q2_zones < Q2_TARGET) meta.q2_zones + 1 else meta.q2_zones },
+      comp' = comp,
     }
+  }
+
+  // === Companion actions ===
+  //
+  // Abstract model: companion is a (trait, rarity) tuple.
+  // Species (wolf/hawk/fox/owl/...) is flavor the game catalog handles — the
+  // spec does not enumerate species. Adoption nondeterministically picks any
+  // trait+rarity the player can afford (bounded search: 4 * 3 = 12 classes).
+  // Material cost abstracts to a "wood-or-iron" test of (rarity+1)*ADOPT_BASE_COST.
+  //
+  // The MBT harness maps each abstract (trait, rarity) onto a concrete species
+  // from the Odin-side SPECIES_DEFS catalog with matching affinity.
+
+  action adopt_companion = all {
+    not(cb.in_combat), not(meta.game_won), ch.hp > 0,
+    not(comp.active),
+    nondet t = oneOf(Set(0, 1, 2, 3))
+    nondet r = oneOf(Set(0, 1, 2))
+    val cost = (r + 1) * ADOPT_BASE_COST
+    all {
+      // Any service zone gates adoption (sanctuary/village abstraction)
+      zone_has_services(w.pos_x, w.pos_y),
+      inv.qty_wood >= cost,
+      inv' = { ...inv, qty_wood: inv.qty_wood - cost },
+      comp' = { active: true, trait: t, rarity: r, loyalty: INITIAL_LOYALTY, command_used: false },
+      meta' = { ...meta, cq1_adopted: if (meta.cq1_adopted < CQ1_TARGET) CQ1_TARGET else meta.cq1_adopted },
+      ch' = ch, eqp' = eqp, cb' = cb, w' = w,
+    }
+  }
+
+  // Feed companion at village: 1 potion -> +LOYALTY_GAIN
+  action feed_companion = all {
+    not(cb.in_combat), not(meta.game_won), ch.hp > 0,
+    zone_has_services(w.pos_x, w.pos_y),
+    comp.active, comp.loyalty < MAX_LOYALTY,
+    inv.qty_potion >= 1,
+    val new_loyalty = if (comp.loyalty + LOYALTY_GAIN > MAX_LOYALTY) MAX_LOYALTY else comp.loyalty + LOYALTY_GAIN
+    all {
+      inv' = { ...inv, qty_potion: inv.qty_potion - 1 },
+      comp' = { ...comp, loyalty: new_loyalty },
+      meta' = { ...meta, cq2_maxed: if (new_loyalty == MAX_LOYALTY and meta.cq2_maxed < CQ2_TARGET) CQ2_TARGET else meta.cq2_maxed },
+      ch' = ch, eqp' = eqp, cb' = cb, w' = w,
+    }
+  }
+
+  // Dismiss companion at village (no cost, returns to none)
+  action dismiss_companion = all {
+    not(cb.in_combat), not(meta.game_won), ch.hp > 0,
+    zone_has_services(w.pos_x, w.pos_y),
+    comp.active,
+    comp' = { active: false, trait: 0, rarity: 0, loyalty: 0, command_used: false },
+    ch' = ch, inv' = inv, eqp' = eqp, cb' = cb, w' = w, meta' = meta,
+  }
+
+  // Companion command (in-combat, high loyalty, one per combat)
+  // Trait 0 (Attacker)/2 (Scout): ATK buff
+  // Trait 1 (Defender):           DEF buff
+  // Trait 3 (Support):            enemy poison (debuff)
+  action companion_command = all {
+    cb.in_combat, not(meta.game_won), ch.hp > 0, cb.enemy_hp > 0,
+    comp.active, comp.loyalty >= HIGH_LOYALTY,
+    not(comp.command_used),
+    cb' = { ...cb,
+      player_atk_buff_dur: if (comp.trait == 0 or comp.trait == 2) STATUS_DURATION else cb.player_atk_buff_dur,
+      player_def_buff_dur: if (comp.trait == 1) STATUS_DURATION else cb.player_def_buff_dur,
+      enemy_poison_dur:    if (comp.trait == 3) STATUS_DURATION else cb.enemy_poison_dur,
+    },
+    comp' = { ...comp, command_used: true },
+    ch' = ch, inv' = inv, eqp' = eqp, w' = w, meta' = meta,
   }
 
   // === Step ===
@@ -1127,6 +1283,8 @@ module quint_crawl {
     respec, craft_venom_sac,
     salvage_sword, upgrade_salvage,
     apply_enchant, remove_enchant,
+    adopt_companion,
+    feed_companion, dismiss_companion, companion_command,
     save_game, load_game, claim_victory,
   }
 
@@ -1276,6 +1434,53 @@ module quint_crawl {
   val quest_prereqs_respected = and {
     (meta.q2_zones > 0) implies quest1_complete,
     (meta.q3_kills > 0) implies quest2_complete,
+  }
+
+  /// Companion trait is in [0, COMP_TRAIT_COUNT)
+  val comp_trait_bounded = comp.trait >= 0 and comp.trait < COMP_TRAIT_COUNT
+
+  /// Companion rarity is in [0, COMP_RARITY_COUNT)
+  val comp_rarity_bounded = comp.rarity >= 0 and comp.rarity < COMP_RARITY_COUNT
+
+  /// Companion loyalty bounded [0, MAX_LOYALTY]
+  val comp_loyalty_bounded = comp.loyalty >= 0 and comp.loyalty <= MAX_LOYALTY
+
+  /// Inactive companion implies no loyalty
+  val comp_inactive_no_loyalty = (not(comp.active)) implies (comp.loyalty == 0)
+
+  /// Derived atk bonus stays within each trait's tight ceiling.
+  /// Non-attacking traits contribute zero; attacking traits scale with rarity.
+  val comp_atk_bonus_bounded = and {
+    comp_atk_bonus >= 0,
+    (comp.trait == 0).implies(comp_atk_bonus <= COMP_ATK_BASE_ATTACKER * COMP_RARITY_COUNT),
+    (comp.trait == 2).implies(comp_atk_bonus <= COMP_ATK_BASE_SCOUT * COMP_RARITY_COUNT),
+    (comp.trait == 1 or comp.trait == 3).implies(comp_atk_bonus == 0),
+  }
+
+  /// Derived dmg reduction stays within each trait's tight ceiling.
+  val comp_dmg_reduction_bounded = and {
+    comp_dmg_reduction >= 0,
+    (comp.trait == 1).implies(comp_dmg_reduction <= COMP_DEF_BASE_DEFENDER * COMP_RARITY_COUNT),
+    (comp.trait == 3).implies(comp_dmg_reduction <= COMP_DEF_BASE_SUPPORT * COMP_RARITY_COUNT),
+    (comp.trait == 0 or comp.trait == 2).implies(comp_dmg_reduction == 0),
+  }
+
+  /// Inactive companion has fully zeroed effect tuple (no ghost trait/rarity).
+  val comp_inactive_zeroed = (not(comp.active)).implies(
+    comp.trait == 0 and comp.rarity == 0 and comp.loyalty == 0
+  )
+
+  /// Companion quest counters bounded
+  val companion_quest_counters_bounded = and {
+    meta.cq1_adopted >= 0, meta.cq1_adopted <= CQ1_TARGET,
+    meta.cq2_maxed >= 0, meta.cq2_maxed <= CQ2_TARGET,
+    meta.cq3_wins >= 0, meta.cq3_wins <= CQ3_TARGET,
+  }
+
+  /// Companion quest prerequisites respected
+  val companion_quest_prereqs_respected = and {
+    (meta.cq2_maxed > 0) implies cquest1_complete,
+    (meta.cq3_wins > 0) implies cquest2_complete,
   }
 
 }

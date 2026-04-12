@@ -41,6 +41,24 @@ PITY_THRESHOLD :: 8
 Q1_TARGET :: 2  // slime kills
 Q2_TARGET :: 3  // ZL2+ zone entries after Q1 complete
 Q3_TARGET :: 2  // dragon kills
+// Companion quest targets
+CQ1_TARGET :: 1
+CQ2_TARGET :: 1
+CQ3_TARGET :: 5
+// Companion constants
+MAX_LOYALTY :: 100
+INITIAL_LOYALTY :: 50
+LOYALTY_GAIN :: 10
+LOYALTY_COMBAT_COST :: 5
+HIGH_LOYALTY :: 75
+// Companion trait base effects (scaled by rarity tier+1)
+COMP_ATK_BASE_ATTACKER :: 2
+COMP_ATK_BASE_SCOUT    :: 1
+COMP_DEF_BASE_DEFENDER :: 1
+COMP_DEF_BASE_SUPPORT  :: 1
+COMP_TRAIT_COUNT       :: 4
+COMP_RARITY_COUNT      :: 3
+ADOPT_BASE_COST        :: 1   // wood cost baseline; scales with rarity
 SWORD_ATK_BONUS :: 5
 POTION_COST :: 15
 HP_PER_LEVEL :: 15
@@ -120,6 +138,14 @@ Save_Data :: struct {
 	q1_kills:     int,
 	q2_zones:     int,
 	q3_kills:     int,
+	comp_active:  bool,
+	comp_species: int,   // index into SPECIES_DEFS (-1 if none)
+	comp_trait:   int,   // 0=Attacker, 1=Defender, 2=Scout, 3=Support
+	comp_rarity:  int,   // 0=Common, 1=Rare, 2=Legendary
+	comp_loyalty: int,
+	cq1_adopted:  int,
+	cq2_maxed:    int,
+	cq3_wins:     int,
 }
 
 Game_State :: struct {
@@ -189,6 +215,17 @@ Game_State :: struct {
 	q1_kills:            int,  // slime slayer (ZL1 kills, capped Q1_TARGET)
 	q2_zones:            int,  // venture forth (ZL2+ zone entries after Q1, capped Q2_TARGET)
 	q3_kills:            int,  // castle conqueror (dragon kills, capped Q3_TARGET)
+	// Companion (data-driven: species is catalog index, mechanics come from trait+rarity)
+	comp_active:         bool,
+	comp_species:        int,  // index into SPECIES_DEFS, -1 if none
+	comp_trait:          int,  // 0=Attacker, 1=Defender, 2=Scout, 3=Support
+	comp_rarity:         int,  // 0=Common, 1=Rare, 2=Legendary
+	comp_loyalty:        int,  // [0, MAX_LOYALTY]
+	comp_command_used:   bool, // per-combat flag
+	// Companion quests
+	cq1_adopted:         int,  // 0..CQ1_TARGET
+	cq2_maxed:           int,  // 0..CQ2_TARGET
+	cq3_wins:            int,  // 0..CQ3_TARGET
 	// Save/Load
 	saved_exists:        bool,
 	save_data:           Save_Data,
@@ -299,10 +336,103 @@ player_element :: proc(g: ^Game_State) -> int {
 	return 0
 }
 
+// --- Companion catalog ---
+// Species is flavor; mechanics come from trait affinity + rarity.
+// Adding a new companion = one row here, zero code changes elsewhere.
+
+Comp_Trait :: enum { Attacker, Defender, Scout, Support }
+
+Material_Kind :: enum { Wood, Iron, Venom_Sac }
+
+Species_Def :: struct {
+	name:           string,
+	biome_x:        int,          // pos_x % 3 adoption biome (-1 = any)
+	biome_y:        int,          // pos_y % 3 adoption biome (-1 = any)
+	trait_affinity: Comp_Trait,
+	material:       Material_Kind,
+}
+
+SPECIES_DEFS := [?]Species_Def{
+	{ name = "Wolf",   biome_x =  1, biome_y =  0, trait_affinity = .Attacker, material = .Iron },
+	{ name = "Hawk",   biome_x =  1, biome_y =  2, trait_affinity = .Scout,    material = .Venom_Sac },
+	{ name = "Turtle", biome_x =  2, biome_y =  0, trait_affinity = .Defender, material = .Wood },
+	{ name = "Fox",    biome_x =  0, biome_y =  1, trait_affinity = .Scout,    material = .Wood },
+	{ name = "Bear",   biome_x =  2, biome_y =  2, trait_affinity = .Defender, material = .Iron },
+	{ name = "Owl",    biome_x =  0, biome_y =  2, trait_affinity = .Support,  material = .Wood },
+	{ name = "Lynx",   biome_x =  2, biome_y =  1, trait_affinity = .Attacker, material = .Wood },
+	{ name = "Sprite", biome_x =  0, biome_y =  0, trait_affinity = .Support,  material = .Venom_Sac },
+}
+
+species_count :: proc() -> int { return len(SPECIES_DEFS) }
+
+// Adoption cost scales with rarity: (rarity+1) * base
+comp_adopt_cost :: proc(rarity: int) -> int {
+	return (rarity + 1) * ADOPT_BASE_COST
+}
+
+// Derived effect table — any future tuning lives here
+comp_atk_from :: proc(trait, rarity: int) -> int {
+	scale := rarity + 1
+	switch Comp_Trait(trait) {
+	case .Attacker: return COMP_ATK_BASE_ATTACKER * scale
+	case .Scout:    return COMP_ATK_BASE_SCOUT * scale
+	case .Defender, .Support: return 0
+	}
+	return 0
+}
+
+comp_def_from :: proc(trait, rarity: int) -> int {
+	scale := rarity + 1
+	switch Comp_Trait(trait) {
+	case .Defender: return COMP_DEF_BASE_DEFENDER * scale
+	case .Support:  return COMP_DEF_BASE_SUPPORT * scale
+	case .Attacker, .Scout: return 0
+	}
+	return 0
+}
+
+// Consume a material cost of the given kind from inventory; returns true if paid
+consume_material :: proc(g: ^Game_State, kind: Material_Kind, cost: int) -> bool {
+	switch kind {
+	case .Wood:
+		if g.qty_wood < cost do return false
+		g.qty_wood -= cost
+		return true
+	case .Iron:
+		if g.qty_iron < cost do return false
+		g.qty_iron -= cost
+		return true
+	case .Venom_Sac:
+		if g.qty_venom_sac < cost do return false
+		g.qty_venom_sac -= cost
+		return true
+	}
+	return false
+}
+
+species_def :: proc(idx: int) -> (Species_Def, bool) {
+	if idx < 0 || idx >= len(SPECIES_DEFS) do return {}, false
+	return SPECIES_DEFS[idx], true
+}
+
+comp_active :: proc(g: ^Game_State) -> bool {
+	return g.comp_active && g.comp_loyalty > 0
+}
+
+comp_atk_bonus :: proc(g: ^Game_State) -> int {
+	if !comp_active(g) do return 0
+	return comp_atk_from(g.comp_trait, g.comp_rarity)
+}
+
+comp_dmg_reduction :: proc(g: ^Game_State) -> int {
+	if !comp_active(g) do return 0
+	return comp_def_from(g.comp_trait, g.comp_rarity)
+}
+
 attack_power :: proc(g: ^Game_State) -> int {
 	sword_bonus := SWORD_ATK_BONUS if (g.has_sword && g.sword_dur > 0) else 0
 	atk_buff := ATK_BUFF_BONUS if g.player_atk_buff_dur > 0 else 0
-	return g.base_attack + sword_bonus + atk_buff + enchant_atk_bonus(g)
+	return g.base_attack + sword_bonus + atk_buff + enchant_atk_bonus(g) + comp_atk_bonus(g)
 }
 
 total_items :: proc(g: ^Game_State) -> int {
@@ -370,6 +500,15 @@ init_game :: proc(g: ^Game_State) {
 	g.q1_kills = 0
 	g.q2_zones = 0
 	g.q3_kills = 0
+	g.comp_active = false
+	g.comp_species = -1
+	g.comp_trait = 0
+	g.comp_rarity = 0
+	g.comp_loyalty = 0
+	g.comp_command_used = false
+	g.cq1_adopted = 0
+	g.cq2_maxed = 0
+	g.cq3_wins = 0
 	// Fog of war: clear all, mark starting zone + neighbors as revealed
 	for x in 0 ..< WORLD_SIZE {
 		for y in 0 ..< WORLD_SIZE {
@@ -459,6 +598,18 @@ enter_combat :: proc(g: ^Game_State) -> bool {
 	g.cd_fortify = 0
 	g.last_drop = 0
 	g.enemy_element = zone_element(g.pos_x, g.pos_y)
+	// Companion loyalty tick: pays to be brought into combat
+	if g.comp_active {
+		g.comp_loyalty -= LOYALTY_COMBAT_COST
+		if g.comp_loyalty <= 0 {
+			g.comp_active = false
+			g.comp_species = -1
+			g.comp_trait = 0
+			g.comp_rarity = 0
+			g.comp_loyalty = 0
+		}
+		g.comp_command_used = false
+	}
 	return true
 }
 
@@ -513,7 +664,7 @@ resolve_combat_hit :: proc(g: ^Game_State, dmg: int) -> bool {
 	poison_dmg := POISON_DMG if g.player_poison_dur > 0 else 0
 	new_hp := g.hp - poison_dmg
 	if new_enemy_hp > 0 {
-		enemy_dmg := g.enemy_attack - enchant_def_bonus(g) - (DEF_BUFF_REDUCTION if g.player_def_buff_dur > 0 else 0)
+		enemy_dmg := g.enemy_attack - enchant_def_bonus(g) - (DEF_BUFF_REDUCTION if g.player_def_buff_dur > 0 else 0) - comp_dmg_reduction(g)
 		if enemy_dmg < 1 do enemy_dmg = 1
 		new_hp -= enemy_dmg
 	}
@@ -564,6 +715,8 @@ resolve_combat_hit :: proc(g: ^Game_State, dmg: int) -> bool {
 		zone_tier := zone_level(g.pos_x, g.pos_y)
 		if zone_tier == 1 && g.q1_kills < Q1_TARGET do g.q1_kills += 1
 		if zone_tier == MAX_LEVEL && g.q3_kills < Q3_TARGET do g.q3_kills += 1
+		// Companion Quest 3: count wins with active companion
+		if comp_active(g) && g.cq3_wins < CQ3_TARGET do g.cq3_wins += 1
 		g.in_combat = false
 		g.enemy_attack = 0
 		g.enemy_element = 0
@@ -631,6 +784,10 @@ rest_at_village :: proc(g: ^Game_State) -> bool {
 	g.turn_count += 1
 	g.hp = g.max_hp
 	g.stamina = g.max_stamina
+	if g.comp_active {
+		g.comp_loyalty = min(g.comp_loyalty + LOYALTY_GAIN, MAX_LOYALTY)
+		if g.comp_loyalty == MAX_LOYALTY && g.cq2_maxed < CQ2_TARGET do g.cq2_maxed = CQ2_TARGET
+	}
 	return true
 }
 
@@ -1136,6 +1293,97 @@ craft_venom_sac :: proc(g: ^Game_State) -> bool {
 	return true
 }
 
+// --- Companion procs ---
+//
+// Adoption is data-driven: pass a species catalog index + rarity.
+// Biome gate and material cost are looked up from SPECIES_DEFS.
+// The companion's trait is derived from the species's affinity; no branching
+// on species elsewhere in the code — everything reads trait+rarity.
+
+// Abstract adoption — mirrors the spec's adopt_companion exactly.
+// Used by MBT harness and (optionally) by the game when species flavor
+// is not relevant. Services-zone gate + wood cost scaling with rarity.
+// The passed trait is recorded directly; species is left unset (-1).
+adopt_companion_abstract :: proc(g: ^Game_State, trait, rarity: int) -> bool {
+	if !can_act_map(g) do return false
+	if g.comp_active do return false
+	if trait < 0 || trait >= COMP_TRAIT_COUNT do return false
+	if rarity < 0 || rarity >= COMP_RARITY_COUNT do return false
+	if !zone_has_services(g.pos_x, g.pos_y) do return false
+	cost := comp_adopt_cost(rarity)
+	if g.qty_wood < cost do return false
+	g.qty_wood -= cost
+	g.comp_active = true
+	g.comp_species = -1
+	g.comp_trait = trait
+	g.comp_rarity = rarity
+	g.comp_loyalty = INITIAL_LOYALTY
+	g.comp_command_used = false
+	if g.cq1_adopted < CQ1_TARGET do g.cq1_adopted = CQ1_TARGET
+	return true
+}
+
+adopt_companion :: proc(g: ^Game_State, species_idx: int, rarity: int) -> bool {
+	if !can_act_map(g) do return false
+	if g.comp_active do return false
+	if rarity < 0 || rarity >= COMP_RARITY_COUNT do return false
+	def, ok := species_def(species_idx)
+	if !ok do return false
+	if def.biome_x >= 0 && g.pos_x % 3 != def.biome_x do return false
+	if def.biome_y >= 0 && g.pos_y % 3 != def.biome_y do return false
+	cost := comp_adopt_cost(rarity)
+	if !consume_material(g, def.material, cost) do return false
+	g.comp_active = true
+	g.comp_species = species_idx
+	g.comp_trait = int(def.trait_affinity)
+	g.comp_rarity = rarity
+	g.comp_loyalty = INITIAL_LOYALTY
+	g.comp_command_used = false
+	if g.cq1_adopted < CQ1_TARGET do g.cq1_adopted = CQ1_TARGET
+	return true
+}
+
+feed_companion :: proc(g: ^Game_State) -> bool {
+	if !can_act_map(g) do return false
+	if !zone_has_services(g.pos_x, g.pos_y) do return false
+	if !g.comp_active do return false
+	if g.comp_loyalty >= MAX_LOYALTY do return false
+	if g.qty_potion < 1 do return false
+	g.qty_potion -= 1
+	g.comp_loyalty = min(g.comp_loyalty + LOYALTY_GAIN, MAX_LOYALTY)
+	if g.comp_loyalty == MAX_LOYALTY && g.cq2_maxed < CQ2_TARGET do g.cq2_maxed = CQ2_TARGET
+	return true
+}
+
+dismiss_companion :: proc(g: ^Game_State) -> bool {
+	if !can_act_map(g) do return false
+	if !zone_has_services(g.pos_x, g.pos_y) do return false
+	if !g.comp_active do return false
+	g.comp_active = false
+	g.comp_species = -1
+	g.comp_trait = 0
+	g.comp_rarity = 0
+	g.comp_loyalty = 0
+	g.comp_command_used = false
+	return true
+}
+
+companion_command :: proc(g: ^Game_State) -> bool {
+	if !can_act_combat(g) do return false
+	if !g.comp_active do return false
+	if g.comp_loyalty < HIGH_LOYALTY do return false
+	if g.comp_command_used do return false
+	// Trait dispatch: Attacker/Scout grant ATK buff, Defender grants DEF buff,
+	// Support applies enemy poison. No species branching.
+	switch Comp_Trait(g.comp_trait) {
+	case .Attacker, .Scout: g.player_atk_buff_dur = STATUS_DURATION
+	case .Defender:         g.player_def_buff_dur = STATUS_DURATION
+	case .Support:          g.enemy_poison_dur    = STATUS_DURATION
+	}
+	g.comp_command_used = true
+	return true
+}
+
 // --- Salvage procs ---
 
 salvage_sword :: proc(g: ^Game_State) -> bool {
@@ -1242,6 +1490,14 @@ save_game :: proc(g: ^Game_State) -> bool {
 		q1_kills = g.q1_kills,
 		q2_zones = g.q2_zones,
 		q3_kills = g.q3_kills,
+		comp_active = g.comp_active,
+		comp_species = g.comp_species,
+		comp_trait = g.comp_trait,
+		comp_rarity = g.comp_rarity,
+		comp_loyalty = g.comp_loyalty,
+		cq1_adopted = g.cq1_adopted,
+		cq2_maxed = g.cq2_maxed,
+		cq3_wins = g.cq3_wins,
 	}
 	return true
 }
@@ -1286,6 +1542,15 @@ load_game :: proc(g: ^Game_State) -> bool {
 	g.q1_kills = s.q1_kills
 	g.q2_zones = s.q2_zones
 	g.q3_kills = s.q3_kills
+	g.comp_active = s.comp_active
+	g.comp_species = s.comp_species
+	g.comp_trait = s.comp_trait
+	g.comp_rarity = s.comp_rarity
+	g.comp_loyalty = s.comp_loyalty
+	g.comp_command_used = false
+	g.cq1_adopted = s.cq1_adopted
+	g.cq2_maxed = s.cq2_maxed
+	g.cq3_wins = s.cq3_wins
 	// Clear combat/status state (save is only outside combat)
 	g.in_combat = false
 	g.enemy_hp = 0
