@@ -104,7 +104,7 @@ See the HUD sidebar for zone-specific actions.
 ## Features
 
 - **World** — 9x9 grid, 5 difficulty levels, biome tiling (3x3 pattern repeats across regions), fog of war, HUD minimap, mouse hover tooltips, per-zone weather (Clear/Rain/Fog/Storm) affecting combat/gathering/movement, village waypoints with fast travel.
-- **Combat** — turn-based, stamina-gated actions, 3-hit combo chain with damage multipliers, cooldown abilities (heavy strike, battle cry, fortify, counter-attack), status effects (poison, ATK/DEF buffs) with turn-based ticking, enemy respawn timer (5-turn cooldown after a kill).
+- **Combat** — turn-based, stamina-gated actions, 3-hit combo chain with damage multipliers, cooldown abilities (heavy strike, battle cry, fortify, counter-attack), status effects (poison, ATK/DEF buffs) with turn-based ticking, enemy respawn timer (5-turn cooldown after a kill), dual weapon types (sword vs. battery-powered pistol; `weapon_type` gate routes combat actions).
 - **Bestiary** — data-driven catalog of 200 named enemies across 20 archetypes (4 per tier, 5 tiers), 6 trait tags (Undead/Beast/Elemental/Construct/Humanoid/Aberration), trait-keyed secondary loot drops.
 - **Elemental system** — 4-element cycle (Fire > Ice > Lightning > Earth > Fire) with 2x/1x/0.5x damage multipliers.
 - **Companions** — data-driven species catalog (Wolf/Hawk/Turtle/Fox/Bear/Owl/Lynx/Sprite) with biome-gated adoption, trait affinities (Attacker/Defender/Scout/Support), rarity tiers (Common/Rare/Legendary), loyalty-on-combat loop, in-combat command, and a 3-stage companion quest chain. The spec verifies the abstract (trait × rarity) effect space; Odin grows the catalog freely without code changes.
