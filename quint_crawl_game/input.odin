@@ -48,6 +48,9 @@ handle_map_input :: proc(app: ^App_State) {
 			name := qc.select_enemy_name(arch, g.pos_x, g.pos_y, g.turn_count)
 			app.current_archetype = arch
 			app.current_enemy_name = name
+			// Cache the trait on the pkg-layer state so resolve_loot can
+			// branch on it without the spec contract learning about traits.
+			g.enemy_trait = qc.ENEMY_ARCHETYPES[arch].trait
 			add_message(app, fmt.tprintf("A %s appears!", name), BAR_HP_FG)
 		} else if !g.in_combat && g.last_kill_turn != 0 && g.turn_count - g.last_kill_turn < qc.RESPAWN_TURNS {
 			remaining := qc.RESPAWN_TURNS - (g.turn_count - g.last_kill_turn)

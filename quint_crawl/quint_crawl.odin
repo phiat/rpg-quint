@@ -133,6 +133,10 @@ Save_Data :: struct {
 	skill_fortify: bool,
 	respec_count: int,
 	qty_venom_sac: int,
+	qty_holy_dust: int,
+	qty_pelt:      int,
+	qty_core:      int,
+	qty_essence:   int,
 	enemy_element: int,
 	enchant_slot_1: int,
 	enchant_slot_2: int,
@@ -208,6 +212,13 @@ Game_State :: struct {
 	respec_count:        int,
 	// Venom sac
 	qty_venom_sac:       int,
+	// Trait-keyed archetype loot (Odin-only, not in MBT spec contract)
+	qty_holy_dust:       int,  // Undead
+	qty_pelt:            int,  // Beast
+	qty_core:            int,  // Construct
+	qty_essence:         int,  // Elemental
+	// Active enemy archetype trait (set at enter_combat; drives resolve_loot branch)
+	enemy_trait:         Enemy_Trait,
 	// Elemental & Enchantment
 	enemy_element:       int,  // 0=none, 1=fire, 2=ice, 3=lightning, 4=earth
 	enchant_slot_1:      int,  // 0=empty, 1=fire, 2=ice, 3=vampiric, 4=lightning
@@ -514,6 +525,11 @@ init_game :: proc(g: ^Game_State) {
 	g.skill_fortify = false
 	g.respec_count = 0
 	g.qty_venom_sac = 0
+	g.qty_holy_dust = 0
+	g.qty_pelt = 0
+	g.qty_core = 0
+	g.qty_essence = 0
+	g.enemy_trait = .Aberration
 	g.enemy_element = 0
 	g.enchant_slot_1 = 0
 	g.enchant_slot_2 = 0
@@ -651,9 +667,10 @@ reset_cooldowns :: proc(g: ^Game_State) {
 }
 
 // Resolve loot drop on enemy defeat. Uses pre-increment turn for determinism (matches spec).
-// TODO(archetype-loot): future — branch loot table on the active enemy's
-// trait tag (Undead → holy dust, Beast → pelt, Construct → core, ...).
-// v1 ignores the archetype here so the spec contract stays unchanged.
+// Primary drop follows the zone-tier table (potion / venom sac). A secondary
+// trait-keyed drop fires on ~25% of kills, flavored by the archetype trait
+// cached on g.enemy_trait (set in input.enter_combat). The trait drop is
+// Odin-only — no spec fields are touched — so the MBT contract is preserved.
 resolve_loot :: proc(g: ^Game_State) {
 	// turn_count was already incremented before resolve_combat_hit, so use -1 to match spec
 	pre_turn := g.turn_count - 1
@@ -671,6 +688,30 @@ resolve_loot :: proc(g: ^Game_State) {
 	} else {
 		g.pity_counter += 1
 		g.last_drop = 0
+	}
+
+	// Trait-keyed secondary drop (~25%). Deterministic hash of position +
+	// turn, same style used elsewhere in the catalog. Aberration reuses the
+	// existing venom sac field; Humanoid bleeds out as bonus gold.
+	h := enemy_hash3(g.pos_x, g.pos_y, pre_turn + 911)
+	if h % 4 == 0 {
+		switch g.enemy_trait {
+		case .Undead:
+			g.qty_holy_dust += 1
+		case .Beast:
+			g.qty_pelt += 1
+		case .Construct:
+			g.qty_core += 1
+		case .Elemental:
+			g.qty_essence += 1
+		case .Humanoid:
+			g.gold += GOLD_PER_LEVEL
+		case .Aberration:
+			// Aberration reuses venom sac but respects inventory cap.
+			if total_items(g) < MAX_INVENTORY {
+				g.qty_venom_sac += 1
+			}
+		}
 	}
 }
 
@@ -1563,6 +1604,10 @@ save_game :: proc(g: ^Game_State) -> bool {
 		skill_fortify = g.skill_fortify,
 		respec_count = g.respec_count,
 		qty_venom_sac = g.qty_venom_sac,
+		qty_holy_dust = g.qty_holy_dust,
+		qty_pelt      = g.qty_pelt,
+		qty_core      = g.qty_core,
+		qty_essence   = g.qty_essence,
 		enemy_element = g.enemy_element,
 		enchant_slot_1 = g.enchant_slot_1,
 		enchant_slot_2 = g.enchant_slot_2,
@@ -1616,6 +1661,10 @@ load_game :: proc(g: ^Game_State) -> bool {
 	g.skill_fortify = s.skill_fortify
 	g.respec_count = s.respec_count
 	g.qty_venom_sac = s.qty_venom_sac
+	g.qty_holy_dust = s.qty_holy_dust
+	g.qty_pelt      = s.qty_pelt
+	g.qty_core      = s.qty_core
+	g.qty_essence   = s.qty_essence
 	g.enemy_element = s.enemy_element
 	g.enchant_slot_1 = s.enchant_slot_1
 	g.enchant_slot_2 = s.enchant_slot_2

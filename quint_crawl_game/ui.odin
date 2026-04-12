@@ -91,6 +91,23 @@ draw_hud :: proc(app: ^App_State) {
 		rl.DrawText(fmt.ctprintf("Venom Sacs: %d", g.qty_venom_sac), x + 8, y, 14, {100, 220, 50, 255})
 		y += 18
 	}
+	// Trait-keyed archetype drops (shown only when non-zero)
+	if g.qty_holy_dust > 0 {
+		rl.DrawText(fmt.ctprintf("Holy Dust: %d", g.qty_holy_dust), x + 8, y, 14, {240, 230, 170, 255})
+		y += 18
+	}
+	if g.qty_pelt > 0 {
+		rl.DrawText(fmt.ctprintf("Pelts: %d", g.qty_pelt), x + 8, y, 14, {200, 150, 90, 255})
+		y += 18
+	}
+	if g.qty_core > 0 {
+		rl.DrawText(fmt.ctprintf("Cores: %d", g.qty_core), x + 8, y, 14, {160, 180, 220, 255})
+		y += 18
+	}
+	if g.qty_essence > 0 {
+		rl.DrawText(fmt.ctprintf("Essence: %d", g.qty_essence), x + 8, y, 14, {180, 140, 230, 255})
+		y += 18
+	}
 
 	if g.has_sword {
 		dur_color := TEXT_BRIGHT if g.sword_dur > 3 else BAR_HP_FG
