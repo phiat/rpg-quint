@@ -178,7 +178,6 @@ Save_Data :: struct {
 	stamina:      int,
 	max_stamina:  int,
 	pity_counter: int,
-	last_drop_rarity: int,
 	pending_sword_rarity: int,
 	unique_drops_mask: int,
 	skill_points: int,
@@ -277,15 +276,16 @@ Game_State :: struct {
 	cd_fortify:          int,
 	// Loot
 	pity_counter:        int,
-	last_drop:           int,
-	last_drop_rarity:    int,
 	pending_sword_rarity: int,
 	// Bitfield of unique trophies collected (1 bit per zone tier 0..4).
 	unique_drops_mask:   int,
-	// Transient UI signal: rarity of sword gear dropped THIS kill (0 = none).
-	// Not serialized; cleared by the UI after it shows the toast.
+	// Transient UI signals — not serialized, not in spec. Cleared/reset
+	// per kill; read by input.odin to pick toast messages.
+	// last_drop: 0 = no drop, 1 = generic, 2 = venom.
+	last_drop:           int,
+	last_drop_rarity:    int,
 	last_sword_drop:     int,
-	// Transient: which unique bit (0..4) was just set this kill, or -1.
+	// -1 sentinel when no unique fired this kill.
 	last_unique_drop:    int,
 	// World state
 	turn_count:          int,

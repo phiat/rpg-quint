@@ -47,9 +47,7 @@ module quint_crawl {
   }
 
   type MetaState = {
-    game_won: bool, saved_exists: bool, pity_counter: int, last_drop: int,
-    // Rarity tier (0..3) of the most recent loot drop — UI hook.
-    last_drop_rarity: int,
+    game_won: bool, saved_exists: bool, pity_counter: int,
     // Rarity tier pending for the next equip_sword. Set when a rare+ sword
     // drops from loot; consumed (cleared) by equip_sword.
     pending_sword_rarity: int,
@@ -74,7 +72,7 @@ module quint_crawl {
   }
 
   // Result of the shared loot-drop helper (see compute_loot). Callers
-  // add potion_inc / venom_inc to inv and store new_pity / new_last_drop
+  // add potion_inc / venom_inc to inv and store new_pity
   // in meta directly.
   type LootDrop = {
     potion_inc: int,
@@ -82,8 +80,6 @@ module quint_crawl {
     holy_dust_inc: int,
     sword_inc: int,
     new_pity: int,
-    new_last_drop: int,
-    new_last_drop_rarity: int,
     new_pending_sword_rarity: int,
     new_unique_mask: int,
   }
@@ -407,8 +403,8 @@ module quint_crawl {
 
   // Shared loot-drop + pity logic used by every killing combat action.
   // Returns inventory increments (potion vs venom sac) and updated pity
-  // counter / last_drop marker. Kill-on-hit actions simply add the
-  // increments to inv' and copy new_pity / new_last_drop into meta'.
+  // counter. Kill-on-hit actions simply add the
+  // increments to inv' and copy new_pity into meta'.
   // Unique-drops bitfield helpers (5 bits, one per zone tier 0..4).
   pure def unique_bit_value(bit: int): int =
     if (bit == 0) 1 else if (bit == 1) 2 else if (bit == 2) 4
@@ -463,8 +459,6 @@ module quint_crawl {
       new_pity: if (should_drop) 0
                 else if (defeated_alive) m.pity_counter + 1
                 else m.pity_counter,
-      new_last_drop: if (drops_venom) 2 else if (should_drop) 1 else 0,
-      new_last_drop_rarity: rarity,
       new_pending_sword_rarity: if (sword_drop) rarity else m.pending_sword_rarity,
       new_unique_mask: if (unique_fires) set_unique(unique_mask_in, unique_bit) else unique_mask_in,
     }
@@ -572,8 +566,8 @@ module quint_crawl {
     w' = { pos_x: 0, pos_y: 0, turn_count: 0,
            visited: Set((0, 0)), waypoints: Set((0, 0)),
            chests_opened: Set() },
-    meta' = { game_won: false, saved_exists: false, pity_counter: 0, last_drop: 0,
-              last_drop_rarity: 0, pending_sword_rarity: 0, last_kill_turn: 0,
+    meta' = { game_won: false, saved_exists: false, pity_counter: 0,
+              pending_sword_rarity: 0, last_kill_turn: 0,
               q1_kills: 0, q2_zones: 0, q3_kills: 0,
               cq1_adopted: 0, cq2_maxed: 0, cq3_wins: 0,
               quest_rewards_claimed: 0,
@@ -690,7 +684,7 @@ module quint_crawl {
       eqp' = { ...eqp,
                has_armor: if (armor_broken) false else eqp.has_armor,
                armor_dur: if (armor_broken) 0 else new_armor_dur },
-      meta' = { ...meta, last_drop: 0 },
+      meta' = meta,
       // Loyalty tick: departure zeroes trait/rarity to match dismiss_companion
       // (keeps comp_inactive_zeroed invariant tight).
       comp' = if (comp.active and comp.loyalty - LOYALTY_COMBAT_COST <= 0)
@@ -763,8 +757,7 @@ module quint_crawl {
                unique_drops_mask: loot.new_unique_mask,
       },
       w' = { ...w, turn_count: w.turn_count + 1 },
-      meta' = { ...meta, pity_counter: loot.new_pity, last_drop: loot.new_last_drop,
-               last_drop_rarity: loot.new_last_drop_rarity,
+      meta' = { ...meta, pity_counter: loot.new_pity,
                pending_sword_rarity: loot.new_pending_sword_rarity,
                last_kill_turn: if (enemy_defeated_alive) w.turn_count else meta.last_kill_turn,
                q1_kills: if (enemy_defeated_alive and zone_tier == 1 and meta.q1_kills < Q1_TARGET) meta.q1_kills + 1 else meta.q1_kills,
@@ -972,8 +965,7 @@ module quint_crawl {
       },
       eqp' = eqp,
       w' = { ...w, turn_count: w.turn_count + 1 },
-      meta' = { ...meta, pity_counter: loot.new_pity, last_drop: loot.new_last_drop,
-               last_drop_rarity: loot.new_last_drop_rarity,
+      meta' = { ...meta, pity_counter: loot.new_pity,
                pending_sword_rarity: loot.new_pending_sword_rarity,
                last_kill_turn: if (enemy_defeated_alive) w.turn_count else meta.last_kill_turn,
                q1_kills: if (enemy_defeated_alive and zone_tier == 1 and meta.q1_kills < Q1_TARGET) meta.q1_kills + 1 else meta.q1_kills,
@@ -1057,8 +1049,7 @@ module quint_crawl {
       },
       eqp' = eqp,
       w' = { ...w, turn_count: w.turn_count + 1 },
-      meta' = { ...meta, pity_counter: loot.new_pity, last_drop: loot.new_last_drop,
-               last_drop_rarity: loot.new_last_drop_rarity,
+      meta' = { ...meta, pity_counter: loot.new_pity,
                pending_sword_rarity: loot.new_pending_sword_rarity,
                last_kill_turn: if (enemy_defeated_alive) w.turn_count else meta.last_kill_turn,
                q1_kills: if (enemy_defeated_alive and zone_tier == 1 and meta.q1_kills < Q1_TARGET) meta.q1_kills + 1 else meta.q1_kills,
@@ -1370,8 +1361,7 @@ module quint_crawl {
                unique_drops_mask: loot.new_unique_mask,
       },
       w' = { ...w, turn_count: w.turn_count + 1 },
-      meta' = { ...meta, pity_counter: loot.new_pity, last_drop: loot.new_last_drop,
-               last_drop_rarity: loot.new_last_drop_rarity,
+      meta' = { ...meta, pity_counter: loot.new_pity,
                pending_sword_rarity: loot.new_pending_sword_rarity,
                last_kill_turn: if (enemy_defeated_alive) w.turn_count else meta.last_kill_turn,
                q1_kills: if (enemy_defeated_alive and zone_tier == 1 and meta.q1_kills < Q1_TARGET) meta.q1_kills + 1 else meta.q1_kills,
@@ -1443,8 +1433,7 @@ module quint_crawl {
                unique_drops_mask: loot.new_unique_mask,
       },
       w' = { ...w, turn_count: w.turn_count + 1 },
-      meta' = { ...meta, pity_counter: loot.new_pity, last_drop: loot.new_last_drop,
-               last_drop_rarity: loot.new_last_drop_rarity,
+      meta' = { ...meta, pity_counter: loot.new_pity,
                pending_sword_rarity: loot.new_pending_sword_rarity,
                last_kill_turn: if (enemy_defeated_alive) w.turn_count else meta.last_kill_turn,
                q1_kills: if (enemy_defeated_alive and zone_tier == 1 and meta.q1_kills < Q1_TARGET) meta.q1_kills + 1 else meta.q1_kills,
@@ -1685,8 +1674,7 @@ module quint_crawl {
                unique_drops_mask: loot.new_unique_mask,
       },
       w' = { ...w, turn_count: w.turn_count + 1 },
-      meta' = { ...meta, pity_counter: loot.new_pity, last_drop: loot.new_last_drop,
-               last_drop_rarity: loot.new_last_drop_rarity,
+      meta' = { ...meta, pity_counter: loot.new_pity,
                pending_sword_rarity: loot.new_pending_sword_rarity,
                last_kill_turn: if (enemy_defeated_alive) w.turn_count else meta.last_kill_turn,
                q1_kills: if (enemy_defeated_alive and zone_tier == 1 and meta.q1_kills < Q1_TARGET) meta.q1_kills + 1 else meta.q1_kills,
@@ -1784,8 +1772,7 @@ module quint_crawl {
                unique_drops_mask: loot.new_unique_mask,
       },
       w' = { ...w, turn_count: w.turn_count + 1 },
-      meta' = { ...meta, pity_counter: loot.new_pity, last_drop: loot.new_last_drop,
-               last_drop_rarity: loot.new_last_drop_rarity,
+      meta' = { ...meta, pity_counter: loot.new_pity,
                pending_sword_rarity: loot.new_pending_sword_rarity,
                last_kill_turn: if (enemy_defeated_alive) w.turn_count else meta.last_kill_turn,
                q1_kills: if (enemy_defeated_alive and zone_tier == 1 and meta.q1_kills < Q1_TARGET) meta.q1_kills + 1 else meta.q1_kills,
@@ -2308,7 +2295,6 @@ module quint_crawl {
 
   /// Sword rarity in valid range
   val sword_rarity_bounded = eqp.sword_rarity >= 0 and eqp.sword_rarity <= MAX_SWORD_RARITY
-  val last_drop_rarity_bounded = meta.last_drop_rarity >= 0 and meta.last_drop_rarity <= MAX_SWORD_RARITY
   val pending_sword_rarity_bounded = meta.pending_sword_rarity >= 0 and meta.pending_sword_rarity <= MAX_SWORD_RARITY
   val unique_mask_bounded = inv.unique_drops_mask >= 0 and inv.unique_drops_mask <= MAX_UNIQUE_MASK
 
