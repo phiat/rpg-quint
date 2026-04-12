@@ -87,6 +87,7 @@ ENCHANT_COST :: 25
 ENCHANT_IRON_COST :: 1
 ENCHANT_VENOM_COST :: 1
 MAX_INVENTORY :: 30
+BATTERY_CAP :: 20
 CRAFT_LEVEL_REQ :: 2
 SALVAGE_WOOD_BASE :: 0
 SALVAGE_IRON_BASE :: 1
@@ -134,6 +135,7 @@ Save_Data :: struct {
 	skill_fortify: bool,
 	respec_count: int,
 	qty_venom_sac: int,
+	qty_battery:   int,
 	qty_holy_dust: int,
 	qty_pelt:      int,
 	qty_core:      int,
@@ -216,6 +218,8 @@ Game_State :: struct {
 	respec_count:        int,
 	// Venom sac
 	qty_venom_sac:       int,
+	// Battery (future-tech power cell for pistols / oracle shards)
+	qty_battery:         int,
 	// Trait-keyed archetype loot (Odin-only, not in MBT spec contract).
 	// All six fields are invisible to the getter so the spec contract
 	// stays untouched. Humanoid and Aberration intentionally do NOT reuse
@@ -478,7 +482,7 @@ attack_power :: proc(g: ^Game_State) -> int {
 }
 
 total_items :: proc(g: ^Game_State) -> int {
-	return g.qty_potion + g.qty_wood + g.qty_iron + g.qty_sword + g.qty_venom_sac +
+	return g.qty_potion + g.qty_wood + g.qty_iron + g.qty_sword + g.qty_venom_sac + g.qty_battery +
 		g.qty_holy_dust + g.qty_pelt + g.qty_core + g.qty_essence + g.qty_coin + g.qty_ichor
 }
 
@@ -536,6 +540,7 @@ init_game :: proc(g: ^Game_State) {
 	g.skill_fortify = false
 	g.respec_count = 0
 	g.qty_venom_sac = 0
+	g.qty_battery = 0
 	g.qty_holy_dust = 0
 	g.qty_pelt = 0
 	g.qty_core = 0
@@ -1615,6 +1620,7 @@ save_game :: proc(g: ^Game_State) -> bool {
 		skill_fortify = g.skill_fortify,
 		respec_count = g.respec_count,
 		qty_venom_sac = g.qty_venom_sac,
+		qty_battery = g.qty_battery,
 		qty_holy_dust = g.qty_holy_dust,
 		qty_pelt      = g.qty_pelt,
 		qty_core      = g.qty_core,
@@ -1675,6 +1681,7 @@ load_game :: proc(g: ^Game_State) -> bool {
 	g.skill_fortify = s.skill_fortify
 	g.respec_count = s.respec_count
 	g.qty_venom_sac = s.qty_venom_sac
+	g.qty_battery = s.qty_battery
 	g.qty_holy_dust = s.qty_holy_dust
 	g.qty_pelt      = s.qty_pelt
 	g.qty_core      = s.qty_core

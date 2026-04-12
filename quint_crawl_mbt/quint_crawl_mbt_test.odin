@@ -200,6 +200,7 @@ crawl_state :: proc(driver: rawptr) -> map[string]mbt.ITF_Value {
 	inv["has_sword"] = mbt.ITF_Bool{g.has_sword}
 	inv["qty_venom_sac"] = mbt.ITF_Int{g.qty_venom_sac}
 	inv["salvage_level"] = mbt.ITF_Int{g.salvage_level}
+	inv["qty_battery"] = mbt.ITF_Int{g.qty_battery}
 	state["inv"] = mbt.ITF_Record{inv}
 
 	// eqp: EquipState

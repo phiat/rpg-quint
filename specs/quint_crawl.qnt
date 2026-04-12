@@ -12,6 +12,7 @@ module quint_crawl {
   type InvState = {
     qty_potion: int, qty_wood: int, qty_iron: int, qty_sword: int,
     has_sword: bool, qty_venom_sac: int, salvage_level: int,
+    qty_battery: int,
   }
 
   type EquipState = {
@@ -134,6 +135,7 @@ module quint_crawl {
   val ENCHANT_IRON_COST = 1
   val ENCHANT_VENOM_COST = 1
   val MAX_INVENTORY = 30
+  val BATTERY_CAP = 20
   val CRAFT_LEVEL_REQ = 2
   val SALVAGE_WOOD_BASE = 0
   val SALVAGE_IRON_BASE = 1
@@ -304,7 +306,7 @@ module quint_crawl {
   val player_elem_mult = damage_multiplier(player_element, cb.enemy_element)
 
   // --- Inventory helpers ---
-  val total_items = inv.qty_potion + inv.qty_wood + inv.qty_iron + inv.qty_sword + inv.qty_venom_sac
+  val total_items = inv.qty_potion + inv.qty_wood + inv.qty_iron + inv.qty_sword + inv.qty_venom_sac + inv.qty_battery
 
   // Salvage recovery
   pure def salvage_wood_yield(slvl: int): int = SALVAGE_WOOD_BASE + (slvl - 1)
@@ -332,6 +334,7 @@ module quint_crawl {
     inv' = {
       qty_potion: INITIAL_POTIONS, qty_wood: 0, qty_iron: 0, qty_sword: 0,
       has_sword: false, qty_venom_sac: 0, salvage_level: 1,
+      qty_battery: 0,
     },
     eqp' = {
       sword_dur: 0, sword_max_dur: SWORD_MAX_DUR,
@@ -1514,6 +1517,9 @@ module quint_crawl {
 
   /// Weapon type bounded (0=sword, 1=pistol)
   val weapon_type_bounded = eqp.weapon_type >= 0 and eqp.weapon_type <= 1
+
+  /// Battery quantity bounded [0, BATTERY_CAP]
+  val qty_battery_bounded = inv.qty_battery >= 0 and inv.qty_battery <= BATTERY_CAP
 
   /// Pistols cannot hold enchantments (energy weapons ignore arcane runes)
   val pistol_no_enchants = (eqp.weapon_type == 1).implies(
