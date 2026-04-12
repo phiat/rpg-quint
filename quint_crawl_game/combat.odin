@@ -111,7 +111,8 @@ draw_combat :: proc(app: ^App_State) {
 	def_color: rl.Color = {100, 180, 255, 255} if g.player_def_buff_dur > 0 else TEXT_BRIGHT
 	if g.has_sword {
 		dur_color := TEXT_BRIGHT if g.sword_dur > 3 else BAR_HP_FG
-		rl.DrawText(fmt.ctprintf("ATK: %d  Sword: %d/%d", atk, g.sword_dur, g.sword_max_dur), 200, player_cy + 48, 16, dur_color)
+		weap_color := rarity_text_color(g.sword_rarity) if g.sword_rarity > 0 else dur_color
+		rl.DrawText(fmt.ctprintf("ATK: %d  %s: %d/%d", atk, sword_rarity_name(g.sword_rarity), g.sword_dur, g.sword_max_dur), 200, player_cy + 48, 16, weap_color)
 	} else {
 		rl.DrawText(fmt.ctprintf("ATK: %d", atk), 200, player_cy + 48, 16, TEXT_BRIGHT)
 	}

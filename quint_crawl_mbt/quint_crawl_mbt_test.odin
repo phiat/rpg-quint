@@ -292,6 +292,7 @@ crawl_state :: proc(driver: rawptr) -> map[string]mbt.ITF_Value {
 	eqp := make(map[string]mbt.ITF_Value)
 	eqp["sword_dur"] = mbt.ITF_Int{g.sword_dur}
 	eqp["sword_max_dur"] = mbt.ITF_Int{g.sword_max_dur}
+	eqp["sword_rarity"] = mbt.ITF_Int{g.sword_rarity}
 	eqp["enchant_slot_1"] = mbt.ITF_Int{g.enchant_slot_1}
 	eqp["enchant_slot_2"] = mbt.ITF_Int{g.enchant_slot_2}
 	eqp["enchant_slot_3"] = mbt.ITF_Int{g.enchant_slot_3}
@@ -438,7 +439,7 @@ test_save_load_round_trip :: proc(t: ^testing.T) {
 	g.skill_points = 2;    g.skill_combo = true;  g.skill_heavy_strike = true
 	g.qty_potion = 3;      g.qty_wood = 7;        g.qty_iron = 5
 	g.qty_sword = 1;       g.has_sword = true
-	g.sword_dur = 6;       g.sword_max_dur = 10
+	g.sword_dur = 6;       g.sword_max_dur = 10; g.sword_rarity = 2
 	g.weapon_type = 0
 	g.enchant_slot_1 = 1;  g.enchant_slot_2 = 3
 	g.qty_venom_sac = 2;   g.qty_holy_dust = 4;   g.qty_scroll_fire = 1
@@ -466,7 +467,7 @@ test_save_load_round_trip :: proc(t: ^testing.T) {
 	g.skill_points = 0;    g.skill_combo = false; g.skill_heavy_strike = false
 	g.qty_potion = 0;      g.qty_wood = 0;        g.qty_iron = 0
 	g.qty_sword = 0;       g.has_sword = false
-	g.sword_dur = 0;       g.sword_max_dur = 0
+	g.sword_dur = 0;       g.sword_max_dur = 0; g.sword_rarity = 0
 	g.weapon_type = 99
 	g.enchant_slot_1 = 0;  g.enchant_slot_2 = 0
 	g.qty_venom_sac = 0;   g.qty_holy_dust = 0;   g.qty_scroll_fire = 0
@@ -504,6 +505,7 @@ test_save_load_round_trip :: proc(t: ^testing.T) {
 	testing.expect_value(t, g.has_sword, true)
 	testing.expect_value(t, g.sword_dur, 6)
 	testing.expect_value(t, g.sword_max_dur, 10)
+	testing.expect_value(t, g.sword_rarity, 2)
 	testing.expect_value(t, g.weapon_type, 0)
 	testing.expect_value(t, g.enchant_slot_1, 1)
 	testing.expect_value(t, g.enchant_slot_2, 3)

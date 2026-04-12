@@ -21,6 +21,7 @@ module quint_crawl {
 
   type EquipState = {
     sword_dur: int, sword_max_dur: int,
+    sword_rarity: int, // 0=common, 1=rare, 2=epic, 3=legendary
     enchant_slot_1: int, enchant_slot_2: int, enchant_slot_3: int,
     weapon_type: int, // 0=sword, 1=pistol, 2=staff
     trinket: int,     // 0=none, 1=vitality(+max_hp)
@@ -93,6 +94,14 @@ module quint_crawl {
   val FORTIFY_DEF_REDUCTION = 5
   val STATUS_DURATION = 3
   val SWORD_ATK_BONUS = 5
+  // Sword rarity bonus table: common=+5, rare=+6, epic=+7, legendary=+10.
+  // Integer math; matches the ~1.0/1.2/1.5/2.0 multiplier on SWORD_ATK_BONUS.
+  pure def rarity_sword_bonus(r: int): int =
+    if (r == 3) 10
+    else if (r == 2) 7
+    else if (r == 1) 6
+    else 5
+  val MAX_SWORD_RARITY = 3
   val WEATHER_CYCLE = 5
   val STORM_MOVE_DMG = 4
   val FOG_ATK_PENALTY = 2
@@ -448,7 +457,7 @@ module quint_crawl {
   // Fog reduces player visibility — the same FOG_ATK_PENALTY that was already cutting the enemy now
   // also bites the player's offense, so fog becomes a real trade rather than a free upside.
   val fog_penalty_now = if (zone_weather(w.pos_x, w.pos_y, w.turn_count + 1) == 2) FOG_ATK_PENALTY else 0
-  val weapon_flat_bonus = if (inv.has_sword and eqp.sword_dur > 0) SWORD_ATK_BONUS
+  val weapon_flat_bonus = if (inv.has_sword and eqp.sword_dur > 0) rarity_sword_bonus(eqp.sword_rarity)
                           else if (eqp.weapon_type == 3) DAGGER_ATK_BONUS
                           else 0
   val attack_power_raw = ch.base_attack + weapon_flat_bonus + (if (cb.player_atk_buff_dur > 0) ATK_BUFF_BONUS else 0) + enchant_atk_bonus + comp_atk_bonus - fog_penalty_now
@@ -494,6 +503,7 @@ module quint_crawl {
     },
     eqp' = {
       sword_dur: 0, sword_max_dur: SWORD_MAX_DUR,
+      sword_rarity: 0,
       enchant_slot_1: 0, enchant_slot_2: 0, enchant_slot_3: 0,
       weapon_type: 0,
       trinket: 0,
@@ -1058,7 +1068,8 @@ module quint_crawl {
     not(cb.in_combat), not(meta.game_won), ch.hp > 0,
     inv.qty_sword >= 1, not(inv.has_sword),
     inv' = { ...inv, has_sword: true, qty_sword: inv.qty_sword - 1 },
-    eqp' = { ...eqp, sword_dur: SWORD_MAX_DUR, enchant_slot_1: 0, enchant_slot_2: 0, enchant_slot_3: 0 },
+    // Crafted swords are Common (rarity 0). Rare+ swords come from loot drops.
+    eqp' = { ...eqp, sword_dur: SWORD_MAX_DUR, sword_rarity: 0, enchant_slot_1: 0, enchant_slot_2: 0, enchant_slot_3: 0 },
     ch' = ch,
     cb' = cb,
     w' = { ...w, turn_count: w.turn_count + 1 },
@@ -2178,6 +2189,9 @@ module quint_crawl {
 
   /// Max durability is constant
   val dur_max_constant = eqp.sword_max_dur == SWORD_MAX_DUR
+
+  /// Sword rarity in valid range
+  val sword_rarity_bounded = eqp.sword_rarity >= 0 and eqp.sword_rarity <= MAX_SWORD_RARITY
 
   /// Broken sword gives no attack bonus: neither SWORD_ATK_BONUS nor enchant atk.
   /// (ATK buff and companion atk bonuses are independent and may still apply.

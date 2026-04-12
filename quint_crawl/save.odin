@@ -19,6 +19,7 @@ save_game :: proc(g: ^Game_State) -> bool {
 		has_sword    = g.has_sword,
 		sword_dur    = g.sword_dur,
 		sword_max_dur = g.sword_max_dur,
+		sword_rarity = g.sword_rarity,
 		weapon_type  = g.weapon_type,
 		trinket      = g.trinket,
 		has_shield   = g.has_shield,
@@ -98,6 +99,7 @@ load_game :: proc(g: ^Game_State) -> bool {
 	g.has_sword = s.has_sword
 	g.sword_dur = s.sword_dur
 	g.sword_max_dur = s.sword_max_dur
+	g.sword_rarity = s.sword_rarity
 	g.weapon_type = s.weapon_type
 	g.trinket = s.trinket
 	g.has_shield = s.has_shield

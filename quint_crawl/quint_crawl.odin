@@ -64,6 +64,7 @@ COMP_TRAIT_COUNT       :: 4
 COMP_RARITY_COUNT      :: 3
 ADOPT_BASE_COST        :: 1   // wood cost baseline; scales with rarity
 SWORD_ATK_BONUS :: 5
+MAX_SWORD_RARITY :: 3 // 0=common, 1=rare, 2=epic, 3=legendary
 DAGGER_UNLOCK_COST :: 35
 DAGGER_ATK_BONUS :: 3
 DAGGER_STAMINA :: 1
@@ -165,6 +166,7 @@ Save_Data :: struct {
 	has_sword:    bool,
 	sword_dur:    int,
 	sword_max_dur: int,
+	sword_rarity: int, // 0=common, 1=rare, 2=epic, 3=legendary
 	weapon_type:  int,
 	trinket:      int,
 	has_shield:   bool,
@@ -240,6 +242,7 @@ Game_State :: struct {
 	has_sword:    bool,
 	sword_dur:    int,
 	sword_max_dur: int,
+	sword_rarity: int,
 	weapon_type:  int, // 0=sword, 1=pistol, 2=staff
 	trinket:      int,
 	has_shield:   bool,
@@ -571,10 +574,21 @@ def_reduction_active :: proc(g: ^Game_State) -> int {
 	return 0
 }
 
+// Rarity-scaled sword bonus. Mirrors rarity_sword_bonus in specs/quint_crawl.qnt.
+// Integer math: 5/6/7/10 maps to ~1.0/1.2/1.5/2.0 × SWORD_ATK_BONUS.
+rarity_sword_bonus :: proc(rarity: int) -> int {
+	switch rarity {
+	case 3: return 10
+	case 2: return 7
+	case 1: return 6
+	case:   return 5
+	}
+}
+
 attack_power :: proc(g: ^Game_State) -> int {
 	weapon_bonus := 0
 	if g.has_sword && g.sword_dur > 0 {
-		weapon_bonus = SWORD_ATK_BONUS
+		weapon_bonus = rarity_sword_bonus(g.sword_rarity)
 	} else if g.weapon_type == 3 {
 		weapon_bonus = DAGGER_ATK_BONUS
 	}
@@ -628,6 +642,7 @@ init_game :: proc(g: ^Game_State) {
 	g.has_sword = false
 	g.sword_dur = 0
 	g.sword_max_dur = SWORD_MAX_DUR
+	g.sword_rarity = 0
 	g.weapon_type = 0
 	g.trinket = 0
 	g.has_shield = false

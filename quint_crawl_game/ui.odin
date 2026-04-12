@@ -116,7 +116,9 @@ draw_hud :: proc(app: ^App_State) {
 	// Weapon (reflects weapon_type: 0=sword, 1=pistol, 2=staff)
 	if g.has_sword {
 		dur_color := TEXT_BRIGHT if g.sword_dur > 3 else BAR_HP_FG
-		rl.DrawText(fmt.ctprintf("Sword: %d/%d dur", g.sword_dur, g.sword_max_dur), x + 8, y, 14, dur_color)
+		rarity_color := rarity_text_color(g.sword_rarity)
+		name := sword_rarity_name(g.sword_rarity)
+		rl.DrawText(fmt.ctprintf("%s: %d/%d dur", name, g.sword_dur, g.sword_max_dur), x + 8, y, 14, rarity_color if g.sword_rarity > 0 else dur_color)
 		y += 18
 		// Enchantment slots
 		slots := [3]int{g.enchant_slot_1, g.enchant_slot_2, g.enchant_slot_3}

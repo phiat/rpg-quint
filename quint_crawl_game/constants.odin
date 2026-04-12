@@ -59,6 +59,25 @@ ENEMY_COLORS := [qc.MAX_LEVEL]rl.Color{
 
 ENEMY_NAMES := [qc.MAX_LEVEL]string{"Slime", "Skeleton", "Wolf", "Wraith", "Dragon"}
 
+// Sword rarity tiers (0=common, 1=rare, 2=epic, 3=legendary)
+SWORD_RARITY_NAMES := [4]string{"Sword", "Rare Sword", "Epic Sword", "Legendary Sword"}
+SWORD_RARITY_COLORS := [4]rl.Color{
+	TEXT_BRIGHT,                 // common
+	{100, 180, 255, 255},        // rare: blue
+	{200, 100, 255, 255},        // epic: purple
+	{255, 200, 50, 255},         // legendary: gold
+}
+
+sword_rarity_name :: proc(r: int) -> string {
+	if r < 0 || r >= len(SWORD_RARITY_NAMES) do return SWORD_RARITY_NAMES[0]
+	return SWORD_RARITY_NAMES[r]
+}
+
+rarity_text_color :: proc(r: int) -> rl.Color {
+	if r < 0 || r >= len(SWORD_RARITY_COLORS) do return SWORD_RARITY_COLORS[0]
+	return SWORD_RARITY_COLORS[r]
+}
+
 // Enchantment names/colors (0=empty, 1=fire, 2=ice, 3=vampiric, 4=lightning)
 ENCH_NAMES := [5]string{"Empty", "Fire", "Ice", "Vampiric", "Lightning"}
 ENCH_COLORS := [5]rl.Color{
