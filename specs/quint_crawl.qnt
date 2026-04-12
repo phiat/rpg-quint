@@ -91,7 +91,7 @@ module quint_crawl {
   val HEAVY_STRIKE_STAMINA = 5
   val BATTLE_CRY_STAMINA = 3
   val HEAVY_STRIKE_CD = 3
-  val BATTLE_CRY_CD = 4
+  val BATTLE_CRY_CD = 2
   val PITY_THRESHOLD = 8
   // Quest targets (Q1: slime slayer, Q2: venture forth, Q3: castle conqueror)
   val Q1_TARGET = 2
@@ -164,8 +164,8 @@ module quint_crawl {
   val BASE_ENEMY_ATK = 2
   val ATK_PER_LEVEL = 4
   val BASE_XP = 5
-  val BASE_GOLD = 3
-  val GOLD_PER_LEVEL = 3
+  val BASE_GOLD = 8
+  val GOLD_PER_LEVEL = 2
 
   // Weather types: 0=Clear, 1=Rain, 2=Fog, 3=Storm
   pure def zone_weather(x: int, y: int, turn: int): int =
@@ -304,8 +304,10 @@ module quint_crawl {
   // Returns inventory increments (potion vs venom sac) and updated pity
   // counter / last_drop marker. Kill-on-hit actions simply add the
   // increments to inv' and copy new_pity / new_last_drop into meta'.
-  pure def compute_loot(m: MetaState, tot: int, defeated_alive: bool, turn_count: int, zone_tier: int): LootDrop = {
-    val drop_trigger = (m.pity_counter >= PITY_THRESHOLD or (turn_count % LOOT_DROP_MODULO == 0))
+  pure def compute_loot(m: MetaState, tot: int, defeated_alive: bool, turn_count: int, zone_tier: int, nonce: int): LootDrop = {
+    // Nonce (caller passes ch.xp) desyncs the periodic drop pattern from
+    // turn_count alone so players can't kill-sync to turn_count % N == 0.
+    val drop_trigger = (m.pity_counter >= PITY_THRESHOLD or ((turn_count + nonce) % LOOT_DROP_MODULO == 0))
     val should_drop = defeated_alive and drop_trigger and tot < MAX_INVENTORY
     val drops_venom = should_drop and zone_tier >= POISON_APPLY_TIER
     {
@@ -528,7 +530,7 @@ module quint_crawl {
     val combat_ends = (new_enemy_hp <= 0 or new_hp <= 0)
     // Loot drop on enemy defeat
     val enemy_defeated_alive = (new_enemy_hp <= 0 and new_hp > 0)
-    val loot = compute_loot(meta, total_items, enemy_defeated_alive, w.turn_count, zone_tier)
+    val loot = compute_loot(meta, total_items, enemy_defeated_alive, w.turn_count, zone_tier, ch.xp)
     all {
       ch' = { ...ch,
               hp: if (new_hp < 0) 0 else new_hp,
@@ -799,7 +801,7 @@ module quint_crawl {
                           else next_combo
     // Loot drop on enemy defeat
     val enemy_defeated_alive = (new_enemy_hp <= 0 and new_hp > 0)
-    val loot = compute_loot(meta, total_items, enemy_defeated_alive, w.turn_count, zone_tier)
+    val loot = compute_loot(meta, total_items, enemy_defeated_alive, w.turn_count, zone_tier, ch.xp)
     all {
       ch' = { ...ch,
               hp: if (new_hp < 0) 0 else new_hp,
@@ -863,7 +865,7 @@ module quint_crawl {
     val ticked = tick_statuses(cb, apply_poison)
     val combat_ends = (new_enemy_hp <= 0 or new_hp <= 0)
     val enemy_defeated_alive = (new_enemy_hp <= 0 and new_hp > 0)
-    val loot = compute_loot(meta, total_items, enemy_defeated_alive, w.turn_count, zone_tier)
+    val loot = compute_loot(meta, total_items, enemy_defeated_alive, w.turn_count, zone_tier, ch.xp)
     all {
       ch' = { ...ch,
               hp: if (new_hp < 0) 0 else new_hp,
@@ -1094,7 +1096,7 @@ module quint_crawl {
     val ticked = tick_statuses(cb, apply_poison)
     val dur_cost = if (inv.has_sword and eqp.sword_dur > 0) 1 else 0
     val enemy_defeated_alive = (final_enemy_hp <= 0 and new_hp > 0)
-    val loot = compute_loot(meta, total_items, enemy_defeated_alive, w.turn_count, zone_tier)
+    val loot = compute_loot(meta, total_items, enemy_defeated_alive, w.turn_count, zone_tier, ch.xp)
     all {
       ch' = { ...ch,
               hp: if (new_hp < 0) 0 else new_hp,
@@ -1112,7 +1114,7 @@ module quint_crawl {
               enemy_element: if (combat_ends) 0 else cb.enemy_element,
               combo_count: 0,
               player_poison_dur: if (combat_ends) 0 else ticked.player_poison_dur,
-              player_atk_buff_dur: if (combat_ends) 0 else ticked.player_atk_buff_dur,
+              player_atk_buff_dur: if (combat_ends) 0 else STATUS_DURATION,
               player_def_buff_dur: if (combat_ends) 0 else STATUS_DURATION,
               enemy_poison_dur: if (combat_ends) 0 else ticked.enemy_poison_dur,
               cd_heavy_strike: if (combat_ends) 0 else ticked.cd_heavy_strike,
@@ -1187,7 +1189,7 @@ module quint_crawl {
     val ticked = tick_statuses(cb, apply_poison)
     val combat_ends = (new_enemy_hp <= 0 or new_hp <= 0)
     val enemy_defeated_alive = (new_enemy_hp <= 0 and new_hp > 0)
-    val loot = compute_loot(meta, total_items, enemy_defeated_alive, w.turn_count, zone_tier)
+    val loot = compute_loot(meta, total_items, enemy_defeated_alive, w.turn_count, zone_tier, ch.xp)
     all {
       ch' = { ...ch,
               hp: if (new_hp < 0) 0 else new_hp,

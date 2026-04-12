@@ -17,8 +17,8 @@ BASE_ENEMY_HP :: 20    // enemy HP at level 1
 BASE_ENEMY_ATK :: 2    // enemy ATK constant term
 ATK_PER_LEVEL :: 4     // enemy ATK per level
 BASE_XP :: 5           // XP reward per level
-BASE_GOLD :: 3         // gold reward constant term
-GOLD_PER_LEVEL :: 3    // gold reward per level
+BASE_GOLD :: 8         // gold reward constant term
+GOLD_PER_LEVEL :: 2    // gold reward per level
 
 SWORD_MAX_DUR :: 10
 REPAIR_COST :: 5
@@ -36,7 +36,7 @@ COMBO_STAMINA :: 3
 HEAVY_STRIKE_STAMINA :: 5
 BATTLE_CRY_STAMINA :: 3
 HEAVY_STRIKE_CD :: 3
-BATTLE_CRY_CD :: 4
+BATTLE_CRY_CD :: 2
 PITY_THRESHOLD :: 8
 // Quest targets
 Q1_TARGET :: 2  // slime kills
@@ -695,7 +695,9 @@ reset_cooldowns :: proc(g: ^Game_State) {
 resolve_loot :: proc(g: ^Game_State) {
 	// turn_count was already incremented before resolve_combat_hit, so use -1 to match spec
 	pre_turn := g.turn_count - 1
-	should_drop := (g.pity_counter >= PITY_THRESHOLD || (pre_turn % LOOT_DROP_MODULO == 0)) && total_items(g) < MAX_INVENTORY
+	// ch.xp in spec is the pre-kill value; Odin has already granted the xp reward by now.
+	pre_xp := g.xp - zone_xp_reward(g.pos_x, g.pos_y)
+	should_drop := (g.pity_counter >= PITY_THRESHOLD || ((pre_turn + pre_xp) % LOOT_DROP_MODULO == 0)) && total_items(g) < MAX_INVENTORY
 	if should_drop {
 		zlvl := zone_level(g.pos_x, g.pos_y)
 		if zlvl >= POISON_APPLY_TIER {
@@ -1381,8 +1383,9 @@ counter_attack :: proc(g: ^Game_State) -> bool {
 			}
 		}
 	} else {
-		// Grant DEF buff on counter
+		// Grant DEF + ATK buffs on counter (atk buff differentiates from shield_block)
 		g.player_def_buff_dur = STATUS_DURATION
+		g.player_atk_buff_dur = STATUS_DURATION
 		// Tick statuses
 		zone_tier := zone_level(g.pos_x, g.pos_y)
 		if zone_tier >= POISON_APPLY_TIER && g.player_poison_dur == 0 {
@@ -1390,7 +1393,6 @@ counter_attack :: proc(g: ^Game_State) -> bool {
 		} else if g.player_poison_dur > 0 {
 			g.player_poison_dur -= 1
 		}
-		if g.player_atk_buff_dur > 0 do g.player_atk_buff_dur -= 1
 		if g.enemy_poison_dur > 0 do g.enemy_poison_dur -= 1
 		tick_cooldowns(g)
 	}
