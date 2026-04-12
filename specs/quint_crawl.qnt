@@ -34,6 +34,7 @@ module quint_crawl {
   type MetaState = {
     game_won: bool, saved_exists: bool, pity_counter: int, last_drop: int,
     last_kill_turn: int,
+    q1_kills: int, q2_zones: int, q3_kills: int,
   }
 
   // === State variables ===
@@ -63,6 +64,10 @@ module quint_crawl {
   val HEAVY_STRIKE_CD = 3
   val BATTLE_CRY_CD = 4
   val PITY_THRESHOLD = 8
+  // Quest targets (Q1: slime slayer, Q2: venture forth, Q3: castle conqueror)
+  val Q1_TARGET = 2
+  val Q2_TARGET = 3
+  val Q3_TARGET = 2
   val POTION_COST = 15
   val HP_PER_LEVEL = 15
   val ATK_PER_LEVEL_UP = 2
@@ -206,6 +211,13 @@ module quint_crawl {
     if (raw < 1) 1 else raw
   }
   val player_poison_tick = if (cb.player_poison_dur > 0) POISON_DMG else 0
+
+  // Quest completion predicates
+  val quest1_complete = meta.q1_kills >= Q1_TARGET
+  val quest2_complete = quest1_complete and meta.q2_zones >= Q2_TARGET
+  val quest3_complete = quest2_complete and meta.q3_kills >= Q3_TARGET
+  val quest2_unlocked = quest1_complete
+  val quest3_unlocked = quest2_complete
   val player_element = if (has_fire_enchant) 1
                        else if (has_ice_enchant) 2
                        else if (eqp.enchant_slot_1 == 4 or eqp.enchant_slot_2 == 4 or eqp.enchant_slot_3 == 4) 3
@@ -252,7 +264,8 @@ module quint_crawl {
     },
     w' = { pos_x: 0, pos_y: 0, turn_count: 0,
            visited: Set((0, 0)), waypoints: Set((0, 0)) },
-    meta' = { game_won: false, saved_exists: false, pity_counter: 0, last_drop: 0, last_kill_turn: 0 },
+    meta' = { game_won: false, saved_exists: false, pity_counter: 0, last_drop: 0, last_kill_turn: 0,
+              q1_kills: 0, q2_zones: 0, q3_kills: 0 },
   }
 
   // === Movement (only when not in combat) ===
@@ -269,7 +282,7 @@ module quint_crawl {
       ch' = { ...ch, hp: if (ch.hp - storm_dmg < 1) 1 else ch.hp - storm_dmg },
       inv' = inv, eqp' = eqp,
       cb' = cb,
-      meta' = meta,
+      meta' = { ...meta, q2_zones: if (quest1_complete and zone_level(w.pos_x, w.pos_y - 1) >= 2 and meta.q2_zones < Q2_TARGET) meta.q2_zones + 1 else meta.q2_zones },
     }
   }
 
@@ -285,7 +298,7 @@ module quint_crawl {
       ch' = { ...ch, hp: if (ch.hp - storm_dmg < 1) 1 else ch.hp - storm_dmg },
       inv' = inv, eqp' = eqp,
       cb' = cb,
-      meta' = meta,
+      meta' = { ...meta, q2_zones: if (quest1_complete and zone_level(w.pos_x, w.pos_y + 1) >= 2 and meta.q2_zones < Q2_TARGET) meta.q2_zones + 1 else meta.q2_zones },
     }
   }
 
@@ -301,7 +314,7 @@ module quint_crawl {
       ch' = { ...ch, hp: if (ch.hp - storm_dmg < 1) 1 else ch.hp - storm_dmg },
       inv' = inv, eqp' = eqp,
       cb' = cb,
-      meta' = meta,
+      meta' = { ...meta, q2_zones: if (quest1_complete and zone_level(w.pos_x - 1, w.pos_y) >= 2 and meta.q2_zones < Q2_TARGET) meta.q2_zones + 1 else meta.q2_zones },
     }
   }
 
@@ -317,7 +330,7 @@ module quint_crawl {
       ch' = { ...ch, hp: if (ch.hp - storm_dmg < 1) 1 else ch.hp - storm_dmg },
       inv' = inv, eqp' = eqp,
       cb' = cb,
-      meta' = meta,
+      meta' = { ...meta, q2_zones: if (quest1_complete and zone_level(w.pos_x + 1, w.pos_y) >= 2 and meta.q2_zones < Q2_TARGET) meta.q2_zones + 1 else meta.q2_zones },
     }
   }
 
@@ -408,7 +421,9 @@ module quint_crawl {
       },
       w' = { ...w, turn_count: w.turn_count + 1 },
       meta' = { ...meta, pity_counter: new_pity, last_drop: new_last_drop,
-               last_kill_turn: if (enemy_defeated_alive) w.turn_count + 1 else meta.last_kill_turn },
+               last_kill_turn: if (enemy_defeated_alive) w.turn_count + 1 else meta.last_kill_turn,
+               q1_kills: if (enemy_defeated_alive and zone_tier == 1 and meta.q1_kills < Q1_TARGET) meta.q1_kills + 1 else meta.q1_kills,
+               q3_kills: if (enemy_defeated_alive and zone_tier == MAX_LEVEL and meta.q3_kills < Q3_TARGET) meta.q3_kills + 1 else meta.q3_kills },
     }
   }
 
@@ -653,7 +668,9 @@ module quint_crawl {
       },
       w' = { ...w, turn_count: w.turn_count + 1 },
       meta' = { ...meta, pity_counter: new_pity, last_drop: new_last_drop,
-               last_kill_turn: if (enemy_defeated_alive) w.turn_count + 1 else meta.last_kill_turn },
+               last_kill_turn: if (enemy_defeated_alive) w.turn_count + 1 else meta.last_kill_turn,
+               q1_kills: if (enemy_defeated_alive and zone_tier == 1 and meta.q1_kills < Q1_TARGET) meta.q1_kills + 1 else meta.q1_kills,
+               q3_kills: if (enemy_defeated_alive and zone_tier == MAX_LEVEL and meta.q3_kills < Q3_TARGET) meta.q3_kills + 1 else meta.q3_kills },
     }
   }
 
@@ -720,7 +737,9 @@ module quint_crawl {
       },
       w' = { ...w, turn_count: w.turn_count + 1 },
       meta' = { ...meta, pity_counter: new_pity, last_drop: new_last_drop,
-               last_kill_turn: if (enemy_defeated_alive) w.turn_count + 1 else meta.last_kill_turn },
+               last_kill_turn: if (enemy_defeated_alive) w.turn_count + 1 else meta.last_kill_turn,
+               q1_kills: if (enemy_defeated_alive and zone_tier == 1 and meta.q1_kills < Q1_TARGET) meta.q1_kills + 1 else meta.q1_kills,
+               q3_kills: if (enemy_defeated_alive and zone_tier == MAX_LEVEL and meta.q3_kills < Q3_TARGET) meta.q3_kills + 1 else meta.q3_kills },
     }
   }
 
@@ -936,7 +955,9 @@ module quint_crawl {
       },
       w' = { ...w, turn_count: w.turn_count + 1 },
       meta' = { ...meta, pity_counter: new_pity, last_drop: new_last_drop,
-               last_kill_turn: if (enemy_defeated_alive) w.turn_count + 1 else meta.last_kill_turn },
+               last_kill_turn: if (enemy_defeated_alive) w.turn_count + 1 else meta.last_kill_turn,
+               q1_kills: if (enemy_defeated_alive and zone_tier == 1 and meta.q1_kills < Q1_TARGET) meta.q1_kills + 1 else meta.q1_kills,
+               q3_kills: if (enemy_defeated_alive and zone_tier == MAX_LEVEL and meta.q3_kills < Q3_TARGET) meta.q3_kills + 1 else meta.q3_kills },
     }
   }
 
@@ -1086,7 +1107,8 @@ module quint_crawl {
       zone_level(target._1, target._2) <= ch.level,
       w' = { ...w, pos_x: target._1, pos_y: target._2, turn_count: w.turn_count + 1,
              visited: w.visited.union(Set((target._1, target._2))) },
-      ch' = ch, inv' = inv, eqp' = eqp, cb' = cb, meta' = meta,
+      ch' = ch, inv' = inv, eqp' = eqp, cb' = cb,
+      meta' = { ...meta, q2_zones: if (quest1_complete and zone_level(target._1, target._2) >= 2 and meta.q2_zones < Q2_TARGET) meta.q2_zones + 1 else meta.q2_zones },
     }
   }
 
@@ -1242,6 +1264,19 @@ module quint_crawl {
 
   /// Salvage level bounded [1, MAX_SALVAGE_LEVEL]
   val salvage_level_bounded = inv.salvage_level >= 1 and inv.salvage_level <= MAX_SALVAGE_LEVEL
+
+  /// Quest counters bounded by their targets
+  val quest_counters_bounded = and {
+    meta.q1_kills >= 0, meta.q1_kills <= Q1_TARGET,
+    meta.q2_zones >= 0, meta.q2_zones <= Q2_TARGET,
+    meta.q3_kills >= 0, meta.q3_kills <= Q3_TARGET,
+  }
+
+  /// Quest prerequisites: q2 progress requires q1 complete, q3 progress requires q2 complete
+  val quest_prereqs_respected = and {
+    (meta.q2_zones > 0) implies quest1_complete,
+    (meta.q3_kills > 0) implies quest2_complete,
+  }
 
 }
 

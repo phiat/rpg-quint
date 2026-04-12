@@ -238,6 +238,9 @@ crawl_state :: proc(driver: rawptr) -> map[string]mbt.ITF_Value {
 	mt["pity_counter"] = mbt.ITF_Int{g.pity_counter}
 	mt["last_drop"] = mbt.ITF_Int{g.last_drop}
 	mt["last_kill_turn"] = mbt.ITF_Int{g.last_kill_turn}
+	mt["q1_kills"] = mbt.ITF_Int{g.q1_kills}
+	mt["q2_zones"] = mbt.ITF_Int{g.q2_zones}
+	mt["q3_kills"] = mbt.ITF_Int{g.q3_kills}
 	state["meta"] = mbt.ITF_Record{mt}
 
 	return state

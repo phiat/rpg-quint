@@ -37,6 +37,10 @@ BATTLE_CRY_STAMINA :: 3
 HEAVY_STRIKE_CD :: 3
 BATTLE_CRY_CD :: 4
 PITY_THRESHOLD :: 8
+// Quest targets
+Q1_TARGET :: 2  // slime kills
+Q2_TARGET :: 3  // ZL2+ zone entries after Q1 complete
+Q3_TARGET :: 2  // dragon kills
 SWORD_ATK_BONUS :: 5
 POTION_COST :: 15
 HP_PER_LEVEL :: 15
@@ -113,6 +117,9 @@ Save_Data :: struct {
 	enchant_slot_3: int,
 	salvage_level: int,
 	last_kill_turn: int,
+	q1_kills:     int,
+	q2_zones:     int,
+	q3_kills:     int,
 }
 
 Game_State :: struct {
@@ -178,6 +185,10 @@ Game_State :: struct {
 	salvage_level:       int,  // 1-3, determines material recovery
 	// Respawn timer
 	last_kill_turn:      int,
+	// Quests
+	q1_kills:            int,  // slime slayer (ZL1 kills, capped Q1_TARGET)
+	q2_zones:            int,  // venture forth (ZL2+ zone entries after Q1, capped Q2_TARGET)
+	q3_kills:            int,  // castle conqueror (dragon kills, capped Q3_TARGET)
 	// Save/Load
 	saved_exists:        bool,
 	save_data:           Save_Data,
@@ -355,6 +366,10 @@ init_game :: proc(g: ^Game_State) {
 	g.enchant_slot_2 = 0
 	g.enchant_slot_3 = 0
 	g.salvage_level = 1
+	g.last_kill_turn = 0
+	g.q1_kills = 0
+	g.q2_zones = 0
+	g.q3_kills = 0
 	// Fog of war: clear all, mark starting zone + neighbors as revealed
 	for x in 0 ..< WORLD_SIZE {
 		for y in 0 ..< WORLD_SIZE {
@@ -394,6 +409,11 @@ fast_travel :: proc(g: ^Game_State, tx, ty: int) -> bool {
 	g.pos_x = tx
 	g.pos_y = ty
 	g.turn_count += 1
+	g.visited[tx][ty] = true
+	// Quest 2: count ZL2+ zone entries after Q1 complete
+	if g.q1_kills >= Q1_TARGET && zone_level(tx, ty) >= 2 && g.q2_zones < Q2_TARGET {
+		g.q2_zones += 1
+	}
 	return true
 }
 
@@ -409,6 +429,10 @@ move :: proc(g: ^Game_State, dx, dy: int) -> bool {
 	g.visited[nx][ny] = true
 	if zone_has_services(nx, ny) {
 		g.waypoints[nx][ny] = true
+	}
+	// Quest 2: count ZL2+ zone entries after Q1 complete
+	if g.q1_kills >= Q1_TARGET && zone_level(nx, ny) >= 2 && g.q2_zones < Q2_TARGET {
+		g.q2_zones += 1
 	}
 	// Storm damage (can't kill — floor at 1)
 	if zone_weather(nx, ny, g.turn_count) == 3 {
@@ -536,6 +560,10 @@ resolve_combat_hit :: proc(g: ^Game_State, dmg: int) -> bool {
 		// Enemy defeated, player alive — XP, loot, level-up, respawn timer
 		g.last_kill_turn = g.turn_count
 		g.xp += zone_xp_reward(g.pos_x, g.pos_y)
+		// Quest 1 / 3: count slime / dragon kills
+		zone_tier := zone_level(g.pos_x, g.pos_y)
+		if zone_tier == 1 && g.q1_kills < Q1_TARGET do g.q1_kills += 1
+		if zone_tier == MAX_LEVEL && g.q3_kills < Q3_TARGET do g.q3_kills += 1
 		g.in_combat = false
 		g.enemy_attack = 0
 		g.enemy_element = 0
@@ -1211,6 +1239,9 @@ save_game :: proc(g: ^Game_State) -> bool {
 		enchant_slot_3 = g.enchant_slot_3,
 		salvage_level = g.salvage_level,
 		last_kill_turn = g.last_kill_turn,
+		q1_kills = g.q1_kills,
+		q2_zones = g.q2_zones,
+		q3_kills = g.q3_kills,
 	}
 	return true
 }
@@ -1252,6 +1283,9 @@ load_game :: proc(g: ^Game_State) -> bool {
 	g.enchant_slot_3 = s.enchant_slot_3
 	g.salvage_level = s.salvage_level
 	g.last_kill_turn = s.last_kill_turn
+	g.q1_kills = s.q1_kills
+	g.q2_zones = s.q2_zones
+	g.q3_kills = s.q3_kills
 	// Clear combat/status state (save is only outside combat)
 	g.in_combat = false
 	g.enemy_hp = 0

@@ -144,6 +144,28 @@ draw_hud :: proc(app: ^App_State) {
 	rl.DrawText(weather_name, x + 8, y, 13, weather_color)
 	y += 22
 
+	// --- Quests ---
+	rl.DrawLine(x, y, x + w, y, TILE_BORDER)
+	y += 6
+	rl.DrawText("Quests", x, y, 16, TEXT_DIM)
+	y += 22
+	draw_quest_line :: proc(x: i32, y: ^i32, label: cstring, cur, tgt: int, unlocked: bool) {
+		if !unlocked {
+			rl.DrawText(fmt.ctprintf("%s — locked", label), x + 8, y^, 13, rl.Color{80, 80, 90, 255})
+		} else if cur >= tgt {
+			rl.DrawText(fmt.ctprintf("%s — done", label), x + 8, y^, 13, rl.Color{120, 220, 120, 255})
+		} else {
+			rl.DrawText(fmt.ctprintf("%s %d/%d", label, cur, tgt), x + 8, y^, 13, TEXT_BRIGHT)
+		}
+		y^ += 16
+	}
+	q1_done := g.q1_kills >= qc.Q1_TARGET
+	q2_done := q1_done && g.q2_zones >= qc.Q2_TARGET
+	draw_quest_line(x, &y, "Slime Slayer", g.q1_kills, qc.Q1_TARGET, true)
+	draw_quest_line(x, &y, "Venture Forth", g.q2_zones, qc.Q2_TARGET, q1_done)
+	draw_quest_line(x, &y, "Castle Conqueror", g.q3_kills, qc.Q3_TARGET, q2_done)
+	y += 8
+
 	// --- Available actions ---
 	if !g.in_combat && !g.game_won && g.hp > 0 {
 		rl.DrawLine(x, y, x + w, y, TILE_BORDER)

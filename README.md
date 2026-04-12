@@ -36,6 +36,7 @@ Features:
 - Venom sac system — consumable for poison strike, dropped from ZL2+ enemies or crafted at village
 - Per-zone weather (Clear/Rain/Fog/Storm) affecting combat, gathering, and movement
 - Enemy respawn timer — 5-turn cooldown after defeating an enemy before new combat available
+- Quest chain — 3 prerequisite-gated quests (Slime Slayer → Venture Forth → Castle Conqueror) tracked in the HUD
 - Loot drops with pity-counter guarantee system
 - Resource gathering (wood, iron), crafting, and equipment
 - Elemental damage — 4-element cycle (Fire>Ice>Lightning>Earth>Fire) with 2x/1x/0.5x multipliers
@@ -134,7 +135,7 @@ justfile               Task runner for common workflows
 | **fog_of_war** | Exploration reveal system | Revealed tiles monotonic, visibility radius bounded |
 | **permadeath** | Permadeath with legacy bonuses | Death permanent, legacy bonuses carry forward |
 | **bounty** | Bounty board quest system | Bounty rewards match difficulty, completion tracked |
-| **quint_crawl** | Full RPG game state machine (9x9 grid, 5 levels) | HP bounded, gold non-negative, level gates, durability bounded, combo bounded, stamina bounded, cooldowns bounded (incl. fortify), loot pity bounded, status effects bounded, weather deterministic, skill points non-negative, skill prereqs respected, venom sac non-negative, enemy element bounded, enchant slots bounded, no fire/ice incompatible, enemy element only in combat, inventory bounded, salvage level bounded, win condition correct |
+| **quint_crawl** | Full RPG game state machine (9x9 grid, 5 levels) | HP bounded, gold non-negative, level gates, durability bounded, combo bounded, stamina bounded, cooldowns bounded (incl. fortify), loot pity bounded, status effects bounded, weather deterministic, skill points non-negative, skill prereqs respected, venom sac non-negative, enemy element bounded, enchant slots bounded, no fire/ice incompatible, enemy element only in combat, inventory bounded, salvage level bounded, quest counters bounded, quest prereqs respected, win condition correct |
 
 ## Quick start
 
