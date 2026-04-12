@@ -290,6 +290,22 @@ module quint_crawl {
   }
   val player_poison_tick = if (cb.player_poison_dur > 0) POISON_DMG else 0
 
+  // Tick all 4 per-turn combat status durations. Returns a CombatState with
+  // player_poison_dur / player_atk_buff_dur / player_def_buff_dur / enemy_poison_dur
+  // advanced one step; other fields pass through unchanged. Callers that
+  // override a specific field (battle_cry sets atk_buff, shield_block/
+  // counter_attack/fortify set def_buff) simply assign over the ticked value
+  // in their cb' record.
+  pure def tick_statuses(c: CombatState, apply_poison_now: bool): CombatState = {
+    ...c,
+    player_poison_dur: if (apply_poison_now) STATUS_DURATION
+                       else if (c.player_poison_dur > 0) c.player_poison_dur - 1
+                       else 0,
+    player_atk_buff_dur: if (c.player_atk_buff_dur > 0) c.player_atk_buff_dur - 1 else 0,
+    player_def_buff_dur: if (c.player_def_buff_dur > 0) c.player_def_buff_dur - 1 else 0,
+    enemy_poison_dur: if (c.enemy_poison_dur > 0) c.enemy_poison_dur - 1 else 0,
+  }
+
   // Quest completion predicates
   val quest1_complete = meta.q1_kills >= Q1_TARGET
   val quest2_complete = quest1_complete and meta.q2_zones >= Q2_TARGET
@@ -476,12 +492,7 @@ module quint_crawl {
     // Tier 2+ enemies apply poison
     val zone_tier = zone_level(w.pos_x, w.pos_y)
     val apply_poison = (zone_tier >= POISON_APPLY_TIER and cb.player_poison_dur == 0 and new_enemy_hp > 0)
-    val next_player_poison = if (apply_poison) STATUS_DURATION
-                             else if (cb.player_poison_dur > 0) cb.player_poison_dur - 1
-                             else 0
-    val next_atk_buff = if (cb.player_atk_buff_dur > 0) cb.player_atk_buff_dur - 1 else 0
-    val next_def_buff = if (cb.player_def_buff_dur > 0) cb.player_def_buff_dur - 1 else 0
-    val next_enemy_poison = if (cb.enemy_poison_dur > 0) cb.enemy_poison_dur - 1 else 0
+    val ticked = tick_statuses(cb, apply_poison)
     val combat_ends = (new_enemy_hp <= 0 or new_hp <= 0)
     // Loot drop on enemy defeat
     val enemy_defeated_alive = (new_enemy_hp <= 0 and new_hp > 0)
@@ -509,10 +520,10 @@ module quint_crawl {
               enemy_attack: if (combat_ends) 0 else cb.enemy_attack,
               enemy_element: if (combat_ends) 0 else cb.enemy_element,
               combo_count: if (combat_ends) 0 else cb.combo_count,
-              player_poison_dur: if (combat_ends) 0 else next_player_poison,
-              player_atk_buff_dur: if (combat_ends) 0 else next_atk_buff,
-              player_def_buff_dur: if (combat_ends) 0 else next_def_buff,
-              enemy_poison_dur: if (combat_ends) 0 else next_enemy_poison,
+              player_poison_dur: if (combat_ends) 0 else ticked.player_poison_dur,
+              player_atk_buff_dur: if (combat_ends) 0 else ticked.player_atk_buff_dur,
+              player_def_buff_dur: if (combat_ends) 0 else ticked.player_def_buff_dur,
+              enemy_poison_dur: if (combat_ends) 0 else ticked.enemy_poison_dur,
               cd_heavy_strike: if (combat_ends) 0 else (if (cb.cd_heavy_strike > 0) cb.cd_heavy_strike - 1 else 0),
               cd_battle_cry: if (combat_ends) 0 else (if (cb.cd_battle_cry > 0) cb.cd_battle_cry - 1 else 0),
               cd_fortify: if (combat_ends) 0 else (if (cb.cd_fortify > 0) cb.cd_fortify - 1 else 0),
@@ -754,12 +765,7 @@ module quint_crawl {
     // Status ticking
     val zone_tier = zone_level(w.pos_x, w.pos_y)
     val apply_poison = (zone_tier >= POISON_APPLY_TIER and cb.player_poison_dur == 0 and new_enemy_hp > 0)
-    val next_player_poison = if (apply_poison) STATUS_DURATION
-                             else if (cb.player_poison_dur > 0) cb.player_poison_dur - 1
-                             else 0
-    val next_atk_buff = if (cb.player_atk_buff_dur > 0) cb.player_atk_buff_dur - 1 else 0
-    val next_def_buff = if (cb.player_def_buff_dur > 0) cb.player_def_buff_dur - 1 else 0
-    val next_enemy_poison = if (cb.enemy_poison_dur > 0) cb.enemy_poison_dur - 1 else 0
+    val ticked = tick_statuses(cb, apply_poison)
     val combat_ends = (new_enemy_hp <= 0 or new_hp <= 0)
     val new_combo_count = if (combat_ends) 0
                           else if (next_combo >= MAX_COMBO_CHAIN) 0
@@ -790,10 +796,10 @@ module quint_crawl {
               enemy_attack: if (combat_ends) 0 else cb.enemy_attack,
               enemy_element: if (combat_ends) 0 else cb.enemy_element,
               combo_count: new_combo_count,
-              player_poison_dur: if (combat_ends) 0 else next_player_poison,
-              player_atk_buff_dur: if (combat_ends) 0 else next_atk_buff,
-              player_def_buff_dur: if (combat_ends) 0 else next_def_buff,
-              enemy_poison_dur: if (combat_ends) 0 else next_enemy_poison,
+              player_poison_dur: if (combat_ends) 0 else ticked.player_poison_dur,
+              player_atk_buff_dur: if (combat_ends) 0 else ticked.player_atk_buff_dur,
+              player_def_buff_dur: if (combat_ends) 0 else ticked.player_def_buff_dur,
+              enemy_poison_dur: if (combat_ends) 0 else ticked.enemy_poison_dur,
               cd_heavy_strike: if (combat_ends) 0 else (if (cb.cd_heavy_strike > 0) cb.cd_heavy_strike - 1 else 0),
               cd_battle_cry: if (combat_ends) 0 else (if (cb.cd_battle_cry > 0) cb.cd_battle_cry - 1 else 0),
               cd_fortify: if (combat_ends) 0 else (if (cb.cd_fortify > 0) cb.cd_fortify - 1 else 0),
@@ -833,12 +839,7 @@ module quint_crawl {
     val new_level = if (ch.level < MAX_LEVEL and gained_xp >= xp_threshold(ch.level + 1)) ch.level + 1 else ch.level
     val zone_tier = zone_level(w.pos_x, w.pos_y)
     val apply_poison = (zone_tier >= POISON_APPLY_TIER and cb.player_poison_dur == 0 and new_enemy_hp > 0)
-    val next_player_poison = if (apply_poison) STATUS_DURATION
-                             else if (cb.player_poison_dur > 0) cb.player_poison_dur - 1
-                             else 0
-    val next_atk_buff = if (cb.player_atk_buff_dur > 0) cb.player_atk_buff_dur - 1 else 0
-    val next_def_buff = if (cb.player_def_buff_dur > 0) cb.player_def_buff_dur - 1 else 0
-    val next_enemy_poison = if (cb.enemy_poison_dur > 0) cb.enemy_poison_dur - 1 else 0
+    val ticked = tick_statuses(cb, apply_poison)
     val combat_ends = (new_enemy_hp <= 0 or new_hp <= 0)
     val enemy_defeated_alive = (new_enemy_hp <= 0 and new_hp > 0)
     val drop_trigger = (meta.pity_counter >= PITY_THRESHOLD or (w.turn_count % LOOT_DROP_MODULO == 0))
@@ -865,10 +866,10 @@ module quint_crawl {
               enemy_attack: if (combat_ends) 0 else cb.enemy_attack,
               enemy_element: if (combat_ends) 0 else cb.enemy_element,
               combo_count: 0,  // heavy strike breaks combo
-              player_poison_dur: if (combat_ends) 0 else next_player_poison,
-              player_atk_buff_dur: if (combat_ends) 0 else next_atk_buff,
-              player_def_buff_dur: if (combat_ends) 0 else next_def_buff,
-              enemy_poison_dur: if (combat_ends) 0 else next_enemy_poison,
+              player_poison_dur: if (combat_ends) 0 else ticked.player_poison_dur,
+              player_atk_buff_dur: if (combat_ends) 0 else ticked.player_atk_buff_dur,
+              player_def_buff_dur: if (combat_ends) 0 else ticked.player_def_buff_dur,
+              enemy_poison_dur: if (combat_ends) 0 else ticked.enemy_poison_dur,
               cd_heavy_strike: if (combat_ends) 0 else HEAVY_STRIKE_CD,
               cd_battle_cry: if (combat_ends) 0 else (if (cb.cd_battle_cry > 0) cb.cd_battle_cry - 1 else 0),
               cd_fortify: if (combat_ends) 0 else (if (cb.cd_fortify > 0) cb.cd_fortify - 1 else 0),
@@ -904,11 +905,7 @@ module quint_crawl {
     val combat_ends = (new_hp <= 0)
     val zone_tier = zone_level(w.pos_x, w.pos_y)
     val apply_poison = (zone_tier >= POISON_APPLY_TIER and cb.player_poison_dur == 0)
-    val next_player_poison = if (apply_poison) STATUS_DURATION
-                             else if (cb.player_poison_dur > 0) cb.player_poison_dur - 1
-                             else 0
-    val next_def_buff = if (cb.player_def_buff_dur > 0) cb.player_def_buff_dur - 1 else 0
-    val next_enemy_poison = if (cb.enemy_poison_dur > 0) cb.enemy_poison_dur - 1 else 0
+    val ticked = tick_statuses(cb, apply_poison)
     all {
       ch' = { ...ch, hp: if (new_hp < 0) 0 else new_hp, stamina: ch.stamina - BATTLE_CRY_STAMINA },
       cb' = { in_combat: if (combat_ends) false else true,
@@ -916,10 +913,10 @@ module quint_crawl {
               enemy_attack: if (combat_ends) 0 else cb.enemy_attack,
               enemy_element: if (combat_ends) 0 else cb.enemy_element,
               combo_count: 0,
-              player_poison_dur: if (combat_ends) 0 else next_player_poison,
+              player_poison_dur: if (combat_ends) 0 else ticked.player_poison_dur,
               player_atk_buff_dur: if (combat_ends) 0 else STATUS_DURATION,
-              player_def_buff_dur: if (combat_ends) 0 else next_def_buff,
-              enemy_poison_dur: if (combat_ends) 0 else next_enemy_poison,
+              player_def_buff_dur: if (combat_ends) 0 else ticked.player_def_buff_dur,
+              enemy_poison_dur: if (combat_ends) 0 else ticked.enemy_poison_dur,
               cd_heavy_strike: if (combat_ends) 0 else (if (cb.cd_heavy_strike > 0) cb.cd_heavy_strike - 1 else 0),
               cd_battle_cry: if (combat_ends) 0 else BATTLE_CRY_CD,
               cd_fortify: if (combat_ends) 0 else (if (cb.cd_fortify > 0) cb.cd_fortify - 1 else 0),
@@ -940,11 +937,7 @@ module quint_crawl {
     val combat_ends = (new_hp <= 0)
     val zone_tier = zone_level(w.pos_x, w.pos_y)
     val apply_poison = (zone_tier >= POISON_APPLY_TIER and cb.player_poison_dur == 0)
-    val next_player_poison = if (apply_poison) STATUS_DURATION
-                             else if (cb.player_poison_dur > 0) cb.player_poison_dur - 1
-                             else 0
-    val next_atk_buff = if (cb.player_atk_buff_dur > 0) cb.player_atk_buff_dur - 1 else 0
-    val next_enemy_poison = if (cb.enemy_poison_dur > 0) cb.enemy_poison_dur - 1 else 0
+    val ticked = tick_statuses(cb, apply_poison)
     all {
       ch' = { ...ch, hp: if (new_hp < 0) 0 else new_hp, stamina: ch.stamina - SHIELD_BLOCK_STAMINA },
       cb' = { in_combat: if (combat_ends) false else true,
@@ -952,10 +945,10 @@ module quint_crawl {
               enemy_attack: if (combat_ends) 0 else cb.enemy_attack,
               enemy_element: if (combat_ends) 0 else cb.enemy_element,
               combo_count: 0,
-              player_poison_dur: if (combat_ends) 0 else next_player_poison,
-              player_atk_buff_dur: if (combat_ends) 0 else next_atk_buff,
+              player_poison_dur: if (combat_ends) 0 else ticked.player_poison_dur,
+              player_atk_buff_dur: if (combat_ends) 0 else ticked.player_atk_buff_dur,
               player_def_buff_dur: if (combat_ends) 0 else STATUS_DURATION,
-              enemy_poison_dur: if (combat_ends) 0 else next_enemy_poison,
+              enemy_poison_dur: if (combat_ends) 0 else ticked.enemy_poison_dur,
               cd_heavy_strike: if (combat_ends) 0 else (if (cb.cd_heavy_strike > 0) cb.cd_heavy_strike - 1 else 0),
               cd_battle_cry: if (combat_ends) 0 else (if (cb.cd_battle_cry > 0) cb.cd_battle_cry - 1 else 0),
               cd_fortify: if (combat_ends) 0 else (if (cb.cd_fortify > 0) cb.cd_fortify - 1 else 0),
@@ -1083,11 +1076,7 @@ module quint_crawl {
     val new_xp = ch.xp + xp_reward
     val new_level = if (ch.level < MAX_LEVEL and new_xp >= xp_threshold(ch.level + 1)) ch.level + 1 else ch.level
     val apply_poison = (zone_tier >= POISON_APPLY_TIER and cb.player_poison_dur == 0)
-    val next_player_poison = if (apply_poison) STATUS_DURATION
-                             else if (cb.player_poison_dur > 0) cb.player_poison_dur - 1
-                             else 0
-    val next_atk_buff = if (cb.player_atk_buff_dur > 0) cb.player_atk_buff_dur - 1 else 0
-    val next_enemy_poison = if (cb.enemy_poison_dur > 0) cb.enemy_poison_dur - 1 else 0
+    val ticked = tick_statuses(cb, apply_poison)
     val dur_cost = if (inv.has_sword and eqp.sword_dur > 0) 1 else 0
     val enemy_defeated_alive = (final_enemy_hp <= 0 and new_hp > 0)
     val drop_trigger = (meta.pity_counter >= PITY_THRESHOLD or (w.turn_count % LOOT_DROP_MODULO == 0))
@@ -1113,10 +1102,10 @@ module quint_crawl {
               enemy_attack: if (combat_ends) 0 else cb.enemy_attack,
               enemy_element: if (combat_ends) 0 else cb.enemy_element,
               combo_count: 0,
-              player_poison_dur: if (combat_ends) 0 else next_player_poison,
-              player_atk_buff_dur: if (combat_ends) 0 else next_atk_buff,
+              player_poison_dur: if (combat_ends) 0 else ticked.player_poison_dur,
+              player_atk_buff_dur: if (combat_ends) 0 else ticked.player_atk_buff_dur,
               player_def_buff_dur: if (combat_ends) 0 else STATUS_DURATION,
-              enemy_poison_dur: if (combat_ends) 0 else next_enemy_poison,
+              enemy_poison_dur: if (combat_ends) 0 else ticked.enemy_poison_dur,
               cd_heavy_strike: if (combat_ends) 0 else (if (cb.cd_heavy_strike > 0) cb.cd_heavy_strike - 1 else 0),
               cd_battle_cry: if (combat_ends) 0 else (if (cb.cd_battle_cry > 0) cb.cd_battle_cry - 1 else 0),
               cd_fortify: if (combat_ends) 0 else (if (cb.cd_fortify > 0) cb.cd_fortify - 1 else 0),
@@ -1150,11 +1139,7 @@ module quint_crawl {
     val combat_ends = (new_hp <= 0)
     val zone_tier = zone_level(w.pos_x, w.pos_y)
     val apply_poison = (zone_tier >= POISON_APPLY_TIER and cb.player_poison_dur == 0)
-    val next_player_poison = if (apply_poison) STATUS_DURATION
-                             else if (cb.player_poison_dur > 0) cb.player_poison_dur - 1
-                             else 0
-    val next_atk_buff = if (cb.player_atk_buff_dur > 0) cb.player_atk_buff_dur - 1 else 0
-    val next_enemy_poison = if (cb.enemy_poison_dur > 0) cb.enemy_poison_dur - 1 else 0
+    val ticked = tick_statuses(cb, apply_poison)
     all {
       ch' = { ...ch, hp: if (new_hp < 0) 0 else new_hp, stamina: ch.stamina - FORTIFY_STAMINA },
       cb' = { in_combat: if (combat_ends) false else true,
@@ -1162,10 +1147,10 @@ module quint_crawl {
               enemy_attack: if (combat_ends) 0 else cb.enemy_attack,
               enemy_element: if (combat_ends) 0 else cb.enemy_element,
               combo_count: 0,
-              player_poison_dur: if (combat_ends) 0 else next_player_poison,
-              player_atk_buff_dur: if (combat_ends) 0 else next_atk_buff,
+              player_poison_dur: if (combat_ends) 0 else ticked.player_poison_dur,
+              player_atk_buff_dur: if (combat_ends) 0 else ticked.player_atk_buff_dur,
               player_def_buff_dur: if (combat_ends) 0 else FORTIFY_DURATION,
-              enemy_poison_dur: if (combat_ends) 0 else next_enemy_poison,
+              enemy_poison_dur: if (combat_ends) 0 else ticked.enemy_poison_dur,
               cd_heavy_strike: if (combat_ends) 0 else (if (cb.cd_heavy_strike > 0) cb.cd_heavy_strike - 1 else 0),
               cd_battle_cry: if (combat_ends) 0 else (if (cb.cd_battle_cry > 0) cb.cd_battle_cry - 1 else 0),
               cd_fortify: if (combat_ends) 0 else FORTIFY_CD,
@@ -1190,12 +1175,7 @@ module quint_crawl {
     val new_level = if (ch.level < MAX_LEVEL and gained_xp >= xp_threshold(ch.level + 1)) ch.level + 1 else ch.level
     val zone_tier = zone_level(w.pos_x, w.pos_y)
     val apply_poison = (zone_tier >= POISON_APPLY_TIER and cb.player_poison_dur == 0 and new_enemy_hp > 0)
-    val next_player_poison = if (apply_poison) STATUS_DURATION
-                             else if (cb.player_poison_dur > 0) cb.player_poison_dur - 1
-                             else 0
-    val next_atk_buff = if (cb.player_atk_buff_dur > 0) cb.player_atk_buff_dur - 1 else 0
-    val next_def_buff = if (cb.player_def_buff_dur > 0) cb.player_def_buff_dur - 1 else 0
-    val next_enemy_poison = if (cb.enemy_poison_dur > 0) cb.enemy_poison_dur - 1 else 0
+    val ticked = tick_statuses(cb, apply_poison)
     val combat_ends = (new_enemy_hp <= 0 or new_hp <= 0)
     val enemy_defeated_alive = (new_enemy_hp <= 0 and new_hp > 0)
     val drop_trigger = (meta.pity_counter >= PITY_THRESHOLD or (w.turn_count % LOOT_DROP_MODULO == 0))
@@ -1222,10 +1202,10 @@ module quint_crawl {
               enemy_attack: if (combat_ends) 0 else cb.enemy_attack,
               enemy_element: if (combat_ends) 0 else cb.enemy_element,
               combo_count: 0,
-              player_poison_dur: if (combat_ends) 0 else next_player_poison,
-              player_atk_buff_dur: if (combat_ends) 0 else next_atk_buff,
-              player_def_buff_dur: if (combat_ends) 0 else next_def_buff,
-              enemy_poison_dur: if (combat_ends) 0 else next_enemy_poison,
+              player_poison_dur: if (combat_ends) 0 else ticked.player_poison_dur,
+              player_atk_buff_dur: if (combat_ends) 0 else ticked.player_atk_buff_dur,
+              player_def_buff_dur: if (combat_ends) 0 else ticked.player_def_buff_dur,
+              enemy_poison_dur: if (combat_ends) 0 else ticked.enemy_poison_dur,
               cd_heavy_strike: if (combat_ends) 0 else (if (cb.cd_heavy_strike > 0) cb.cd_heavy_strike - 1 else 0),
               cd_battle_cry: if (combat_ends) 0 else (if (cb.cd_battle_cry > 0) cb.cd_battle_cry - 1 else 0),
               cd_fortify: if (combat_ends) 0 else (if (cb.cd_fortify > 0) cb.cd_fortify - 1 else 0),
