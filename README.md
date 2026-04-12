@@ -66,6 +66,7 @@ The game logic in `quint_crawl/` is the single source of truth — shared by bot
 | R | Rest (restore stamina) |
 | G | Gather wood |
 | M | Mine iron |
+| Z | Open treasure chest (chest zones only) |
 
 ### Village
 
@@ -103,7 +104,7 @@ See the HUD sidebar for zone-specific actions.
 
 ## Features
 
-- **World** — 9x9 grid, 5 difficulty levels, biome tiling (3x3 pattern repeats across regions), fog of war, HUD minimap, mouse hover tooltips, per-zone weather (Clear/Rain/Fog/Storm) affecting combat/gathering/movement, village waypoints with fast travel.
+- **World** — 9x9 grid, 5 difficulty levels, biome tiling (3x3 pattern repeats across regions), fog of war, HUD minimap, mouse hover tooltips, per-zone weather (Clear/Rain/Fog/Storm) affecting combat/gathering/movement, village waypoints with fast travel, one-time treasure chests with tier-scaled gold rewards.
 - **Combat** — turn-based, stamina-gated actions, 3-hit combo chain with damage multipliers, cooldown abilities (heavy strike, battle cry, fortify, counter-attack), status effects (poison, ATK/DEF buffs) with turn-based ticking, enemy respawn timer (5-turn cooldown after a kill), dual weapon types (sword vs. battery-powered pistol; `weapon_type` gate routes combat actions).
 - **Bestiary** — data-driven catalog of 200 named enemies across 20 archetypes (4 per tier, 5 tiers), 6 trait tags (Undead/Beast/Elemental/Construct/Humanoid/Aberration), trait-keyed secondary loot drops.
 - **Elemental system** — 4-element cycle (Fire > Ice > Lightning > Earth > Fire) with 2x/1x/0.5x damage multipliers.
@@ -156,46 +157,9 @@ justfile               Task runner for common workflows
 
 ## Modules
 
-| Module | Spec | Invariants |
-|--------|------|------------|
-| **rpg** | Character with HP, attack, inventory | Inventory bounded, HP can go negative (design question) |
-| **trade** | Two-player item trading | Items conserved, inventories bounded |
-| **equip** | Equipment slots (weapon/armor/accessory) | Item conservation, no duplicates, inventory bounded |
-| **healing** | HP + consumable potions | HP capped at max, potions non-negative |
-| **stacking** | Quantity-based item stacks | Quantities non-negative, total bounded |
-| **shop** | Gold economy with buy/sell | Gold conserved, items conserved, gold non-negative |
-| **combat** | Turn-based two-character combat | Turns alternate, HP bounded by init, attack constant |
-| **status** | Poison/buff effects with duration | Durations non-negative, effects consistent, HP capped |
-| **crafting** | Recipe-based item crafting | Materials non-negative, total mass conserved |
-| **party** | 3-member party + shared stash | Items conserved across all inventories |
-| **leveling** | XP gain and level-up thresholds | XP monotonic, stats match level deterministically |
-| **cooldown** | Ability cooldown timers | Cooldowns non-negative, bounded by max |
-| **quest** | Multi-step quests with prerequisite chains | Prerequisites respected, completion monotonic |
-| **durability** | Weapon/armor degradation and repair | Broken iff durability==0, durability bounded |
-| **loot** | Loot drops with pity/guarantee system | Pity counter bounded, rare drought capped |
-| **respawn** | Enemy respawn with zone capacity | Population conserved, zones bounded |
-| **dynamic_shop** | Shop with supply-based dynamic pricing | Gold conserved despite variable prices |
-| **combat_full** | Combat + equipment + status effects | Effects consistent, poison-between-turns death |
-| **capacity_craft** | Crafting with inventory capacity limits | Capacity bounded, atomic craft-or-reject |
-| **gated_craft** | Level-gated crafting recipes + combat XP | Recipe access matches level, XP monotonic |
-| **stamina** | Action stamina with regen | Stamina bounded, non-negative, constants stable |
-| **skill_tree** | Prerequisite-based skill unlocks | Prerequisites respected, points conserved |
-| **reputation** | Faction reputation with rivalries | Standings bounded [-100, 100] |
-| **summoning** | Timed summon slots (3 max) | Count consistent, inactive zeroed, durations non-negative |
-| **world_grid** | 9x9 level-gated zone grid with biome tiling | Position bounded, zone matches, level gates respected |
-| **elemental** | 4-element damage affinity (Fire/Ice/Lightning/Earth) | Elements bounded, multiplier matrix consistent, damage symmetric |
-| **enchantment** | 3-slot weapon enchantments (fire/ice/vampiric/lightning) | Mutual exclusion, slot count bounded, enchantment validity |
-| **trap** | Trap/hazard system on 2x2 grid with perception | Triggered implies present, HP bounded, perception bounded |
-| **companion** | Companion/pet system (wolf/hawk/turtle) with loyalty | Loyalty bounded, passives match type, one active companion |
-| **salvage** | Salvage/disenchant inverse crafting | Level-based output, material conservation, non-negative quantities |
-| **auction** | Timed auction house with bidding | Bids monotonic, winner pays highest, gold conserved |
-| **faction** | Alliance/betrayal faction system | Faction membership consistent, betrayal costs enforced |
-| **fast_travel** | Waypoint-based fast travel | Unlocked waypoints persistent, travel requires unlock |
-| **dialogue** | Branching dialogue trees | Node reachability, visited tracking, choice validity |
-| **fog_of_war** | Exploration reveal system | Revealed tiles monotonic, visibility radius bounded |
-| **permadeath** | Permadeath with legacy bonuses | Death permanent, legacy bonuses carry forward |
-| **bounty** | Bounty board quest system | Bounty rewards match difficulty, completion tracked |
-| **quint_crawl** | Full RPG game state machine (9x9 grid, 5 levels, data-driven companions) | HP bounded, gold non-negative, level bounded, position bounded, visited in bounds, waypoint is service zone, quantities non-negative, level gates respected, durability bounded, combo bounded, stamina bounded, cooldowns bounded (incl. fortify), cooldowns only in combat, loot pity bounded, status effects bounded, status only in combat, last kill turn bounded, broken sword gives no sword/enchant bonus, weather deterministic, skill points non-negative, skill prereqs respected, venom sac non-negative, enemy element bounded, enchant slots bounded, no fire/ice incompatible, enemy element only in combat, inventory bounded, salvage level bounded, quest counters bounded, quest prereqs respected, companion trait+rarity bounded, loyalty bounded, inactive=no loyalty, companion inactive zeroed, comp atk/def derived effects bounded, companion quest counters+prereqs respected, victory preconditions, win condition correct, victory requires castle boss defeated |
+The integrated game spec lives at `specs/quint_crawl.qnt` — 7 record-typed state vars, ~50 actions, ~46 invariants covering HP/gold/level/position/inventory bounds, level gates, skill prerequisites, quest counters, cooldowns, status effects, enchantment slots, companion loyalty, and victory conditions.
+
+Alongside it, `specs/{core,combat,items,economy,world,social}/` holds 38 standalone spec modules (rpg, combat, equip, healing, stacking, shop, status, crafting, party, leveling, cooldown, quest, durability, loot, respawn, dynamic_shop, combat_full, capacity_craft, gated_craft, stamina, skill_tree, reputation, summoning, world_grid, elemental, enchantment, trap, companion, salvage, auction, faction, fast_travel, dialogue, fog_of_war, permadeath, bounty, trade) that each verify one subsystem in isolation — useful as unit tests for the underlying mechanics before integration.
 
 ## Quick start
 
