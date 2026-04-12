@@ -1126,6 +1126,8 @@ module quint_crawl {
     not(cb.in_combat), not(meta.game_won), ch.hp > 0,
     zone_has_services(w.pos_x, w.pos_y),
     inv.qty_sword >= 1,
+    // Capacity guard: net delta is (wood + iron yield) - 1 sword; must fit.
+    total_items - 1 + salvage_wood_yield(inv.salvage_level) + salvage_iron_yield(inv.salvage_level) <= MAX_INVENTORY,
     inv' = { ...inv,
              qty_wood: inv.qty_wood + salvage_wood_yield(inv.salvage_level),
              qty_iron: inv.qty_iron + salvage_iron_yield(inv.salvage_level),

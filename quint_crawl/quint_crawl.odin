@@ -1390,6 +1390,8 @@ salvage_sword :: proc(g: ^Game_State) -> bool {
 	if !can_act_map(g) do return false
 	if !zone_has_services(g.pos_x, g.pos_y) do return false
 	if g.qty_sword < 1 do return false
+	// Capacity guard: net delta is (wood + iron yield) - 1 sword.
+	if total_items(g) - 1 + salvage_wood_yield(g.salvage_level) + salvage_iron_yield(g.salvage_level) > MAX_INVENTORY do return false
 	g.turn_count += 1
 	g.qty_sword -= 1
 	g.qty_wood += salvage_wood_yield(g.salvage_level)
