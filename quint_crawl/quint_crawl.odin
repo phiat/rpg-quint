@@ -75,6 +75,9 @@ FIREBALL_DMG :: 14
 HEAL_COST :: 4
 HEAL_AMOUNT :: 20
 INITIAL_MAX_MANA :: 10
+SPELL_HEAL :: 0
+SPELL_FIRE :: 1
+SCROLL_FIRE_COST :: 25
 INITIAL_HP :: 50
 INITIAL_ATTACK :: 10
 INITIAL_POTIONS :: 2
@@ -153,6 +156,7 @@ Save_Data :: struct {
 	respec_count: int,
 	qty_venom_sac: int,
 	qty_battery:   int,
+	qty_scroll_fire: int,
 	qty_holy_dust: int,
 	qty_pelt:      int,
 	qty_core:      int,
@@ -248,6 +252,8 @@ Game_State :: struct {
 	qty_venom_sac:       int,
 	// Battery (future-tech power cell for pistols / oracle shards)
 	qty_battery:         int,
+	// Fire scroll (combat consumable that deals fireball damage)
+	qty_scroll_fire:     int,
 	// Trait-keyed archetype loot (Odin-only, not in MBT spec contract).
 	// All six fields are invisible to the getter so the spec contract
 	// stays untouched. Humanoid and Aberration intentionally do NOT reuse
@@ -521,6 +527,7 @@ attack_power :: proc(g: ^Game_State) -> int {
 
 total_items :: proc(g: ^Game_State) -> int {
 	return g.qty_potion + g.qty_wood + g.qty_iron + g.qty_sword + g.qty_venom_sac + g.qty_battery +
+		g.qty_scroll_fire +
 		g.qty_holy_dust + g.qty_pelt + g.qty_core + g.qty_essence + g.qty_coin + g.qty_ichor
 }
 
@@ -582,6 +589,7 @@ init_game :: proc(g: ^Game_State) {
 	g.respec_count = 0
 	g.qty_venom_sac = 0
 	g.qty_battery = 0
+	g.qty_scroll_fire = 0
 	g.qty_holy_dust = 0
 	g.qty_pelt = 0
 	g.qty_core = 0

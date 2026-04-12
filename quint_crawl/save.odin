@@ -35,6 +35,7 @@ save_game :: proc(g: ^Game_State) -> bool {
 		respec_count = g.respec_count,
 		qty_venom_sac = g.qty_venom_sac,
 		qty_battery = g.qty_battery,
+		qty_scroll_fire = g.qty_scroll_fire,
 		qty_holy_dust = g.qty_holy_dust,
 		qty_pelt      = g.qty_pelt,
 		qty_core      = g.qty_core,
@@ -103,6 +104,7 @@ load_game :: proc(g: ^Game_State) -> bool {
 	g.respec_count = s.respec_count
 	g.qty_venom_sac = s.qty_venom_sac
 	g.qty_battery = s.qty_battery
+	g.qty_scroll_fire = s.qty_scroll_fire
 	g.qty_holy_dust = s.qty_holy_dust
 	g.qty_pelt      = s.qty_pelt
 	g.qty_core      = s.qty_core

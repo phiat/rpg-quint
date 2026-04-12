@@ -51,6 +51,16 @@ crawl_step :: proc(driver: rawptr, action: string, picks: map[string]mbt.ITF_Val
 	case "cast_fireball":
 		qc.cast_fireball(g)
 		return true
+	case "cast_spell":
+		sid_val := picks["sid"].(mbt.ITF_Int) or_return
+		qc.cast_spell(g, int(sid_val.value))
+		return true
+	case "buy_scroll_fire":
+		qc.buy_scroll_fire(g)
+		return true
+	case "use_scroll_fire":
+		qc.use_scroll_fire(g)
+		return true
 	case "gather_wood":
 		qc.gather_wood(g)
 		return true
@@ -222,6 +232,7 @@ crawl_state :: proc(driver: rawptr) -> map[string]mbt.ITF_Value {
 	inv["qty_venom_sac"] = mbt.ITF_Int{g.qty_venom_sac}
 	inv["salvage_level"] = mbt.ITF_Int{g.salvage_level}
 	inv["qty_battery"] = mbt.ITF_Int{g.qty_battery}
+	inv["qty_scroll_fire"] = mbt.ITF_Int{g.qty_scroll_fire}
 	state["inv"] = mbt.ITF_Record{inv}
 
 	// eqp: EquipState
