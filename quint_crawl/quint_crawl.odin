@@ -119,6 +119,7 @@ Save_Data :: struct {
 	has_sword:    bool,
 	sword_dur:    int,
 	sword_max_dur: int,
+	weapon_type:  int,
 	turn_count:   int,
 	stamina:      int,
 	max_stamina:  int,
@@ -174,6 +175,7 @@ Game_State :: struct {
 	has_sword:    bool,
 	sword_dur:    int,
 	sword_max_dur: int,
+	weapon_type:  int, // 0=sword, 1=pistol
 	in_combat:    bool,
 	enemy_hp:     int,
 	enemy_attack: int,
@@ -504,6 +506,7 @@ init_game :: proc(g: ^Game_State) {
 	g.has_sword = false
 	g.sword_dur = 0
 	g.sword_max_dur = SWORD_MAX_DUR
+	g.weapon_type = 0
 	g.in_combat = false
 	g.enemy_hp = 0
 	g.enemy_attack = 0
@@ -1597,6 +1600,7 @@ save_game :: proc(g: ^Game_State) -> bool {
 		has_sword    = g.has_sword,
 		sword_dur    = g.sword_dur,
 		sword_max_dur = g.sword_max_dur,
+		weapon_type  = g.weapon_type,
 		turn_count   = g.turn_count,
 		stamina      = g.stamina,
 		max_stamina  = g.max_stamina,
@@ -1656,6 +1660,7 @@ load_game :: proc(g: ^Game_State) -> bool {
 	g.has_sword = s.has_sword
 	g.sword_dur = s.sword_dur
 	g.sword_max_dur = s.sword_max_dur
+	g.weapon_type = s.weapon_type
 	g.turn_count = s.turn_count
 	g.stamina = s.stamina
 	g.max_stamina = s.max_stamina

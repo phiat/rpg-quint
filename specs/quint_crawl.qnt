@@ -17,6 +17,7 @@ module quint_crawl {
   type EquipState = {
     sword_dur: int, sword_max_dur: int,
     enchant_slot_1: int, enchant_slot_2: int, enchant_slot_3: int,
+    weapon_type: int, // 0=sword, 1=pistol
   }
 
   type CombatState = {
@@ -335,6 +336,7 @@ module quint_crawl {
     eqp' = {
       sword_dur: 0, sword_max_dur: SWORD_MAX_DUR,
       enchant_slot_1: 0, enchant_slot_2: 0, enchant_slot_3: 0,
+      weapon_type: 0,
     },
     cb' = {
       in_combat: false, enemy_hp: 0, enemy_attack: 0, enemy_element: 0,
@@ -1509,6 +1511,14 @@ module quint_crawl {
 
   /// Fire and Ice enchantments cannot coexist
   val no_fire_ice_incompatible = not(has_fire_enchant and has_ice_enchant)
+
+  /// Weapon type bounded (0=sword, 1=pistol)
+  val weapon_type_bounded = eqp.weapon_type >= 0 and eqp.weapon_type <= 1
+
+  /// Pistols cannot hold enchantments (energy weapons ignore arcane runes)
+  val pistol_no_enchants = (eqp.weapon_type == 1).implies(
+    eqp.enchant_slot_1 == 0 and eqp.enchant_slot_2 == 0 and eqp.enchant_slot_3 == 0
+  )
 
   /// Enemy element is only set during combat
   val enemy_element_only_in_combat = not(cb.in_combat).implies(cb.enemy_element == 0)

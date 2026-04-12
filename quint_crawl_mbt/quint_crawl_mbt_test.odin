@@ -209,6 +209,7 @@ crawl_state :: proc(driver: rawptr) -> map[string]mbt.ITF_Value {
 	eqp["enchant_slot_1"] = mbt.ITF_Int{g.enchant_slot_1}
 	eqp["enchant_slot_2"] = mbt.ITF_Int{g.enchant_slot_2}
 	eqp["enchant_slot_3"] = mbt.ITF_Int{g.enchant_slot_3}
+	eqp["weapon_type"] = mbt.ITF_Int{g.weapon_type}
 	state["eqp"] = mbt.ITF_Record{eqp}
 
 	// cb: CombatState
