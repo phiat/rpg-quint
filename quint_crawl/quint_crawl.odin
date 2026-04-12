@@ -179,6 +179,7 @@ Save_Data :: struct {
 	pity_counter: int,
 	last_drop_rarity: int,
 	pending_sword_rarity: int,
+	unique_drops_mask: int,
 	skill_points: int,
 	skill_combo:  bool,
 	skill_poison: bool,
@@ -278,9 +279,13 @@ Game_State :: struct {
 	last_drop:           int,
 	last_drop_rarity:    int,
 	pending_sword_rarity: int,
+	// Bitfield of unique trophies collected (1 bit per zone tier 0..4).
+	unique_drops_mask:   int,
 	// Transient UI signal: rarity of sword gear dropped THIS kill (0 = none).
 	// Not serialized; cleared by the UI after it shows the toast.
 	last_sword_drop:     int,
+	// Transient: which unique bit (0..4) was just set this kill, or -1.
+	last_unique_drop:    int,
 	// World state
 	turn_count:          int,
 	// Fog of war
@@ -602,8 +607,40 @@ attack_power :: proc(g: ^Game_State) -> int {
 	atk_buff := ATK_BUFF_BONUS if g.player_atk_buff_dur > 0 else 0
 	// Fog cuts the player's visibility as much as the enemy's — offense takes a hit too.
 	fog_penalty := FOG_ATK_PENALTY if zone_weather(g.pos_x, g.pos_y, g.turn_count) == 2 else 0
-	raw := g.base_attack + weapon_bonus + atk_buff + enchant_atk_bonus(g) + comp_atk_bonus(g) - fog_penalty
+	raw := g.base_attack + weapon_bonus + atk_buff + enchant_atk_bonus(g) + comp_atk_bonus(g) - fog_penalty + unique_count(g.unique_drops_mask)
 	return max(raw, 1)
+}
+
+UNIQUE_BIT :: proc(bit: int) -> int {
+	switch bit {
+	case 0: return 1
+	case 1: return 2
+	case 2: return 4
+	case 3: return 8
+	case 4: return 16
+	}
+	return 0
+}
+
+has_unique :: proc(mask, bit: int) -> bool {
+	v := UNIQUE_BIT(bit)
+	if v == 0 do return false
+	return (mask / v) % 2 == 1
+}
+
+set_unique :: proc(mask, bit: int) -> int {
+	if has_unique(mask, bit) do return mask
+	return mask + UNIQUE_BIT(bit)
+}
+
+unique_count :: proc(mask: int) -> int {
+	n := 0
+	m := mask
+	for _ in 0..<5 {
+		if m % 2 == 1 do n += 1
+		m /= 2
+	}
+	return n
 }
 
 uses_blade :: proc(g: ^Game_State) -> bool {
@@ -679,6 +716,8 @@ init_game :: proc(g: ^Game_State) {
 	g.last_drop = 0
 	g.last_drop_rarity = 0
 	g.pending_sword_rarity = 0
+	g.unique_drops_mask = 0
+	g.last_unique_drop = -1
 	g.cd_fortify = 0
 	g.skill_points = 0
 	g.skill_combo = false

@@ -148,11 +148,18 @@ resolve_loot :: proc(g: ^Game_State) {
 		rarity := drop_rarity_roll(zlvl, pre_turn, pre_xp)
 		g.last_drop_rarity = rarity
 		g.last_sword_drop = 0
+		g.last_unique_drop = -1
 		// Rare+ sword gear drop: high-tier zones, needs inv room, one pending slot.
 		if zlvl >= 3 && rarity >= 1 && tot + 1 < MAX_INVENTORY && g.pending_sword_rarity == 0 {
 			g.qty_sword += 1
 			g.pending_sword_rarity = rarity
 			g.last_sword_drop = rarity
+		}
+		// Unique trophy drop: first-time rarity-2+ kill per zone tier.
+		unique_bit := zlvl - 1
+		if rarity >= 2 && unique_bit >= 0 && unique_bit <= 4 && !has_unique(g.unique_drops_mask, unique_bit) {
+			g.unique_drops_mask = set_unique(g.unique_drops_mask, unique_bit)
+			g.last_unique_drop = unique_bit
 		}
 		g.pity_counter = 0
 	} else {
@@ -160,6 +167,7 @@ resolve_loot :: proc(g: ^Game_State) {
 		g.last_drop = 0
 		g.last_drop_rarity = 0
 		g.last_sword_drop = 0
+		g.last_unique_drop = -1
 	}
 
 	// Trait-keyed secondary drop (~25%). Deterministic hash of position +

@@ -456,6 +456,13 @@ handle_enemy_defeated :: proc(app: ^App_State, old_level: int) {
 		)
 		g.last_sword_drop = 0
 	}
+	if g.last_unique_drop >= 0 && g.last_unique_drop < 5 {
+		add_message(app,
+			fmt.tprintf("Trophy: %s! (+1 ATK)", UNIQUE_DROP_NAMES[g.last_unique_drop]),
+			{255, 200, 50, 255},
+		)
+		g.last_unique_drop = -1
+	}
 }
 
 // Helper: handle player taking damage in combat (shake + flash + poison notification)

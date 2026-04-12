@@ -32,6 +32,7 @@ save_game :: proc(g: ^Game_State) -> bool {
 		pity_counter = g.pity_counter,
 		last_drop_rarity = g.last_drop_rarity,
 		pending_sword_rarity = g.pending_sword_rarity,
+		unique_drops_mask = g.unique_drops_mask,
 		skill_points = g.skill_points,
 		skill_combo = g.skill_combo,
 		skill_poison = g.skill_poison,
@@ -114,6 +115,7 @@ load_game :: proc(g: ^Game_State) -> bool {
 	g.pity_counter = s.pity_counter
 	g.last_drop_rarity = s.last_drop_rarity
 	g.pending_sword_rarity = s.pending_sword_rarity
+	g.unique_drops_mask = s.unique_drops_mask
 	g.skill_points = s.skill_points
 	g.skill_combo = s.skill_combo
 	g.skill_poison = s.skill_poison

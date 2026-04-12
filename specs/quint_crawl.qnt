@@ -17,6 +17,9 @@ module quint_crawl {
     qty_scroll_fire: int,
     qty_holy_dust: int, qty_holy_water: int,
     qty_bomb: int, qty_smoke: int, qty_ration: int,
+    // Bitfield of unique drops collected — one bit per zone tier (0..4).
+    // Each set bit is an archetype trophy; grants +1 passive atk permanently.
+    unique_drops_mask: int,
   }
 
   type EquipState = {
@@ -82,6 +85,8 @@ module quint_crawl {
     new_last_drop: int,
     new_last_drop_rarity: int,
     new_pending_sword_rarity: int,
+    new_unique_mask: int,
+    unique_fires: bool,
   }
 
   // === State variables ===
@@ -404,6 +409,22 @@ module quint_crawl {
   // Returns inventory increments (potion vs venom sac) and updated pity
   // counter / last_drop marker. Kill-on-hit actions simply add the
   // increments to inv' and copy new_pity / new_last_drop into meta'.
+  // Unique-drops bitfield helpers (5 bits, one per zone tier 0..4).
+  pure def unique_bit_value(bit: int): int =
+    if (bit == 0) 1 else if (bit == 1) 2 else if (bit == 2) 4
+    else if (bit == 3) 8 else 16
+  pure def has_unique(mask: int, bit: int): bool =
+    (mask / unique_bit_value(bit)) % 2 == 1
+  pure def set_unique(mask: int, bit: int): int =
+    if (has_unique(mask, bit)) mask else mask + unique_bit_value(bit)
+  pure def unique_count(mask: int): int =
+    (if (mask % 2 == 1) 1 else 0) +
+    (if ((mask / 2) % 2 == 1) 1 else 0) +
+    (if ((mask / 4) % 2 == 1) 1 else 0) +
+    (if ((mask / 8) % 2 == 1) 1 else 0) +
+    (if ((mask / 16) % 2 == 1) 1 else 0)
+  val MAX_UNIQUE_MASK = 31
+
   // Deterministic rarity roll, biased by zone tier. Higher tiers unlock
   // higher rarity bands; lower tiers cap at common/rare.
   pure def drop_rarity_roll(zone_tier: int, turn_count: int, nonce: int): int = {
@@ -414,7 +435,7 @@ module quint_crawl {
     else 0
   }
 
-  pure def compute_loot(m: MetaState, tot: int, defeated_alive: bool, turn_count: int, zone_tier: int, nonce: int): LootDrop = {
+  pure def compute_loot(m: MetaState, tot: int, defeated_alive: bool, turn_count: int, zone_tier: int, nonce: int, unique_mask_in: int): LootDrop = {
     // Nonce (caller passes ch.xp) desyncs the periodic drop pattern from
     // turn_count alone so players can't kill-sync to turn_count % N == 0.
     val drop_trigger = (m.pity_counter >= PITY_THRESHOLD or ((turn_count + nonce) % LOOT_DROP_MODULO == 0))
@@ -430,6 +451,10 @@ module quint_crawl {
     // Rare+ sword gear drop: high-tier zones only, must have room in inv,
     // must not already carry an unequipped rarity sword in the pending slot.
     val sword_drop = should_drop and zone_tier >= 3 and rarity >= 1 and tot + 1 < MAX_INVENTORY and m.pending_sword_rarity == 0
+    // Unique trophy drop: rarity >= 2 and the tier's bit is not yet set.
+    // Trophies don't consume inventory (they're flavor-carrying passive bonuses).
+    val unique_bit = zone_tier - 1
+    val unique_fires = should_drop and rarity >= 2 and unique_bit >= 0 and unique_bit <= 4 and not(has_unique(unique_mask_in, unique_bit))
     {
       potion_inc: if (should_drop and not(drops_venom)) 1 else 0,
       venom_inc: if (drops_venom) 1 else 0,
@@ -441,6 +466,8 @@ module quint_crawl {
       new_last_drop: if (drops_venom) 2 else if (should_drop) 1 else 0,
       new_last_drop_rarity: rarity,
       new_pending_sword_rarity: if (sword_drop) rarity else m.pending_sword_rarity,
+      new_unique_mask: if (unique_fires) set_unique(unique_mask_in, unique_bit) else unique_mask_in,
+      unique_fires: unique_fires,
     }
   }
 
@@ -485,7 +512,8 @@ module quint_crawl {
   val weapon_flat_bonus = if (inv.has_sword and eqp.sword_dur > 0) rarity_sword_bonus(eqp.sword_rarity)
                           else if (eqp.weapon_type == 3) DAGGER_ATK_BONUS
                           else 0
-  val attack_power_raw = ch.base_attack + weapon_flat_bonus + (if (cb.player_atk_buff_dur > 0) ATK_BUFF_BONUS else 0) + enchant_atk_bonus + comp_atk_bonus - fog_penalty_now
+  val unique_atk_bonus = unique_count(inv.unique_drops_mask)
+  val attack_power_raw = ch.base_attack + weapon_flat_bonus + (if (cb.player_atk_buff_dur > 0) ATK_BUFF_BONUS else 0) + enchant_atk_bonus + comp_atk_bonus - fog_penalty_now + unique_atk_bonus
   val attack_power = if (attack_power_raw < 1) 1 else attack_power_raw
   val uses_blade = eqp.weapon_type == 0 or eqp.weapon_type == 3
   val blade_attack_stamina = if (eqp.weapon_type == 3) DAGGER_STAMINA else ATTACK_STAMINA
@@ -525,6 +553,7 @@ module quint_crawl {
       qty_battery: 0,
       qty_holy_dust: 0, qty_holy_water: 0,
       qty_bomb: 0, qty_smoke: 0, qty_ration: 0,
+      unique_drops_mask: 0,
     },
     eqp' = {
       sword_dur: 0, sword_max_dur: SWORD_MAX_DUR,
@@ -696,7 +725,7 @@ module quint_crawl {
     val combat_ends = (new_enemy_hp <= 0 or new_hp <= 0)
     // Loot drop on enemy defeat
     val enemy_defeated_alive = (new_enemy_hp <= 0 and new_hp > 0)
-    val loot = compute_loot(meta, total_items, enemy_defeated_alive, w.turn_count, zone_tier, ch.xp)
+    val loot = compute_loot(meta, total_items, enemy_defeated_alive, w.turn_count, zone_tier, ch.xp, inv.unique_drops_mask)
     all {
       ch' = { ...ch,
               hp: if (new_hp < 0) 0 else new_hp,
@@ -732,6 +761,7 @@ module quint_crawl {
                qty_venom_sac: inv.qty_venom_sac + loot.venom_inc,
                qty_holy_dust: inv.qty_holy_dust + loot.holy_dust_inc,
                qty_sword: inv.qty_sword + loot.sword_inc,
+               unique_drops_mask: loot.new_unique_mask,
       },
       w' = { ...w, turn_count: w.turn_count + 1 },
       meta' = { ...meta, pity_counter: loot.new_pity, last_drop: loot.new_last_drop,
@@ -907,7 +937,7 @@ module quint_crawl {
     val ticked = tick_statuses(cb, false)
     val combat_ends = (new_enemy_hp <= 0 or new_hp <= 0)
     val enemy_defeated_alive = (new_enemy_hp <= 0 and new_hp > 0)
-    val loot = compute_loot(meta, total_items, enemy_defeated_alive, w.turn_count, zone_tier, ch.xp)
+    val loot = compute_loot(meta, total_items, enemy_defeated_alive, w.turn_count, zone_tier, ch.xp, inv.unique_drops_mask)
     all {
       ch' = { ...ch,
               hp: if (new_hp < 0) 0 else new_hp,
@@ -939,6 +969,7 @@ module quint_crawl {
                qty_venom_sac: inv.qty_venom_sac + loot.venom_inc,
                qty_holy_dust: inv.qty_holy_dust + loot.holy_dust_inc,
                qty_sword: inv.qty_sword + loot.sword_inc,
+               unique_drops_mask: loot.new_unique_mask,
       },
       eqp' = eqp,
       w' = { ...w, turn_count: w.turn_count + 1 },
@@ -991,7 +1022,7 @@ module quint_crawl {
     val ticked = tick_statuses(cb, false)
     val combat_ends = (new_enemy_hp <= 0 or new_hp <= 0)
     val enemy_defeated_alive = (new_enemy_hp <= 0 and new_hp > 0)
-    val loot = compute_loot(meta, total_items, enemy_defeated_alive, w.turn_count, zone_tier, ch.xp)
+    val loot = compute_loot(meta, total_items, enemy_defeated_alive, w.turn_count, zone_tier, ch.xp, inv.unique_drops_mask)
     all {
       ch' = { ...ch,
               hp: if (new_hp < 0) 0 else new_hp,
@@ -1023,6 +1054,7 @@ module quint_crawl {
                qty_venom_sac: inv.qty_venom_sac + loot.venom_inc,
                qty_holy_dust: inv.qty_holy_dust + loot.holy_dust_inc,
                qty_sword: inv.qty_sword + loot.sword_inc,
+               unique_drops_mask: loot.new_unique_mask,
       },
       eqp' = eqp,
       w' = { ...w, turn_count: w.turn_count + 1 },
@@ -1298,7 +1330,7 @@ module quint_crawl {
                           else next_combo
     // Loot drop on enemy defeat
     val enemy_defeated_alive = (new_enemy_hp <= 0 and new_hp > 0)
-    val loot = compute_loot(meta, total_items, enemy_defeated_alive, w.turn_count, zone_tier, ch.xp)
+    val loot = compute_loot(meta, total_items, enemy_defeated_alive, w.turn_count, zone_tier, ch.xp, inv.unique_drops_mask)
     // Passive venom infusion: skill_poison turns your combo into a venom carrier.
     val auto_poison = ch.skill_poison and inv.qty_venom_sac > 0 and new_enemy_hp > 0
     all {
@@ -1336,6 +1368,7 @@ module quint_crawl {
                qty_venom_sac: inv.qty_venom_sac + loot.venom_inc - (if (auto_poison) 1 else 0),
                qty_holy_dust: inv.qty_holy_dust + loot.holy_dust_inc,
                qty_sword: inv.qty_sword + loot.sword_inc,
+               unique_drops_mask: loot.new_unique_mask,
       },
       w' = { ...w, turn_count: w.turn_count + 1 },
       meta' = { ...meta, pity_counter: loot.new_pity, last_drop: loot.new_last_drop,
@@ -1370,7 +1403,7 @@ module quint_crawl {
     val ticked = tick_statuses(cb, apply_poison)
     val combat_ends = (new_enemy_hp <= 0 or new_hp <= 0)
     val enemy_defeated_alive = (new_enemy_hp <= 0 and new_hp > 0)
-    val loot = compute_loot(meta, total_items, enemy_defeated_alive, w.turn_count, zone_tier, ch.xp)
+    val loot = compute_loot(meta, total_items, enemy_defeated_alive, w.turn_count, zone_tier, ch.xp, inv.unique_drops_mask)
     // Passive venom infusion: skill_poison turns your heavy into a venom carrier.
     val auto_poison = ch.skill_poison and inv.qty_venom_sac > 0 and new_enemy_hp > 0
     all {
@@ -1408,6 +1441,7 @@ module quint_crawl {
                qty_venom_sac: inv.qty_venom_sac + loot.venom_inc - (if (auto_poison) 1 else 0),
                qty_holy_dust: inv.qty_holy_dust + loot.holy_dust_inc,
                qty_sword: inv.qty_sword + loot.sword_inc,
+               unique_drops_mask: loot.new_unique_mask,
       },
       w' = { ...w, turn_count: w.turn_count + 1 },
       meta' = { ...meta, pity_counter: loot.new_pity, last_drop: loot.new_last_drop,
@@ -1614,7 +1648,7 @@ module quint_crawl {
     val ticked = tick_statuses(cb, apply_poison)
     val dur_cost = if (inv.has_sword and eqp.sword_dur > 0) 1 else 0
     val enemy_defeated_alive = (final_enemy_hp <= 0 and new_hp > 0)
-    val loot = compute_loot(meta, total_items, enemy_defeated_alive, w.turn_count, zone_tier, ch.xp)
+    val loot = compute_loot(meta, total_items, enemy_defeated_alive, w.turn_count, zone_tier, ch.xp, inv.unique_drops_mask)
     all {
       ch' = { ...ch,
               hp: if (new_hp < 0) 0 else new_hp,
@@ -1649,6 +1683,7 @@ module quint_crawl {
                qty_venom_sac: inv.qty_venom_sac + loot.venom_inc,
                qty_holy_dust: inv.qty_holy_dust + loot.holy_dust_inc,
                qty_sword: inv.qty_sword + loot.sword_inc,
+               unique_drops_mask: loot.new_unique_mask,
       },
       w' = { ...w, turn_count: w.turn_count + 1 },
       meta' = { ...meta, pity_counter: loot.new_pity, last_drop: loot.new_last_drop,
@@ -1713,7 +1748,7 @@ module quint_crawl {
     val ticked = tick_statuses(cb, apply_poison)
     val combat_ends = (new_enemy_hp <= 0 or new_hp <= 0)
     val enemy_defeated_alive = (new_enemy_hp <= 0 and new_hp > 0)
-    val loot = compute_loot(meta, total_items, enemy_defeated_alive, w.turn_count, zone_tier, ch.xp)
+    val loot = compute_loot(meta, total_items, enemy_defeated_alive, w.turn_count, zone_tier, ch.xp, inv.unique_drops_mask)
     all {
       ch' = { ...ch,
               hp: if (new_hp < 0) 0 else new_hp,
@@ -1747,6 +1782,7 @@ module quint_crawl {
                qty_venom_sac: inv.qty_venom_sac + loot.venom_inc,
                qty_holy_dust: inv.qty_holy_dust + loot.holy_dust_inc,
                qty_sword: inv.qty_sword + loot.sword_inc,
+               unique_drops_mask: loot.new_unique_mask,
       },
       w' = { ...w, turn_count: w.turn_count + 1 },
       meta' = { ...meta, pity_counter: loot.new_pity, last_drop: loot.new_last_drop,
@@ -2242,6 +2278,7 @@ module quint_crawl {
   val sword_rarity_bounded = eqp.sword_rarity >= 0 and eqp.sword_rarity <= MAX_SWORD_RARITY
   val last_drop_rarity_bounded = meta.last_drop_rarity >= 0 and meta.last_drop_rarity <= MAX_SWORD_RARITY
   val pending_sword_rarity_bounded = meta.pending_sword_rarity >= 0 and meta.pending_sword_rarity <= MAX_SWORD_RARITY
+  val unique_mask_bounded = inv.unique_drops_mask >= 0 and inv.unique_drops_mask <= MAX_UNIQUE_MASK
 
   /// Broken sword gives no attack bonus: neither SWORD_ATK_BONUS nor enchant atk.
   /// (ATK buff and companion atk bonuses are independent and may still apply.

@@ -286,6 +286,7 @@ crawl_state :: proc(driver: rawptr) -> map[string]mbt.ITF_Value {
 	inv["qty_bomb"] = mbt.ITF_Int{g.qty_bomb}
 	inv["qty_smoke"] = mbt.ITF_Int{g.qty_smoke}
 	inv["qty_ration"] = mbt.ITF_Int{g.qty_ration}
+	inv["unique_drops_mask"] = mbt.ITF_Int{g.unique_drops_mask}
 	state["inv"] = mbt.ITF_Record{inv}
 
 	// eqp: EquipState
@@ -448,7 +449,7 @@ test_save_load_round_trip :: proc(t: ^testing.T) {
 	g.qty_bomb = 2;        g.qty_smoke = 1;       g.qty_ration = 3
 	g.pos_x = 4;           g.pos_y = 2;           g.turn_count = 88
 	g.pity_counter = 3;    g.salvage_level = 2;   g.last_kill_turn = 50
-	g.last_drop_rarity = 2; g.pending_sword_rarity = 1
+	g.last_drop_rarity = 2; g.pending_sword_rarity = 1; g.unique_drops_mask = 5
 	g.q1_kills = 5;        g.q2_zones = 2;        g.q3_kills = 1
 	g.quest_rewards_claimed = 1
 	g.comp_active = true;  g.comp_species = 2
@@ -477,7 +478,7 @@ test_save_load_round_trip :: proc(t: ^testing.T) {
 	g.qty_bomb = 0;        g.qty_smoke = 0;       g.qty_ration = 0
 	g.pos_x = 0;           g.pos_y = 0;           g.turn_count = 0
 	g.pity_counter = 0;    g.salvage_level = 0;   g.last_kill_turn = 0
-	g.last_drop_rarity = 0; g.pending_sword_rarity = 0
+	g.last_drop_rarity = 0; g.pending_sword_rarity = 0; g.unique_drops_mask = 0
 	g.q1_kills = 0;        g.q2_zones = 0;        g.q3_kills = 0
 	g.quest_rewards_claimed = 0
 	g.comp_active = false; g.comp_species = 0
@@ -525,6 +526,7 @@ test_save_load_round_trip :: proc(t: ^testing.T) {
 	testing.expect_value(t, g.pity_counter, 3)
 	testing.expect_value(t, g.last_drop_rarity, 2)
 	testing.expect_value(t, g.pending_sword_rarity, 1)
+	testing.expect_value(t, g.unique_drops_mask, 5)
 	testing.expect_value(t, g.salvage_level, 2)
 	testing.expect_value(t, g.last_kill_turn, 50)
 	testing.expect_value(t, g.q1_kills, 5)

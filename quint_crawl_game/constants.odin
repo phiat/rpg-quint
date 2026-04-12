@@ -59,6 +59,15 @@ ENEMY_COLORS := [qc.MAX_LEVEL]rl.Color{
 
 ENEMY_NAMES := [qc.MAX_LEVEL]string{"Slime", "Skeleton", "Wolf", "Wraith", "Dragon"}
 
+// Unique trophy names per zone tier bit (0..4). Each grants +1 passive atk.
+UNIQUE_DROP_NAMES := [5]string{
+	"Slime Crown",      // tier 1 (slime)
+	"Bone Standard",    // tier 2 (skeleton)
+	"Alpha Pelt",       // tier 3 (wolf)
+	"Wraith Veil",      // tier 4 (wraith)
+	"Dragon Heart",     // tier 5 (dragon)
+}
+
 // Sword rarity tiers (0=common, 1=rare, 2=epic, 3=legendary)
 SWORD_RARITY_NAMES := [4]string{"Sword", "Rare Sword", "Epic Sword", "Legendary Sword"}
 SWORD_RARITY_COLORS := [4]rl.Color{
