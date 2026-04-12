@@ -21,37 +21,96 @@ Inspired by: [Model-Based Testing for D&D](https://www.loskutoff.com/blog/model-
 just play             # build and run the game
 ```
 
-Controls: WASD to move, E to fight, A to attack, K for combo, H for heavy strike, Y for battle cry, Z for shield block, N for counter-attack, I for fortify, P for potions, V to poison, X for antidote, F to flee, R to rest, B to buy potions, G to gather wood, M to mine iron, C to craft (Lv2+), Q to equip, T to repair, O to craft venom sac, U to respec skills, \ to salvage sword, = to upgrade salvage, J to fast travel, L to claim victory (at Level 5 Castle), 1-7 to unlock skills (when points available), 8-0 to enchant sword slots 1-3 (at village), `,` to adopt local companion, `.` to feed companion, `;` to dismiss companion, `'` for companion command in combat, F5 to save, F9 to load. See the HUD sidebar for zone-specific actions.
-
-Features:
-- 9x9 world grid with 5 difficulty levels and biome tiling (3x3 pattern repeats across regions)
-- Turn-based combat against a data-driven bestiary: 200 named enemies across 20 archetypes (4 per tier, 5 tiers) with 6 trait tags (Undead, Beast, Elemental, Construct, Humanoid, Aberration) and trait-keyed secondary loot drops
-- Mouse hover tooltips showing zone name, level, and available actions
-- HUD minimap with biome region overview
-- Stamina system — actions cost stamina, restored by resting
-- Combo system — 3-hit chain (Slash → Thrust → Finisher) with damage multipliers
-- Skill tree — 3 branches (Offense/Defense/Utility), 1 point per level-up, respec at village
-- Cooldown abilities — heavy strike (2x damage), battle cry (ATK buff), fortify (extended DEF buff), counter-attack (block + retaliatory hit)
-- Status effects — poison, ATK/DEF buffs with turn-based ticking
-- Venom sac system — consumable for poison strike, dropped from ZL2+ enemies or crafted at village
-- Per-zone weather (Clear/Rain/Fog/Storm) affecting combat, gathering, and movement
-- Enemy respawn timer — 5-turn cooldown after defeating an enemy before new combat available
-- Quest chain — 3 prerequisite-gated quests (Slime Slayer → Venture Forth → Castle Conqueror) tracked in the HUD
-- Data-driven companion system — species catalog (Wolf/Hawk/Turtle/Fox/Bear/Owl/Lynx/Sprite) with biome-gated adoption, trait affinities (Attacker/Defender/Scout/Support), rarity tiers (Common/Rare/Legendary), loyalty-on-combat loop, in-combat command, and a 3-stage companion quest chain. Spec verifies the abstract (trait × rarity) effect space; Odin grows the catalog freely without code changes.
-- Loot drops with pity-counter guarantee system
-- Resource gathering (wood, iron), crafting, and equipment
-- Elemental damage — 4-element cycle (Fire>Ice>Lightning>Earth>Fire) with 2x/1x/0.5x multipliers
-- Enchantment system — 3 weapon slots (fire/ice/vampiric/lightning), ATK/DEF bonuses, fire/ice incompatible
-- Inventory capacity (30 items max) with capacity-aware gathering, shopping, and loot
-- Level-gated crafting — sword crafting requires Level 2+
-- Salvage system — break down swords for materials at village, upgradeable salvage level (1-3)
-- Sword durability — degrades per attack, repair at village
-- Fog of war — unexplored tiles hidden, revealed by adjacency, visited tiles fully visible
-- Fast travel — village waypoints unlocked on visit, teleport between them
-- Save/load snapshot with full state round-trip
-- Post-processing effects: zone tint, chromatic aberration, low-HP pulse, level-up bloom, poison overlay
-
 The game logic in `quint_crawl/` is the single source of truth — shared by both the raylib game and the MBT test harness. Every state transition is formally specified and verified.
+
+## Controls
+
+### Movement
+
+| Key | Action |
+|-----|--------|
+| WASD | Move between zones |
+| J | Fast travel (between unlocked village waypoints) |
+
+### Combat — Sword
+
+| Key | Action |
+|-----|--------|
+| E | Initiate fight |
+| A | Basic attack |
+| K | Combo (3-hit chain: Slash → Thrust → Finisher) |
+| H | Heavy strike (2x damage, cooldown) |
+
+### Combat — Actions & Skills
+
+| Key | Action |
+|-----|--------|
+| Y | Battle cry (ATK buff) |
+| Z | Shield block |
+| N | Counter-attack (block + retaliatory hit) |
+| I | Fortify (extended DEF buff) |
+| F | Flee |
+
+### Combat — Tactical
+
+| Key | Action |
+|-----|--------|
+| P | Use potion |
+| V | Apply poison (venom sac) |
+| X | Antidote |
+
+### Exploration
+
+| Key | Action |
+|-----|--------|
+| R | Rest (restore stamina) |
+| G | Gather wood |
+| M | Mine iron |
+
+### Village
+
+| Key | Action |
+|-----|--------|
+| B | Buy potions |
+| C | Craft sword (Level 2+) |
+| Q | Equip |
+| T | Repair sword |
+| O | Craft venom sac |
+| U | Respec skills |
+| \ | Salvage sword |
+| = | Upgrade salvage level |
+| 1–7 | Unlock skill (when points available) |
+| 8–0 | Enchant sword slots 1–3 |
+| L | Claim victory (at Level 5 Castle) |
+
+### Companions
+
+| Key | Action |
+|-----|--------|
+| , | Adopt local companion |
+| . | Feed companion |
+| ; | Dismiss companion |
+| ' | Companion command (in combat) |
+
+### System
+
+| Key | Action |
+|-----|--------|
+| F5 | Save |
+| F9 | Load |
+
+See the HUD sidebar for zone-specific actions.
+
+## Features
+
+- **World** — 9x9 grid, 5 difficulty levels, biome tiling (3x3 pattern repeats across regions), fog of war, HUD minimap, mouse hover tooltips, per-zone weather (Clear/Rain/Fog/Storm) affecting combat/gathering/movement, village waypoints with fast travel.
+- **Combat** — turn-based, stamina-gated actions, 3-hit combo chain with damage multipliers, cooldown abilities (heavy strike, battle cry, fortify, counter-attack), status effects (poison, ATK/DEF buffs) with turn-based ticking, enemy respawn timer (5-turn cooldown after a kill).
+- **Bestiary** — data-driven catalog of 200 named enemies across 20 archetypes (4 per tier, 5 tiers), 6 trait tags (Undead/Beast/Elemental/Construct/Humanoid/Aberration), trait-keyed secondary loot drops.
+- **Elemental system** — 4-element cycle (Fire > Ice > Lightning > Earth > Fire) with 2x/1x/0.5x damage multipliers.
+- **Companions** — data-driven species catalog (Wolf/Hawk/Turtle/Fox/Bear/Owl/Lynx/Sprite) with biome-gated adoption, trait affinities (Attacker/Defender/Scout/Support), rarity tiers (Common/Rare/Legendary), loyalty-on-combat loop, in-combat command, and a 3-stage companion quest chain. The spec verifies the abstract (trait × rarity) effect space; Odin grows the catalog freely without code changes.
+- **Progression** — XP/level-up, skill tree with 3 branches (Offense/Defense/Utility), 1 point per level, respec at village, 3 prerequisite-gated quests (Slime Slayer → Venture Forth → Castle Conqueror) tracked in the HUD.
+- **Items & crafting** — resource gathering (wood, iron), level-gated sword crafting (Lv2+), sword durability with village repair, salvage system (upgradeable 1–3), 3-slot weapon enchantment (fire/ice/vampiric/lightning; fire/ice mutually exclusive), venom sac crafting, loot drops with pity-counter guarantee, inventory capacity (30 items) enforced across gathering/shopping/loot.
+- **Persistence & polish** — save/load snapshot with full state round-trip; post-processing effects (zone tint, chromatic aberration, low-HP pulse, level-up bloom, poison overlay).
 
 ## How MBT works
 
@@ -136,23 +195,26 @@ justfile               Task runner for common workflows
 | **fog_of_war** | Exploration reveal system | Revealed tiles monotonic, visibility radius bounded |
 | **permadeath** | Permadeath with legacy bonuses | Death permanent, legacy bonuses carry forward |
 | **bounty** | Bounty board quest system | Bounty rewards match difficulty, completion tracked |
-| **quint_crawl** | Full RPG game state machine (9x9 grid, 5 levels, data-driven companions) | HP bounded, gold non-negative, level gates, durability bounded, combo bounded, stamina bounded, cooldowns bounded (incl. fortify), loot pity bounded, status effects bounded, weather deterministic, skill points non-negative, skill prereqs respected, venom sac non-negative, enemy element bounded, enchant slots bounded, no fire/ice incompatible, enemy element only in combat, inventory bounded, salvage level bounded, quest counters bounded, quest prereqs respected, companion trait+rarity bounded, loyalty bounded, inactive=no loyalty, comp atk/def derived effects bounded, companion quest counters+prereqs respected, visited tiles in bounds, waypoints only on service zones, last_kill_turn bounded, companion inactive zeroed, victory preconditions, win condition correct |
+| **quint_crawl** | Full RPG game state machine (9x9 grid, 5 levels, data-driven companions) | HP bounded, gold non-negative, level bounded, position bounded, visited in bounds, waypoint is service zone, quantities non-negative, level gates respected, durability bounded, combo bounded, stamina bounded, cooldowns bounded (incl. fortify), cooldowns only in combat, loot pity bounded, status effects bounded, status only in combat, last kill turn bounded, broken sword gives no sword/enchant bonus, weather deterministic, skill points non-negative, skill prereqs respected, venom sac non-negative, enemy element bounded, enchant slots bounded, no fire/ice incompatible, enemy element only in combat, inventory bounded, salvage level bounded, quest counters bounded, quest prereqs respected, companion trait+rarity bounded, loyalty bounded, inactive=no loyalty, companion inactive zeroed, comp atk/def derived effects bounded, companion quest counters+prereqs respected, victory preconditions, win condition correct |
 
 ## Quick start
 
 ```bash
-just play        # build and run the game
+just play            # build and run the game
+just build-game      # build without running
 
-just check       # typecheck all specs
-just traces      # generate MBT traces
-just test        # run all Odin MBT tests
-just all         # all of the above
+just check           # typecheck all specs
+just traces          # generate MBT traces for all specs
+just test            # run all Odin MBT tests
+just all             # check + traces + test
+just retest          # traces + test
 
-just check-one rpg          # typecheck one spec
-just test-one rpg           # test one module
-just trace rpg rpg_run      # regenerate one trace
-just trace-crawl            # regenerate quint_crawl traces (5x, 100k samples)
-just test-crawl             # regen traces + run crawl MBT tests
+just check-one rpg             # typecheck one spec
+just test-one rpg              # test one module
+just trace rpg rpg_run         # regenerate one trace
+just trace-crawl               # regenerate quint_crawl traces (5x, 100k samples)
+just test-crawl                # regen traces + run crawl MBT tests
+just verify NAME MAIN INVARIANT # run invariant check (100k traces, 20 steps)
 ```
 
 ## Prerequisites
