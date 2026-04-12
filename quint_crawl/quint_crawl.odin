@@ -762,7 +762,11 @@ flee_combat :: proc(g: ^Game_State) -> bool {
 	g.turn_count += 1
 	flee_dmg := g.enemy_attack - enchant_def_bonus(g)
 	if flee_dmg < 1 do flee_dmg = 1
-	g.hp = max(g.hp - flee_dmg, 0)
+	poison_dmg := POISON_DMG if g.player_poison_dur > 0 else 0
+	// Flee should not kill — clamp HP to 1 minimum so escape hatch remains.
+	new_hp := g.hp - flee_dmg - poison_dmg
+	if new_hp < 1 do new_hp = 1
+	g.hp = new_hp
 	g.in_combat = false
 	g.enemy_hp = 0
 	g.enemy_attack = 0

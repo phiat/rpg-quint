@@ -514,9 +514,12 @@ module quint_crawl {
   action flee_combat = all {
     cb.in_combat, not(meta.game_won), ch.hp > 0,
     val flee_dmg = if (cb.enemy_attack - enchant_def_bonus < 1) 1 else cb.enemy_attack - enchant_def_bonus
-    val new_hp = ch.hp - flee_dmg
+    val poison_dmg = if (cb.player_poison_dur > 0) POISON_DMG else 0
+    // Flee should not kill — clamp HP to 1 minimum so the escape hatch remains.
+    val raw_hp = ch.hp - flee_dmg - poison_dmg
+    val new_hp = if (raw_hp < 1) 1 else raw_hp
     all {
-      ch' = { ...ch, hp: if (new_hp < 0) 0 else new_hp },
+      ch' = { ...ch, hp: new_hp },
       cb' = { in_combat: false, enemy_hp: 0, enemy_attack: 0, enemy_element: 0,
               combo_count: 0, player_poison_dur: 0, player_atk_buff_dur: 0,
               player_def_buff_dur: 0, enemy_poison_dur: 0,
