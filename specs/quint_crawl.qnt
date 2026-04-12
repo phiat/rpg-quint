@@ -125,7 +125,8 @@ module quint_crawl {
   val POTION_COST = 15
   val HP_PER_LEVEL = 15
   val ATK_PER_LEVEL_UP = 2
-  val STAMINA_PER_LEVEL = 3
+  val STAMINA_PER_LEVEL = 2
+  val STAMINA_REGEN_PER_MOVE = 1 // passive out-of-combat regen on every move
   val INITIAL_HP = 50
   val INITIAL_ATTACK = 10
   val INITIAL_POTIONS = 2
@@ -157,7 +158,7 @@ module quint_crawl {
   val SALVAGE_IRON_BASE = 1
   val UPGRADE_SALVAGE_COST = 15
   val MAX_SALVAGE_LEVEL = 3
-  val RESPAWN_TURNS = 5           // turns after kill before combat available again
+  val RESPAWN_TURNS = 3           // turns after kill before combat available again
   // Castle boss encounter — replaces the generic tier-5 enemy at the Castle
   // zone until it's killed. Roughly 2x a top-tier mob so the fight has weight.
   val BOSS_HP = 80
@@ -182,9 +183,9 @@ module quint_crawl {
   // XP thresholds for leveling up
   pure def xp_threshold(lvl: int): int =
     if (lvl == 2) 15
-    else if (lvl == 3) 45
-    else if (lvl == 4) 90
-    else if (lvl == 5) 150
+    else if (lvl == 3) 50
+    else if (lvl == 4) 110
+    else if (lvl == 5) 200
     else 9999
 
   // --- Zone properties: pure functions of coordinates ---
@@ -431,7 +432,9 @@ module quint_crawl {
       w' = { ...w, pos_y: w.pos_y - 1, turn_count: w.turn_count + 1,
              visited: w.visited.union(Set((w.pos_x, w.pos_y - 1))),
              waypoints: if (zone_has_services(w.pos_x, w.pos_y - 1)) w.waypoints.union(Set((w.pos_x, w.pos_y - 1))) else w.waypoints },
-      ch' = { ...ch, hp: if (ch.hp - storm_dmg < 1) 1 else ch.hp - storm_dmg },
+      ch' = { ...ch,
+              hp: if (ch.hp - storm_dmg < 1) 1 else ch.hp - storm_dmg,
+              stamina: if (ch.stamina + STAMINA_REGEN_PER_MOVE > ch.max_stamina) ch.max_stamina else ch.stamina + STAMINA_REGEN_PER_MOVE },
       inv' = inv, eqp' = eqp,
       cb' = cb,
       meta' = { ...meta, q2_zones: if (quest1_complete and zone_level(w.pos_x, w.pos_y - 1) >= 2 and not(w.visited.contains((w.pos_x, w.pos_y - 1))) and meta.q2_zones < Q2_TARGET) meta.q2_zones + 1 else meta.q2_zones },
@@ -448,7 +451,9 @@ module quint_crawl {
       w' = { ...w, pos_y: w.pos_y + 1, turn_count: w.turn_count + 1,
              visited: w.visited.union(Set((w.pos_x, w.pos_y + 1))),
              waypoints: if (zone_has_services(w.pos_x, w.pos_y + 1)) w.waypoints.union(Set((w.pos_x, w.pos_y + 1))) else w.waypoints },
-      ch' = { ...ch, hp: if (ch.hp - storm_dmg < 1) 1 else ch.hp - storm_dmg },
+      ch' = { ...ch,
+              hp: if (ch.hp - storm_dmg < 1) 1 else ch.hp - storm_dmg,
+              stamina: if (ch.stamina + STAMINA_REGEN_PER_MOVE > ch.max_stamina) ch.max_stamina else ch.stamina + STAMINA_REGEN_PER_MOVE },
       inv' = inv, eqp' = eqp,
       cb' = cb,
       meta' = { ...meta, q2_zones: if (quest1_complete and zone_level(w.pos_x, w.pos_y + 1) >= 2 and not(w.visited.contains((w.pos_x, w.pos_y + 1))) and meta.q2_zones < Q2_TARGET) meta.q2_zones + 1 else meta.q2_zones },
@@ -465,7 +470,9 @@ module quint_crawl {
       w' = { ...w, pos_x: w.pos_x - 1, turn_count: w.turn_count + 1,
              visited: w.visited.union(Set((w.pos_x - 1, w.pos_y))),
              waypoints: if (zone_has_services(w.pos_x - 1, w.pos_y)) w.waypoints.union(Set((w.pos_x - 1, w.pos_y))) else w.waypoints },
-      ch' = { ...ch, hp: if (ch.hp - storm_dmg < 1) 1 else ch.hp - storm_dmg },
+      ch' = { ...ch,
+              hp: if (ch.hp - storm_dmg < 1) 1 else ch.hp - storm_dmg,
+              stamina: if (ch.stamina + STAMINA_REGEN_PER_MOVE > ch.max_stamina) ch.max_stamina else ch.stamina + STAMINA_REGEN_PER_MOVE },
       inv' = inv, eqp' = eqp,
       cb' = cb,
       meta' = { ...meta, q2_zones: if (quest1_complete and zone_level(w.pos_x - 1, w.pos_y) >= 2 and not(w.visited.contains((w.pos_x - 1, w.pos_y))) and meta.q2_zones < Q2_TARGET) meta.q2_zones + 1 else meta.q2_zones },
@@ -482,7 +489,9 @@ module quint_crawl {
       w' = { ...w, pos_x: w.pos_x + 1, turn_count: w.turn_count + 1,
              visited: w.visited.union(Set((w.pos_x + 1, w.pos_y))),
              waypoints: if (zone_has_services(w.pos_x + 1, w.pos_y)) w.waypoints.union(Set((w.pos_x + 1, w.pos_y))) else w.waypoints },
-      ch' = { ...ch, hp: if (ch.hp - storm_dmg < 1) 1 else ch.hp - storm_dmg },
+      ch' = { ...ch,
+              hp: if (ch.hp - storm_dmg < 1) 1 else ch.hp - storm_dmg,
+              stamina: if (ch.stamina + STAMINA_REGEN_PER_MOVE > ch.max_stamina) ch.max_stamina else ch.stamina + STAMINA_REGEN_PER_MOVE },
       inv' = inv, eqp' = eqp,
       cb' = cb,
       meta' = { ...meta, q2_zones: if (quest1_complete and zone_level(w.pos_x + 1, w.pos_y) >= 2 and not(w.visited.contains((w.pos_x + 1, w.pos_y))) and meta.q2_zones < Q2_TARGET) meta.q2_zones + 1 else meta.q2_zones },

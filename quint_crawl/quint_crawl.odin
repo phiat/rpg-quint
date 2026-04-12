@@ -7,7 +7,7 @@ ZONE_NAMES := [3][3]string{
 	{"Swamp", "Mountain", "Castle"},
 }
 
-XP_THRESHOLDS := [MAX_LEVEL + 1]int{0, 0, 15, 45, 90, 150}   // index by level
+XP_THRESHOLDS := [MAX_LEVEL + 1]int{0, 0, 15, 50, 110, 200}   // index by level
 
 // --- World scaling constants ---
 WORLD_SIZE :: 9        // grid dimension (NxN)
@@ -65,7 +65,8 @@ SWORD_ATK_BONUS :: 5
 POTION_COST :: 15
 HP_PER_LEVEL :: 15
 ATK_PER_LEVEL_UP :: 2
-STAMINA_PER_LEVEL :: 3
+STAMINA_PER_LEVEL :: 2
+STAMINA_REGEN_PER_MOVE :: 1
 INITIAL_HP :: 50
 INITIAL_ATTACK :: 10
 INITIAL_POTIONS :: 2
@@ -97,7 +98,7 @@ SALVAGE_WOOD_BASE :: 0
 SALVAGE_IRON_BASE :: 1
 UPGRADE_SALVAGE_COST :: 15
 MAX_SALVAGE_LEVEL :: 3
-RESPAWN_TURNS :: 5
+RESPAWN_TURNS :: 3
 // Castle boss — replaces the tier-5 Castle-zone enemy until defeated
 BOSS_HP :: 80
 BOSS_ATK :: 12
@@ -655,6 +656,7 @@ move :: proc(g: ^Game_State, dx, dy: int) -> bool {
 	if zone_weather(nx, ny, g.turn_count) == 3 {
 		g.hp = max(g.hp - STORM_MOVE_DMG, 1)
 	}
+	g.stamina = min(g.stamina + STAMINA_REGEN_PER_MOVE, g.max_stamina)
 	return true
 }
 
