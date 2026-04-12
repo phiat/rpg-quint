@@ -476,7 +476,8 @@ attack_power :: proc(g: ^Game_State) -> int {
 }
 
 total_items :: proc(g: ^Game_State) -> int {
-	return g.qty_potion + g.qty_wood + g.qty_iron + g.qty_sword + g.qty_venom_sac
+	return g.qty_potion + g.qty_wood + g.qty_iron + g.qty_sword + g.qty_venom_sac +
+		g.qty_holy_dust + g.qty_pelt + g.qty_core + g.qty_essence + g.qty_coin + g.qty_ichor
 }
 
 salvage_wood_yield :: proc(slvl: int) -> int {
