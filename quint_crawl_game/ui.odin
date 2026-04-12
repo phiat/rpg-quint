@@ -141,6 +141,9 @@ draw_hud :: proc(app: ^App_State) {
 	} else if g.weapon_type == 2 {
 		rl.DrawText("Staff equipped", x + 8, y, 14, {140, 200, 255, 255})
 		y += 18
+	} else if g.weapon_type == 3 {
+		rl.DrawText("Dagger equipped", x + 8, y, 14, {220, 200, 160, 255})
+		y += 18
 	} else {
 		rl.DrawText("Equipped: None", x + 8, y, 14, TEXT_DIM)
 		y += 18

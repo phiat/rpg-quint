@@ -76,6 +76,9 @@ crawl_step :: proc(driver: rawptr, action: string, picks: map[string]mbt.ITF_Val
 	case "use_holy_water":
 		qc.use_holy_water(g)
 		return true
+	case "equip_dagger":
+		qc.equip_dagger(g)
+		return true
 	case "buy_bomb":
 		qc.buy_bomb(g)
 		return true

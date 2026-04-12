@@ -119,6 +119,22 @@ equip_staff :: proc(g: ^Game_State) -> bool {
 	return true
 }
 
+equip_dagger :: proc(g: ^Game_State) -> bool {
+	if !can_act_map(g) do return false
+	if !zone_has_services(g.pos_x, g.pos_y) do return false
+	if !g.has_sword || g.weapon_type != 0 do return false
+	if g.gold < DAGGER_UNLOCK_COST do return false
+	g.turn_count += 1
+	g.gold -= DAGGER_UNLOCK_COST
+	g.has_sword = false
+	g.sword_dur = 0
+	g.weapon_type = 3
+	g.enchant_slot_1 = 0
+	g.enchant_slot_2 = 0
+	g.enchant_slot_3 = 0
+	return true
+}
+
 repair_sword :: proc(g: ^Game_State) -> bool {
 	if !can_act_map(g) do return false
 	if !zone_has_services(g.pos_x, g.pos_y) do return false

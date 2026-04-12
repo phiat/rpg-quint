@@ -248,10 +248,11 @@ pistol_shot :: proc(g: ^Game_State) -> bool {
 
 combat_attack :: proc(g: ^Game_State) -> bool {
 	if !can_act_combat(g) do return false
-	if g.weapon_type != 0 do return false
-	if g.stamina < ATTACK_STAMINA do return false
+	if !uses_blade(g) do return false
+	cost := blade_attack_stamina(g)
+	if g.stamina < cost do return false
 	g.turn_count += 1
-	g.stamina -= ATTACK_STAMINA
+	g.stamina -= cost
 	combat_ends := resolve_combat_hit(g, attack_power(g))
 	// Plain attack preserves combo (spec: combo_count' = combo_count)
 	if combat_ends {
@@ -400,12 +401,13 @@ use_antidote :: proc(g: ^Game_State) -> bool {
 
 poison_strike :: proc(g: ^Game_State) -> bool {
 	if !can_act_combat(g) do return false
-	if g.weapon_type != 0 do return false
+	if !uses_blade(g) do return false
 	if !g.skill_poison do return false
 	if g.qty_venom_sac <= 0 do return false
-	if g.stamina < ATTACK_STAMINA do return false
+	cost := blade_attack_stamina(g)
+	if g.stamina < cost do return false
 	g.turn_count += 1
-	g.stamina -= ATTACK_STAMINA
+	g.stamina -= cost
 	g.qty_venom_sac -= 1
 	enemy_dmg := enemy_free_hit_damage(g, enchant_def_bonus(g))
 	g.hp = max(g.hp - enemy_dmg, 0)
@@ -431,12 +433,13 @@ poison_strike :: proc(g: ^Game_State) -> bool {
 
 combo_attack :: proc(g: ^Game_State) -> bool {
 	if !can_act_combat(g) do return false
-	if g.weapon_type != 0 do return false
+	if !uses_blade(g) do return false
 	if !g.skill_combo do return false
 	if g.combo_count >= MAX_COMBO_CHAIN do return false
-	if g.stamina < COMBO_STAMINA do return false
+	cost := blade_combo_stamina(g)
+	if g.stamina < cost do return false
 	g.turn_count += 1
-	g.stamina -= COMBO_STAMINA
+	g.stamina -= cost
 
 	next_combo := g.combo_count + 1
 	base_dmg := attack_power(g)
@@ -472,7 +475,7 @@ combo_attack :: proc(g: ^Game_State) -> bool {
 
 heavy_strike :: proc(g: ^Game_State) -> bool {
 	if !can_act_combat(g) do return false
-	if g.weapon_type != 0 do return false
+	if !uses_blade(g) do return false
 	if !g.skill_heavy_strike do return false
 	if g.cd_heavy_strike != 0 do return false
 	if g.stamina < HEAVY_STRIKE_STAMINA do return false
@@ -509,7 +512,7 @@ heavy_strike :: proc(g: ^Game_State) -> bool {
 
 battle_cry :: proc(g: ^Game_State) -> bool {
 	if !can_act_combat(g) do return false
-	if g.weapon_type != 0 do return false
+	if !uses_blade(g) do return false
 	if !g.skill_battle_cry do return false
 	if g.cd_battle_cry != 0 do return false
 	if g.stamina < BATTLE_CRY_STAMINA do return false
@@ -555,7 +558,7 @@ battle_cry :: proc(g: ^Game_State) -> bool {
 
 shield_block :: proc(g: ^Game_State) -> bool {
 	if !can_act_combat(g) do return false
-	if g.weapon_type != 0 do return false
+	if !uses_blade(g) do return false
 	if !g.skill_shield_block do return false
 	if g.stamina < SHIELD_BLOCK_STAMINA do return false
 	g.turn_count += 1
@@ -610,7 +613,7 @@ shield_block :: proc(g: ^Game_State) -> bool {
 
 counter_attack :: proc(g: ^Game_State) -> bool {
 	if !can_act_combat(g) do return false
-	if g.weapon_type != 0 do return false
+	if !uses_blade(g) do return false
 	if !g.skill_counter_attack do return false
 	if g.stamina < COUNTER_STAMINA do return false
 	g.turn_count += 1
@@ -690,7 +693,7 @@ counter_attack :: proc(g: ^Game_State) -> bool {
 
 fortify :: proc(g: ^Game_State) -> bool {
 	if !can_act_combat(g) do return false
-	if g.weapon_type != 0 do return false
+	if !uses_blade(g) do return false
 	if !g.skill_fortify do return false
 	if g.cd_fortify != 0 do return false
 	if g.stamina < FORTIFY_STAMINA do return false

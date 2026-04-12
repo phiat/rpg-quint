@@ -188,6 +188,11 @@ module quint_crawl {
   val STAFF_MAX_MANA_BONUS = 5
   val STAFF_SPELL_BONUS = 5
   val STAFF_HEAL_BONUS = 5
+  // Dagger: fast blade (weapon_type=3). Village conversion from sword.
+  // Lower attack bonus than sword but cheaper stamina per strike.
+  val DAGGER_UNLOCK_COST = 35
+  val DAGGER_ATK_BONUS = 3
+  val DAGGER_STAMINA = 1
   // Trinket slot: single passive modifier. Vitality (1) grants +max_hp on
   // equip. Bought at village; removable at village for no refund.
   val TRINKET_COST = 25
@@ -443,8 +448,14 @@ module quint_crawl {
   // Fog reduces player visibility — the same FOG_ATK_PENALTY that was already cutting the enemy now
   // also bites the player's offense, so fog becomes a real trade rather than a free upside.
   val fog_penalty_now = if (zone_weather(w.pos_x, w.pos_y, w.turn_count + 1) == 2) FOG_ATK_PENALTY else 0
-  val attack_power_raw = ch.base_attack + (if (inv.has_sword and eqp.sword_dur > 0) SWORD_ATK_BONUS else 0) + (if (cb.player_atk_buff_dur > 0) ATK_BUFF_BONUS else 0) + enchant_atk_bonus + comp_atk_bonus - fog_penalty_now
+  val weapon_flat_bonus = if (inv.has_sword and eqp.sword_dur > 0) SWORD_ATK_BONUS
+                          else if (eqp.weapon_type == 3) DAGGER_ATK_BONUS
+                          else 0
+  val attack_power_raw = ch.base_attack + weapon_flat_bonus + (if (cb.player_atk_buff_dur > 0) ATK_BUFF_BONUS else 0) + enchant_atk_bonus + comp_atk_bonus - fog_penalty_now
   val attack_power = if (attack_power_raw < 1) 1 else attack_power_raw
+  val uses_blade = eqp.weapon_type == 0 or eqp.weapon_type == 3
+  val blade_attack_stamina = if (eqp.weapon_type == 3) DAGGER_STAMINA else ATTACK_STAMINA
+  val blade_combo_stamina = if (eqp.weapon_type == 3) DAGGER_STAMINA else COMBO_STAMINA
   val player_elem_mult = damage_multiplier(player_element, cb.enemy_element)
 
   // --- Inventory helpers ---
@@ -630,8 +641,8 @@ module quint_crawl {
   // === Combat: attack enemy ===
   action combat_attack = all {
     cb.in_combat, not(meta.game_won), ch.hp > 0, cb.enemy_hp > 0,
-    eqp.weapon_type == 0,
-    ch.stamina >= ATTACK_STAMINA,
+    uses_blade,
+    ch.stamina >= blade_attack_stamina,
     // Degrade sword on attack
     val new_sword_dur = if (inv.has_sword and eqp.sword_dur > 0) eqp.sword_dur - 1 else eqp.sword_dur
     // Enemy takes elemental-modified damage + poison
@@ -658,7 +669,7 @@ module quint_crawl {
               level: new_level,
               max_hp: if (new_level > ch.level) ch.max_hp + HP_PER_LEVEL else ch.max_hp,
               base_attack: if (new_level > ch.level) ch.base_attack + ATK_PER_LEVEL_UP else ch.base_attack,
-              stamina: ch.stamina - ATTACK_STAMINA,
+              stamina: ch.stamina - blade_attack_stamina,
               max_stamina: if (new_level > ch.level) ch.max_stamina + STAMINA_PER_LEVEL else ch.max_stamina,
               max_mana: if (new_level > ch.level and ch.skill_magic) ch.max_mana + MANA_PER_LEVEL else ch.max_mana,
               skill_points: if (new_level > ch.level) ch.skill_points + SKILL_POINTS_PER_LEVEL else ch.skill_points,
@@ -1094,6 +1105,24 @@ module quint_crawl {
     meta' = meta, comp' = comp,
   }
 
+  // === Equip dagger (village, trades in sword for a fast blade) ===
+  // Consumes the equipped sword (and its enchants). weapon_type flips to 3.
+  // Dagger users still use blade combat actions, but at reduced stamina cost
+  // and a smaller flat attack bonus than a sword would provide.
+  action equip_dagger = all {
+    not(cb.in_combat), not(meta.game_won), ch.hp > 0,
+    zone_has_services(w.pos_x, w.pos_y),
+    inv.has_sword, eqp.weapon_type == 0,
+    ch.gold >= DAGGER_UNLOCK_COST,
+    ch' = { ...ch, gold: ch.gold - DAGGER_UNLOCK_COST },
+    inv' = { ...inv, has_sword: false },
+    eqp' = { ...eqp, weapon_type: 3, sword_dur: 0,
+             enchant_slot_1: 0, enchant_slot_2: 0, enchant_slot_3: 0 },
+    cb' = cb,
+    w' = { ...w, turn_count: w.turn_count + 1 },
+    meta' = meta, comp' = comp,
+  }
+
   // === Buy trinket (vitality, +max_hp) at village ===
   action buy_trinket = all {
     not(cb.in_combat), not(meta.game_won), ch.hp > 0,
@@ -1161,14 +1190,14 @@ module quint_crawl {
   // === Poison strike (apply poison to enemy, enemy hits back) ===
   action poison_strike = all {
     cb.in_combat, not(meta.game_won), ch.hp > 0, cb.enemy_hp > 0,
-    eqp.weapon_type == 0,
+    uses_blade,
     ch.skill_poison, inv.qty_venom_sac > 0,
-    ch.stamina >= ATTACK_STAMINA,
+    ch.stamina >= blade_attack_stamina,
     val new_hp = ch.hp - incoming_enemy_dmg
     val combat_ends = (new_hp <= 0)
     val ticked = tick_statuses(cb, false)
     all {
-      ch' = { ...ch, hp: if (new_hp < 0) 0 else new_hp, stamina: ch.stamina - ATTACK_STAMINA },
+      ch' = { ...ch, hp: if (new_hp < 0) 0 else new_hp, stamina: ch.stamina - blade_attack_stamina },
       cb' = { in_combat: if (combat_ends) false else true,
               enemy_hp: if (combat_ends) 0 else cb.enemy_hp,
               enemy_attack: if (combat_ends) 0 else cb.enemy_attack,
@@ -1193,10 +1222,10 @@ module quint_crawl {
   // === Combo attack (3-hit chain: Slash 1x -> Thrust 1.5x -> Finisher 2x) ===
   action combo_attack = all {
     cb.in_combat, not(meta.game_won), ch.hp > 0, cb.enemy_hp > 0,
-    eqp.weapon_type == 0,
+    uses_blade,
     ch.skill_combo,
     cb.combo_count < MAX_COMBO_CHAIN,
-    ch.stamina >= COMBO_STAMINA,
+    ch.stamina >= blade_combo_stamina,
     val next_combo = cb.combo_count + 1
     val base_dmg = attack_power
     val combo_dmg = if (next_combo == 1) base_dmg
@@ -1233,7 +1262,7 @@ module quint_crawl {
               level: new_level,
               max_hp: if (new_level > ch.level) ch.max_hp + HP_PER_LEVEL else ch.max_hp,
               base_attack: if (new_level > ch.level) ch.base_attack + ATK_PER_LEVEL_UP else ch.base_attack,
-              stamina: ch.stamina - COMBO_STAMINA,
+              stamina: ch.stamina - blade_combo_stamina,
               max_stamina: if (new_level > ch.level) ch.max_stamina + STAMINA_PER_LEVEL else ch.max_stamina,
               max_mana: if (new_level > ch.level and ch.skill_magic) ch.max_mana + MANA_PER_LEVEL else ch.max_mana,
               skill_points: if (new_level > ch.level) ch.skill_points + SKILL_POINTS_PER_LEVEL else ch.skill_points,
@@ -1274,7 +1303,7 @@ module quint_crawl {
   // === Heavy strike (2x damage, costs 5 stamina, 3-turn cooldown) ===
   action heavy_strike = all {
     cb.in_combat, not(meta.game_won), ch.hp > 0, cb.enemy_hp > 0,
-    eqp.weapon_type == 0,
+    uses_blade,
     ch.skill_heavy_strike,
     cb.cd_heavy_strike == 0,
     ch.stamina >= HEAVY_STRIKE_STAMINA,
@@ -1344,7 +1373,7 @@ module quint_crawl {
   // Enemy hits back. Resets combo.
   action battle_cry = all {
     cb.in_combat, not(meta.game_won), ch.hp > 0, cb.enemy_hp > 0,
-    eqp.weapon_type == 0,
+    uses_blade,
     ch.skill_battle_cry,
     cb.cd_battle_cry == 0,
     ch.stamina >= BATTLE_CRY_STAMINA,
@@ -1378,7 +1407,7 @@ module quint_crawl {
   // === Shield block (grants DEF buff, takes enemy hit) ===
   action shield_block = all {
     cb.in_combat, not(meta.game_won), ch.hp > 0, cb.enemy_hp > 0,
-    eqp.weapon_type == 0,
+    uses_blade,
     ch.skill_shield_block,
     ch.stamina >= SHIELD_BLOCK_STAMINA,
     val new_hp = ch.hp - incoming_enemy_dmg - player_poison_tick
@@ -1511,7 +1540,7 @@ module quint_crawl {
   // === Counter-Attack (block + retaliatory hit) ===
   action counter_attack = all {
     cb.in_combat, not(meta.game_won), ch.hp > 0, cb.enemy_hp > 0,
-    eqp.weapon_type == 0,
+    uses_blade,
     ch.skill_counter_attack,
     ch.stamina >= COUNTER_STAMINA,
     // Counter-attack is a retaliatory strike — deals HALF attack power (rounded down, min 1).
@@ -1581,7 +1610,7 @@ module quint_crawl {
   // === Fortify (double-duration DEF buff, no damage, cooldown) ===
   action fortify = all {
     cb.in_combat, not(meta.game_won), ch.hp > 0, cb.enemy_hp > 0,
-    eqp.weapon_type == 0,
+    uses_blade,
     ch.skill_fortify,
     cb.cd_fortify == 0,
     ch.stamina >= FORTIFY_STAMINA,
@@ -2065,7 +2094,7 @@ module quint_crawl {
     move_up, move_down, move_left, move_right, fast_travel,
     enter_combat, combat_attack, combat_potion, flee_combat,
     rest_at_village, buy_potion, buy_shield, buy_armor, repair_sword, buy_spellbook,
-    gather_wood, mine_iron, craft_sword, equip_sword, equip_pistol, equip_staff,
+    gather_wood, mine_iron, craft_sword, equip_sword, equip_pistol, equip_staff, equip_dagger,
     buy_trinket, remove_trinket,
     use_antidote, poison_strike, combo_attack,
     heavy_strike, battle_cry, shield_block,

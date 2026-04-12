@@ -64,6 +64,9 @@ COMP_TRAIT_COUNT       :: 4
 COMP_RARITY_COUNT      :: 3
 ADOPT_BASE_COST        :: 1   // wood cost baseline; scales with rarity
 SWORD_ATK_BONUS :: 5
+DAGGER_UNLOCK_COST :: 35
+DAGGER_ATK_BONUS :: 3
+DAGGER_STAMINA :: 1
 POTION_COST :: 15
 BOMB_COST :: 20
 BOMB_DAMAGE :: 15
@@ -569,12 +572,29 @@ def_reduction_active :: proc(g: ^Game_State) -> int {
 }
 
 attack_power :: proc(g: ^Game_State) -> int {
-	sword_bonus := SWORD_ATK_BONUS if (g.has_sword && g.sword_dur > 0) else 0
+	weapon_bonus := 0
+	if g.has_sword && g.sword_dur > 0 {
+		weapon_bonus = SWORD_ATK_BONUS
+	} else if g.weapon_type == 3 {
+		weapon_bonus = DAGGER_ATK_BONUS
+	}
 	atk_buff := ATK_BUFF_BONUS if g.player_atk_buff_dur > 0 else 0
 	// Fog cuts the player's visibility as much as the enemy's — offense takes a hit too.
 	fog_penalty := FOG_ATK_PENALTY if zone_weather(g.pos_x, g.pos_y, g.turn_count) == 2 else 0
-	raw := g.base_attack + sword_bonus + atk_buff + enchant_atk_bonus(g) + comp_atk_bonus(g) - fog_penalty
+	raw := g.base_attack + weapon_bonus + atk_buff + enchant_atk_bonus(g) + comp_atk_bonus(g) - fog_penalty
 	return max(raw, 1)
+}
+
+uses_blade :: proc(g: ^Game_State) -> bool {
+	return g.weapon_type == 0 || g.weapon_type == 3
+}
+
+blade_attack_stamina :: proc(g: ^Game_State) -> int {
+	return DAGGER_STAMINA if g.weapon_type == 3 else ATTACK_STAMINA
+}
+
+blade_combo_stamina :: proc(g: ^Game_State) -> int {
+	return DAGGER_STAMINA if g.weapon_type == 3 else COMBO_STAMINA
 }
 
 total_items :: proc(g: ^Game_State) -> int {
