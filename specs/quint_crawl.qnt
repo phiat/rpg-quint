@@ -134,6 +134,10 @@ module quint_crawl {
   val MANA_REGEN_PER_MOVE = 1
   val SPELLBOOK_COST = 40
   val INITIAL_MAX_MANA = 10
+  val FIREBALL_COST = 5
+  val FIREBALL_DMG = 14
+  val HEAL_COST = 4
+  val HEAL_AMOUNT = 20
   val INITIAL_HP = 50
   val INITIAL_ATTACK = 10
   val INITIAL_POTIONS = 2
@@ -715,6 +719,80 @@ module quint_crawl {
     inv' = inv, eqp' = eqp, cb' = cb,
     w' = { ...w, turn_count: w.turn_count + 1 },
     meta' = meta, comp' = comp,
+  }
+
+  // === Cast heal (out-of-combat self-heal, costs mana) ===
+  action cast_heal = all {
+    not(cb.in_combat), not(meta.game_won), ch.hp > 0,
+    ch.skill_magic,
+    ch.mana >= HEAL_COST,
+    ch.hp < ch.max_hp,
+    val healed = clamp_hp(ch.hp + HEAL_AMOUNT, ch.max_hp)
+    all {
+      ch' = { ...ch, hp: healed, mana: ch.mana - HEAL_COST },
+      inv' = inv, eqp' = eqp, cb' = cb,
+      w' = { ...w, turn_count: w.turn_count + 1 },
+      meta' = meta, comp' = comp,
+    }
+  }
+
+  // === Cast fireball (combat spell, costs mana, pure magic damage) ===
+  // Deals flat FIREBALL_DMG bypassing elements and sword; enemy counter-hits
+  // like combat_attack. Meant as a stamina-free alternative to melee.
+  action cast_fireball = all {
+    cb.in_combat, not(meta.game_won), ch.hp > 0, cb.enemy_hp > 0,
+    ch.skill_magic,
+    ch.mana >= FIREBALL_COST,
+    val enemy_poison_dmg = if (cb.enemy_poison_dur > 0) POISON_DMG else 0
+    val new_enemy_hp = cb.enemy_hp - FIREBALL_DMG - enemy_poison_dmg
+    val new_hp = if (new_enemy_hp > 0) ch.hp - incoming_enemy_dmg - player_poison_tick else ch.hp - player_poison_tick
+    val gained_xp = if (new_enemy_hp <= 0 and new_hp > 0) ch.xp + zone_xp_reward(w.pos_x, w.pos_y) else ch.xp
+    val new_level = if (ch.level < MAX_LEVEL and gained_xp >= xp_threshold(ch.level + 1)) ch.level + 1 else ch.level
+    val zone_tier = zone_level(w.pos_x, w.pos_y)
+    val ticked = tick_statuses(cb, false)
+    val combat_ends = (new_enemy_hp <= 0 or new_hp <= 0)
+    val enemy_defeated_alive = (new_enemy_hp <= 0 and new_hp > 0)
+    val loot = compute_loot(meta, total_items, enemy_defeated_alive, w.turn_count, zone_tier, ch.xp)
+    all {
+      ch' = { ...ch,
+              hp: if (new_hp < 0) 0 else new_hp,
+              mana: ch.mana - FIREBALL_COST,
+              xp: gained_xp,
+              gold: if (new_enemy_hp <= 0) ch.gold + zone_gold_reward(w.pos_x, w.pos_y) else ch.gold,
+              level: new_level,
+              max_hp: if (new_level > ch.level) ch.max_hp + HP_PER_LEVEL else ch.max_hp,
+              base_attack: if (new_level > ch.level) ch.base_attack + ATK_PER_LEVEL_UP else ch.base_attack,
+              max_stamina: if (new_level > ch.level) ch.max_stamina + STAMINA_PER_LEVEL else ch.max_stamina,
+              max_mana: if (new_level > ch.level and ch.skill_magic) ch.max_mana + MANA_PER_LEVEL else ch.max_mana,
+              skill_points: if (new_level > ch.level) ch.skill_points + SKILL_POINTS_PER_LEVEL else ch.skill_points,
+      },
+      cb' = { in_combat: if (combat_ends) false else true,
+              enemy_hp: if (combat_ends) 0 else new_enemy_hp,
+              enemy_attack: if (combat_ends) 0 else cb.enemy_attack,
+              enemy_element: if (combat_ends) 0 else cb.enemy_element,
+              combo_count: 0,
+              player_poison_dur: if (combat_ends) 0 else ticked.player_poison_dur,
+              player_atk_buff_dur: if (combat_ends) 0 else ticked.player_atk_buff_dur,
+              player_def_buff_dur: if (combat_ends) 0 else ticked.player_def_buff_dur,
+              enemy_poison_dur: if (combat_ends) 0 else ticked.enemy_poison_dur,
+              cd_heavy_strike: if (combat_ends) 0 else ticked.cd_heavy_strike,
+              cd_battle_cry: if (combat_ends) 0 else ticked.cd_battle_cry,
+              cd_fortify: if (combat_ends) 0 else ticked.cd_fortify,
+      },
+      inv' = { ...inv,
+               qty_potion: inv.qty_potion + loot.potion_inc,
+               qty_venom_sac: inv.qty_venom_sac + loot.venom_inc,
+      },
+      eqp' = eqp,
+      w' = { ...w, turn_count: w.turn_count + 1 },
+      meta' = { ...meta, pity_counter: loot.new_pity, last_drop: loot.new_last_drop,
+               last_kill_turn: if (enemy_defeated_alive) w.turn_count else meta.last_kill_turn,
+               q1_kills: if (enemy_defeated_alive and zone_tier == 1 and meta.q1_kills < Q1_TARGET) meta.q1_kills + 1 else meta.q1_kills,
+               q3_kills: if (enemy_defeated_alive and zone_tier == MAX_LEVEL and meta.q3_kills < Q3_TARGET) meta.q3_kills + 1 else meta.q3_kills,
+               cq3_wins: if (enemy_defeated_alive and comp.active and meta.cq3_wins < CQ3_TARGET) meta.cq3_wins + 1 else meta.cq3_wins,
+               boss_defeated: if (enemy_defeated_alive and is_castle_zone(w.pos_x, w.pos_y)) true else meta.boss_defeated },
+      comp' = comp,
+    }
   }
 
   // === Repair sword (at town, costs gold) ===
@@ -1585,6 +1663,7 @@ module quint_crawl {
     feed_companion, dismiss_companion, companion_command,
     save_game, load_game, claim_victory,
     claim_quest_reward,
+    cast_heal, cast_fireball,
   }
 
   // === Invariants ===

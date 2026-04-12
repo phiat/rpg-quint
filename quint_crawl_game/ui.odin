@@ -53,6 +53,17 @@ draw_hud :: proc(app: ^App_State) {
 	rl.DrawText(sta_str, x + (w - sta_w) / 2, y + 2, 12, TEXT_BRIGHT)
 	y += 24
 
+	// Mana bar (only when magic unlocked)
+	if g.skill_magic {
+		rl.DrawText("MP", x, y, 14, TEXT_DIM)
+		y += 16
+		draw_bar(x, y, w, 16, g.mana, g.max_mana, {100, 140, 255, 255}, {30, 40, 80, 255})
+		mp_str := fmt.ctprintf("%d/%d", g.mana, g.max_mana)
+		mp_w := rl.MeasureText(mp_str, 12)
+		rl.DrawText(mp_str, x + (w - mp_w) / 2, y + 2, 12, TEXT_BRIGHT)
+		y += 24
+	}
+
 	// Attack
 	atk := qc.attack_power(g)
 	if g.has_sword {

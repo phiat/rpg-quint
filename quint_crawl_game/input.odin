@@ -126,6 +126,14 @@ handle_map_input :: proc(app: ^App_State) {
 		}
 	}
 
+	// Cast heal (out of combat, costs mana)
+	if rl.IsKeyPressed(.RIGHT_BRACKET) {
+		old_hp := g.hp
+		if qc.cast_heal(g) {
+			add_message(app, fmt.tprintf("Cast Heal — healed %d HP (%d mana).", g.hp - old_hp, qc.HEAL_COST), {100, 220, 255, 255})
+		}
+	}
+
 	// Gather wood
 	if rl.IsKeyPressed(.G) {
 		if qc.gather_wood(g) {
@@ -443,6 +451,23 @@ handle_combat_input :: proc(app: ^App_State) {
 				handle_enemy_defeated(app, old_level)
 			} else {
 				handle_combat_damage(app, old_hp, old_poison, {255, 220, 50, 80})
+			}
+		}
+	}
+
+	// Cast fireball (combat, costs mana, pure magic damage)
+	if rl.IsKeyPressed(.SLASH) {
+		old_enemy_hp := g.enemy_hp
+		old_hp := g.hp
+		old_level := g.level
+		old_poison := g.player_poison_dur
+		if qc.cast_fireball(g) {
+			dmg_dealt := old_enemy_hp - g.enemy_hp
+			add_message(app, fmt.tprintf("FIREBALL! %d damage (%d mana).", dmg_dealt, qc.FIREBALL_COST), {255, 120, 60, 255})
+			if g.enemy_hp <= 0 {
+				handle_enemy_defeated(app, old_level)
+			} else {
+				handle_combat_damage(app, old_hp, old_poison, {255, 120, 60, 80})
 			}
 		}
 	}
