@@ -5,6 +5,11 @@ import rl "vendor:raylib"
 import "core:fmt"
 import "core:math"
 
+// Display labels for Enemy_Trait, indexed by enum value.
+// Order must match quint_crawl.Enemy_Trait.
+TRAIT_NAMES := [?]string{"Undead", "Beast", "Elemental", "Construct", "Humanoid", "Aberration"}
+TRAIT_COLOR := rl.Color{170, 170, 190, 255}
+
 draw_combat :: proc(app: ^App_State) {
 	g := &app.game
 	tier := qc.zone_level(g.pos_x, g.pos_y) - 1
@@ -34,6 +39,13 @@ draw_combat :: proc(app: ^App_State) {
 	if name == "" do name = ENEMY_NAMES[tier] // fallback for fresh/loaded states
 	name_w := rl.MeasureText(fmt.ctprintf("%s", name), 28)
 	rl.DrawText(fmt.ctprintf("%s", name), i32(enemy_cx) - name_w / 2, 60, 28, ENEMY_COLORS[tier])
+	// Trait tag in muted color, one line below the name
+	trait_idx := int(g.enemy_trait)
+	if trait_idx >= 0 && trait_idx < len(TRAIT_NAMES) {
+		tag := fmt.ctprintf("[%s]", TRAIT_NAMES[trait_idx])
+		tag_w := rl.MeasureText(tag, 14)
+		rl.DrawText(tag, i32(enemy_cx) - tag_w / 2, 92 - 18, 14, TRAIT_COLOR)
+	}
 
 	// Enemy shape with shake + dissolve on death
 	shake := app.shake_timer * 20 if app.shake_timer > 0 else 0

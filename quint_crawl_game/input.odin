@@ -51,7 +51,8 @@ handle_map_input :: proc(app: ^App_State) {
 			// Cache the trait on the pkg-layer state so resolve_loot can
 			// branch on it without the spec contract learning about traits.
 			g.enemy_trait = qc.ENEMY_ARCHETYPES[arch].trait
-			add_message(app, fmt.tprintf("A %s appears!", name), BAR_HP_FG)
+			trait_tag := TRAIT_NAMES[int(g.enemy_trait)]
+			add_message(app, fmt.tprintf("A %s [%s] appears!", name, trait_tag), BAR_HP_FG)
 		} else if !g.in_combat && g.last_kill_turn != 0 && g.turn_count - g.last_kill_turn < qc.RESPAWN_TURNS {
 			remaining := qc.RESPAWN_TURNS - (g.turn_count - g.last_kill_turn)
 			add_message(app, fmt.tprintf("No enemies yet... %d turns until respawn.", remaining), TEXT_DIM)
