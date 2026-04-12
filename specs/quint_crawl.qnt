@@ -1928,7 +1928,8 @@ module quint_crawl {
       enemy_poison_dur:    if (comp.trait == 3) STATUS_DURATION else cb.enemy_poison_dur,
     },
     comp' = { ...comp, command_used: true },
-    ch' = ch, inv' = inv, eqp' = eqp, w' = w, meta' = meta,
+    ch' = ch, inv' = inv, eqp' = eqp, meta' = meta,
+    w' = { ...w, turn_count: w.turn_count + 1 },
   }
 
   // === Step ===
@@ -1985,6 +1986,11 @@ module quint_crawl {
     inv.qty_wood >= 0,
     inv.qty_iron >= 0,
     inv.qty_sword >= 0,
+    inv.qty_venom_sac >= 0,
+    inv.qty_battery >= 0,
+    inv.qty_scroll_fire >= 0,
+    inv.qty_holy_dust >= 0,
+    inv.qty_holy_water >= 0,
   }
 
   /// Can only be in a zone you're qualified for

@@ -103,65 +103,28 @@ module bounty {
     slot3_reward_gold'   = slot3_reward_gold,
   }
 
-  // Record a kill: increments current kills on the active bounty slot
-  action record_kill = any {
-    // kill on slot 1
-    all {
-      active_bounty_idx == 1,
-      slot1_current_kills < slot1_kills_needed,
-      slot1_current_kills' = slot1_current_kills + 1,
-      active_bounty_idx'   = active_bounty_idx,
-      player_gold'         = player_gold,
-      slot1_active'        = slot1_active,
-      slot1_kills_needed'  = slot1_kills_needed,
-      slot1_reward_gold'   = slot1_reward_gold,
-      slot2_active'        = slot2_active,
-      slot2_kills_needed'  = slot2_kills_needed,
-      slot2_current_kills' = slot2_current_kills,
-      slot2_reward_gold'   = slot2_reward_gold,
-      slot3_active'        = slot3_active,
-      slot3_kills_needed'  = slot3_kills_needed,
-      slot3_current_kills' = slot3_current_kills,
-      slot3_reward_gold'   = slot3_reward_gold,
+  // Record a kill: increments current kills on the active bounty slot.
+  // Flat `all` (not nested `any`) so Quint MBT captures the action name.
+  action record_kill = all {
+    or {
+      active_bounty_idx == 1 and slot1_current_kills < slot1_kills_needed,
+      active_bounty_idx == 2 and slot2_current_kills < slot2_kills_needed,
+      active_bounty_idx == 3 and slot3_current_kills < slot3_kills_needed,
     },
-    // kill on slot 2
-    all {
-      active_bounty_idx == 2,
-      slot2_current_kills < slot2_kills_needed,
-      slot2_current_kills' = slot2_current_kills + 1,
-      active_bounty_idx'   = active_bounty_idx,
-      player_gold'         = player_gold,
-      slot1_active'        = slot1_active,
-      slot1_kills_needed'  = slot1_kills_needed,
-      slot1_current_kills' = slot1_current_kills,
-      slot1_reward_gold'   = slot1_reward_gold,
-      slot2_active'        = slot2_active,
-      slot2_kills_needed'  = slot2_kills_needed,
-      slot2_reward_gold'   = slot2_reward_gold,
-      slot3_active'        = slot3_active,
-      slot3_kills_needed'  = slot3_kills_needed,
-      slot3_current_kills' = slot3_current_kills,
-      slot3_reward_gold'   = slot3_reward_gold,
-    },
-    // kill on slot 3
-    all {
-      active_bounty_idx == 3,
-      slot3_current_kills < slot3_kills_needed,
-      slot3_current_kills' = slot3_current_kills + 1,
-      active_bounty_idx'   = active_bounty_idx,
-      player_gold'         = player_gold,
-      slot1_active'        = slot1_active,
-      slot1_kills_needed'  = slot1_kills_needed,
-      slot1_current_kills' = slot1_current_kills,
-      slot1_reward_gold'   = slot1_reward_gold,
-      slot2_active'        = slot2_active,
-      slot2_kills_needed'  = slot2_kills_needed,
-      slot2_current_kills' = slot2_current_kills,
-      slot2_reward_gold'   = slot2_reward_gold,
-      slot3_active'        = slot3_active,
-      slot3_kills_needed'  = slot3_kills_needed,
-      slot3_reward_gold'   = slot3_reward_gold,
-    },
+    slot1_current_kills' = if (active_bounty_idx == 1) slot1_current_kills + 1 else slot1_current_kills,
+    slot2_current_kills' = if (active_bounty_idx == 2) slot2_current_kills + 1 else slot2_current_kills,
+    slot3_current_kills' = if (active_bounty_idx == 3) slot3_current_kills + 1 else slot3_current_kills,
+    active_bounty_idx'   = active_bounty_idx,
+    player_gold'         = player_gold,
+    slot1_active'        = slot1_active,
+    slot1_kills_needed'  = slot1_kills_needed,
+    slot1_reward_gold'   = slot1_reward_gold,
+    slot2_active'        = slot2_active,
+    slot2_kills_needed'  = slot2_kills_needed,
+    slot2_reward_gold'   = slot2_reward_gold,
+    slot3_active'        = slot3_active,
+    slot3_kills_needed'  = slot3_kills_needed,
+    slot3_reward_gold'   = slot3_reward_gold,
   }
 
   // Claim bounty: kills >= needed; collect reward, deactivate slot, clear active bounty

@@ -85,6 +85,7 @@ companion_command :: proc(g: ^Game_State) -> bool {
 	if !g.comp_active do return false
 	if g.comp_loyalty < HIGH_LOYALTY do return false
 	if g.comp_command_used do return false
+	g.turn_count += 1
 	// Trait dispatch: Attacker/Scout grant ATK buff, Defender grants DEF buff,
 	// Support applies enemy poison. No species branching.
 	switch Comp_Trait(g.comp_trait) {

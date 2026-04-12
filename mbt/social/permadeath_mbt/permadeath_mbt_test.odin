@@ -12,7 +12,7 @@ permadeath_step :: proc(driver: rawptr, action: string, picks: map[string]mbt.IT
 		permadeath_init(p)
 		return true
 	case "take_damage":
-		amount_val, ok := picks["amount"]
+		amount_val, ok := picks["dmg"]
 		if !ok do return false
 		amount_int, ok2 := amount_val.(mbt.ITF_Int)
 		if !ok2 do return false
@@ -22,14 +22,14 @@ permadeath_step :: proc(driver: rawptr, action: string, picks: map[string]mbt.IT
 		die_and_inherit(p)
 		return true
 	case "earn_gold":
-		amount_val, ok := picks["amount"]
+		amount_val, ok := picks["earn"]
 		if !ok do return false
 		amount_int, ok2 := amount_val.(mbt.ITF_Int)
 		if !ok2 do return false
 		earn_gold(p, amount_int.value)
 		return true
 	case "deposit_legacy":
-		amount_val, ok := picks["amount"]
+		amount_val, ok := picks["dep"]
 		if !ok do return false
 		amount_int, ok2 := amount_val.(mbt.ITF_Int)
 		if !ok2 do return false
