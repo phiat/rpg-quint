@@ -271,6 +271,54 @@ handle_map_input :: proc(app: ^App_State) {
 		}
 	}
 
+	// Craft holy water (village, needs 1 holy dust + wood)
+	if rl.IsKeyPressed(.V) {
+		if qc.craft_holy_water(g) {
+			add_message(app, "Crafted Holy Water!", {220, 240, 255, 255})
+		}
+	}
+
+	// Use holy water (anywhere — full heal)
+	if rl.IsKeyPressed(.I) {
+		old_hp := g.hp
+		if qc.use_holy_water(g) {
+			add_message(app, fmt.tprintf("Holy Water restored %d HP!", g.hp - old_hp), {220, 240, 255, 255})
+		}
+	}
+
+	// Buy shield (village)
+	if rl.IsKeyPressed(.K) {
+		if qc.buy_shield(g) {
+			add_message(app, fmt.tprintf("Bought Shield (%dg).", qc.SHIELD_COST), TEXT_GOLD)
+		}
+	}
+
+	// Buy / remove trinket (village)
+	if rl.IsKeyPressed(.N) {
+		if qc.buy_trinket(g) {
+			add_message(app, fmt.tprintf("Bought Vitality Trinket (%dg). +%d max HP", qc.TRINKET_COST, qc.TRINKET_VITALITY_HP), {220, 200, 255, 255})
+		}
+	}
+	if rl.IsKeyPressed(.X) {
+		if qc.remove_trinket(g) {
+			add_message(app, "Removed trinket.", TEXT_DIM)
+		}
+	}
+
+	// Equip staff (village, requires sword + spellbook)
+	if rl.IsKeyPressed(.Y) {
+		if qc.equip_staff(g) {
+			add_message(app, fmt.tprintf("Equipped Staff (%dg). +%d max mana", qc.STAFF_UNLOCK_COST, qc.STAFF_MAX_MANA_BONUS), {140, 200, 255, 255})
+		}
+	}
+
+	// Train companion (village, costs wood)
+	if rl.IsKeyPressed(.P) {
+		if qc.train_companion(g) {
+			add_message(app, "Trained companion! Rarity increased.", {200, 220, 120, 255})
+		}
+	}
+
 	// Enchant sword (at village, cycles through enchant types on slot)
 	// Starts from current+1 so repeated presses cycle: fire→ice→vampiric→lightning→fire
 	cycle_enchant :: proc(app: ^App_State, g: ^qc.Game_State, slot: int, current: int) {

@@ -128,6 +128,13 @@ draw_hud :: proc(app: ^App_State) {
 		y += 18
 	}
 
+	// Holy Water (inventory, shown only when non-zero)
+	if g.qty_holy_water > 0 {
+		rl.DrawText(fmt.ctprintf("Holy Water: %d", g.qty_holy_water), x + 8, y, 14, {220, 240, 255, 255})
+		y += 18
+	}
+
+	// Weapon (reflects weapon_type: 0=sword, 1=pistol, 2=staff)
 	if g.has_sword {
 		dur_color := TEXT_BRIGHT if g.sword_dur > 3 else BAR_HP_FG
 		rl.DrawText(fmt.ctprintf("Sword: %d/%d dur", g.sword_dur, g.sword_max_dur), x + 8, y, 14, dur_color)
@@ -149,10 +156,30 @@ draw_hud :: proc(app: ^App_State) {
 				y += 15
 			}
 		}
+	} else if g.weapon_type == 1 {
+		rl.DrawText("Pistol equipped", x + 8, y, 14, {200, 180, 255, 255})
+		y += 18
+	} else if g.weapon_type == 2 {
+		rl.DrawText("Staff equipped", x + 8, y, 14, {140, 200, 255, 255})
+		y += 18
 	} else {
 		rl.DrawText("Equipped: None", x + 8, y, 14, TEXT_DIM)
+		y += 18
 	}
-	y += 26
+
+	// Shield slot
+	if g.has_shield {
+		dur_color := TEXT_BRIGHT if g.shield_dur > 2 else BAR_HP_FG
+		rl.DrawText(fmt.ctprintf("Shield: %d/%d dur", g.shield_dur, qc.SHIELD_MAX_DUR), x + 8, y, 14, dur_color)
+		y += 18
+	}
+
+	// Trinket slot
+	if g.trinket == 1 {
+		rl.DrawText("Trinket: Vitality (+HP)", x + 8, y, 14, {220, 200, 255, 255})
+		y += 18
+	}
+	y += 8
 
 	// --- Zone info ---
 	rl.DrawLine(x, y, x + w, y, TILE_BORDER)
@@ -285,6 +312,24 @@ draw_hud :: proc(app: ^App_State) {
 				draw_action(x, &y, "[T]", fmt.ctprintf("Repair Sword (%dg)", qc.REPAIR_COST), g.gold >= qc.REPAIR_COST)
 			}
 			draw_action(x, &y, "[O]", fmt.ctprintf("Craft Venom (%di)", qc.CRAFT_VENOM_IRON_COST), g.qty_iron >= qc.CRAFT_VENOM_IRON_COST)
+			if g.qty_holy_dust >= 1 {
+				draw_action(x, &y, "[V]", fmt.ctprintf("Craft Holy Water (%dw)", qc.CRAFT_HOLY_WATER_WOOD), g.qty_wood >= qc.CRAFT_HOLY_WATER_WOOD)
+			}
+			if !g.has_shield {
+				draw_action(x, &y, "[K]", fmt.ctprintf("Buy Shield (%dg)", qc.SHIELD_COST), g.gold >= qc.SHIELD_COST)
+			}
+			if g.trinket == 0 {
+				draw_action(x, &y, "[N]", fmt.ctprintf("Buy Trinket (%dg)", qc.TRINKET_COST), g.gold >= qc.TRINKET_COST)
+			} else {
+				draw_action(x, &y, "[X]", "Remove Trinket", true)
+			}
+			if g.has_sword && g.weapon_type == 0 && g.skill_magic {
+				draw_action(x, &y, "[Y]", fmt.ctprintf("Equip Staff (%dg)", qc.STAFF_UNLOCK_COST), g.gold >= qc.STAFF_UNLOCK_COST)
+			}
+			if g.comp_active && g.comp_rarity < qc.COMP_RARITY_COUNT - 1 {
+				train_cost := (g.comp_rarity + 2) * qc.TRAIN_COST
+				draw_action(x, &y, "[P]", fmt.ctprintf("Train Companion (%dw)", train_cost), g.qty_wood >= train_cost)
+			}
 			draw_action(x, &y, "[U]", fmt.ctprintf("Respec (%dg)", qc.respec_cost(g)), g.gold >= qc.respec_cost(g))
 			if g.qty_sword >= 1 {
 				draw_action(x, &y, "[\\]", fmt.ctprintf("Salvage (Lv%d)", g.salvage_level), true)
@@ -309,6 +354,9 @@ draw_hud :: proc(app: ^App_State) {
 		// Equip (anywhere)
 		if g.qty_sword >= 1 && !g.has_sword {
 			draw_action(x, &y, "[Q]", "Equip Sword", true)
+		}
+		if g.qty_holy_water >= 1 {
+			draw_action(x, &y, "[I]", "Use Holy Water", g.hp < g.max_hp)
 		}
 
 		// Castle: fight boss first, then claim victory
