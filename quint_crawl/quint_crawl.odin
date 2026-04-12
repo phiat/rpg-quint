@@ -46,6 +46,7 @@ Q3_TARGET :: 2  // dragon kills
 CQ1_TARGET :: 1
 CQ2_TARGET :: 1
 CQ3_TARGET :: 5
+QUEST_REWARD_GOLD :: 30
 // Companion constants
 MAX_LOYALTY :: 100
 INITIAL_LOYALTY :: 50
@@ -162,6 +163,7 @@ Save_Data :: struct {
 	cq1_adopted:  int,
 	cq2_maxed:    int,
 	cq3_wins:     int,
+	quest_rewards_claimed: int,
 }
 
 Game_State :: struct {
@@ -259,6 +261,7 @@ Game_State :: struct {
 	cq1_adopted:         int,  // 0..CQ1_TARGET
 	cq2_maxed:           int,  // 0..CQ2_TARGET
 	cq3_wins:            int,  // 0..CQ3_TARGET
+	quest_rewards_claimed: int, // 0..3, stackable claim counter
 	// Save/Load
 	saved_exists:        bool,
 	save_data:           Save_Data,
@@ -569,6 +572,7 @@ init_game :: proc(g: ^Game_State) {
 	g.cq1_adopted = 0
 	g.cq2_maxed = 0
 	g.cq3_wins = 0
+	g.quest_rewards_claimed = 0
 	// Fog of war: clear all, mark starting zone + neighbors as revealed
 	for x in 0 ..< WORLD_SIZE {
 		for y in 0 ..< WORLD_SIZE {
@@ -1022,6 +1026,25 @@ claim_victory :: proc(g: ^Game_State) -> bool {
 	if g.pos_x % 3 != 2 || g.pos_y % 3 != 2 do return false
 	if zone_level(g.pos_x, g.pos_y) < MAX_LEVEL do return false
 	g.game_won = true
+	return true
+}
+
+claim_quest_reward :: proc(g: ^Game_State) -> bool {
+	if !can_act_map(g) do return false
+	if g.quest_rewards_claimed >= 3 do return false
+	// Each claim requires the next quest complete.
+	switch g.quest_rewards_claimed {
+	case 0:
+		if g.q1_kills < Q1_TARGET do return false
+	case 1:
+		if g.q1_kills < Q1_TARGET || g.q2_zones < Q2_TARGET do return false
+	case 2:
+		if g.q1_kills < Q1_TARGET || g.q2_zones < Q2_TARGET || g.q3_kills < Q3_TARGET do return false
+	}
+	g.turn_count += 1
+	g.gold += QUEST_REWARD_GOLD
+	g.skill_points += 1
+	g.quest_rewards_claimed += 1
 	return true
 }
 
@@ -1732,6 +1755,7 @@ save_game :: proc(g: ^Game_State) -> bool {
 		cq1_adopted = g.cq1_adopted,
 		cq2_maxed = g.cq2_maxed,
 		cq3_wins = g.cq3_wins,
+		quest_rewards_claimed = g.quest_rewards_claimed,
 	}
 	return true
 }
@@ -1794,6 +1818,7 @@ load_game :: proc(g: ^Game_State) -> bool {
 	g.cq1_adopted = s.cq1_adopted
 	g.cq2_maxed = s.cq2_maxed
 	g.cq3_wins = s.cq3_wins
+	g.quest_rewards_claimed = s.quest_rewards_claimed
 	// Clear combat/status state (save is only outside combat)
 	g.in_combat = false
 	g.enemy_hp = 0

@@ -164,6 +164,9 @@ crawl_step :: proc(driver: rawptr, action: string, picks: map[string]mbt.ITF_Val
 	case "save_game":
 		qc.save_game(g)
 		return true
+	case "claim_quest_reward":
+		qc.claim_quest_reward(g)
+		return true
 	case "load_game":
 		// Spec models load as identity; real restore tested separately
 		return g.saved_exists
@@ -275,6 +278,7 @@ crawl_state :: proc(driver: rawptr) -> map[string]mbt.ITF_Value {
 	mt["cq1_adopted"] = mbt.ITF_Int{g.cq1_adopted}
 	mt["cq2_maxed"] = mbt.ITF_Int{g.cq2_maxed}
 	mt["cq3_wins"] = mbt.ITF_Int{g.cq3_wins}
+	mt["quest_rewards_claimed"] = mbt.ITF_Int{g.quest_rewards_claimed}
 	state["meta"] = mbt.ITF_Record{mt}
 
 	// comp: CompState (abstract — trait+rarity, no species)

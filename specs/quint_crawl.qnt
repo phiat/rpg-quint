@@ -39,6 +39,7 @@ module quint_crawl {
     last_kill_turn: int,
     q1_kills: int, q2_zones: int, q3_kills: int,
     cq1_adopted: int, cq2_maxed: int, cq3_wins: int,
+    quest_rewards_claimed: int,
   }
 
   // Companion is represented abstractly by its trait + rarity.
@@ -101,6 +102,7 @@ module quint_crawl {
   val CQ1_TARGET = 1
   val CQ2_TARGET = 1
   val CQ3_TARGET = 5
+  val QUEST_REWARD_GOLD = 30
   // Companion constants
   val MAX_LOYALTY = 100
   val INITIAL_LOYALTY = 50
@@ -404,7 +406,8 @@ module quint_crawl {
            visited: Set((0, 0)), waypoints: Set((0, 0)) },
     meta' = { game_won: false, saved_exists: false, pity_counter: 0, last_drop: 0, last_kill_turn: 0,
               q1_kills: 0, q2_zones: 0, q3_kills: 0,
-              cq1_adopted: 0, cq2_maxed: 0, cq3_wins: 0 },
+              cq1_adopted: 0, cq2_maxed: 0, cq3_wins: 0,
+              quest_rewards_claimed: 0 },
     comp' = { active: false, trait: 0, rarity: 0, loyalty: 0, command_used: false },
   }
 
@@ -1378,6 +1381,21 @@ module quint_crawl {
     ch' = ch, inv' = inv, eqp' = eqp, cb' = cb, w' = w, meta' = meta, comp' = comp,
   }
 
+  // === Claim quest reward (stackable; unlocks as quests complete) ===
+  action claim_quest_reward = all {
+    not(cb.in_combat), not(meta.game_won), ch.hp > 0,
+    meta.quest_rewards_claimed < 3,
+    // Next reward requires the corresponding quest complete.
+    (meta.quest_rewards_claimed == 0).implies(quest1_complete),
+    (meta.quest_rewards_claimed == 1).implies(quest2_complete),
+    (meta.quest_rewards_claimed == 2).implies(quest3_complete),
+    ch' = { ...ch, gold: ch.gold + QUEST_REWARD_GOLD, skill_points: ch.skill_points + 1 },
+    meta' = { ...meta, quest_rewards_claimed: meta.quest_rewards_claimed + 1 },
+    inv' = inv, eqp' = eqp, cb' = cb,
+    w' = { ...w, turn_count: w.turn_count + 1 },
+    comp' = comp,
+  }
+
   // === Claim Victory ===
   action claim_victory = all {
     not(cb.in_combat), not(meta.game_won), ch.hp > 0,
@@ -1493,6 +1511,7 @@ module quint_crawl {
     adopt_companion,
     feed_companion, dismiss_companion, companion_command,
     save_game, load_game, claim_victory,
+    claim_quest_reward,
   }
 
   // === Invariants ===
@@ -1662,12 +1681,16 @@ module quint_crawl {
     meta.q1_kills >= 0, meta.q1_kills <= Q1_TARGET,
     meta.q2_zones >= 0, meta.q2_zones <= Q2_TARGET,
     meta.q3_kills >= 0, meta.q3_kills <= Q3_TARGET,
+    meta.quest_rewards_claimed >= 0, meta.quest_rewards_claimed <= 3,
   }
 
   /// Quest prerequisites: q2 progress requires q1 complete, q3 progress requires q2 complete
   val quest_prereqs_respected = and {
     (meta.q2_zones > 0) implies quest1_complete,
     (meta.q3_kills > 0) implies quest2_complete,
+    (meta.quest_rewards_claimed >= 1) implies quest1_complete,
+    (meta.quest_rewards_claimed >= 2) implies quest2_complete,
+    (meta.quest_rewards_claimed >= 3) implies quest3_complete,
   }
 
   /// Companion trait is in [0, COMP_TRAIT_COUNT)
