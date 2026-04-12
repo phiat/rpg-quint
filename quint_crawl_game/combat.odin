@@ -191,24 +191,26 @@ draw_combat :: proc(app: ^App_State) {
 		hs_ok := g.cd_heavy_strike == 0 && g.stamina >= qc.HEAVY_STRIKE_STAMINA && g.enemy_hp > 0
 		hs_color := rl.Color{255, 120, 50, 255} if hs_ok else rl.Color{60, 60, 70, 255}
 		rl.DrawText("[H]", row3_x, action_y3, 20, hs_color)
+		draw_cd_radial(row3_x + 30, action_y3 + 10, g.cd_heavy_strike, qc.HEAVY_STRIKE_CD, hs_color)
 		if g.cd_heavy_strike > 0 {
-			rl.DrawText(fmt.ctprintf("Heavy(%d)", g.cd_heavy_strike), row3_x + 40, action_y3, 20, hs_color)
+			rl.DrawText(fmt.ctprintf("Heavy(%d)", g.cd_heavy_strike), row3_x + 44, action_y3, 20, hs_color)
 		} else {
-			rl.DrawText("Heavy", row3_x + 40, action_y3, 20, hs_color)
+			rl.DrawText("Heavy", row3_x + 44, action_y3, 20, hs_color)
 		}
-		row3_x += 130
+		row3_x += 134
 	}
 
 	if g.skill_battle_cry {
 		bc_ok := g.cd_battle_cry == 0 && g.stamina >= qc.BATTLE_CRY_STAMINA && g.enemy_hp > 0
 		bc_color := rl.Color{255, 200, 100, 255} if bc_ok else rl.Color{60, 60, 70, 255}
 		rl.DrawText("[Y]", row3_x, action_y3, 20, bc_color)
+		draw_cd_radial(row3_x + 30, action_y3 + 10, g.cd_battle_cry, qc.BATTLE_CRY_CD, bc_color)
 		if g.cd_battle_cry > 0 {
-			rl.DrawText(fmt.ctprintf("Warcry(%d)", g.cd_battle_cry), row3_x + 40, action_y3, 20, bc_color)
+			rl.DrawText(fmt.ctprintf("Warcry(%d)", g.cd_battle_cry), row3_x + 44, action_y3, 20, bc_color)
 		} else {
-			rl.DrawText("Warcry", row3_x + 40, action_y3, 20, bc_color)
+			rl.DrawText("Warcry", row3_x + 44, action_y3, 20, bc_color)
 		}
-		row3_x += 130
+		row3_x += 134
 	}
 
 	if g.skill_shield_block {
@@ -233,10 +235,11 @@ draw_combat :: proc(app: ^App_State) {
 		ft_ok := g.cd_fortify == 0 && g.stamina >= qc.FORTIFY_STAMINA && g.enemy_hp > 0
 		ft_color := rl.Color{80, 200, 200, 255} if ft_ok else rl.Color{60, 60, 70, 255}
 		rl.DrawText("[I]", 60, action_y4, 20, ft_color)
+		draw_cd_radial(90, action_y4 + 10, g.cd_fortify, qc.FORTIFY_CD, ft_color)
 		if g.cd_fortify > 0 {
-			rl.DrawText(fmt.ctprintf("Fortify(%d)", g.cd_fortify), 100, action_y4, 20, ft_color)
+			rl.DrawText(fmt.ctprintf("Fortify(%d)", g.cd_fortify), 104, action_y4, 20, ft_color)
 		} else {
-			rl.DrawText("Fortify", 100, action_y4, 20, ft_color)
+			rl.DrawText("Fortify", 104, action_y4, 20, ft_color)
 		}
 	}
 
@@ -253,6 +256,24 @@ draw_combat :: proc(app: ^App_State) {
 		// Combat hint (only when actively fighting)
 		rl.DrawText("Space also attacks  |  Esc also flees", 140, WINDOW_H - 30, 12, TEXT_DIM)
 	}
+}
+
+// Cooldown radial indicator — draws a small filled pie slice showing remaining
+// cooldown as a fraction of full. Empty ring when ready.
+draw_cd_radial :: proc(cx, cy: i32, cd, cd_max: int, color: rl.Color) {
+	center := rl.Vector2{f32(cx), f32(cy)}
+	radius: f32 = 8
+	// Background ring (dim) so the icon is visible even at CD 0
+	rl.DrawCircleLinesV(center, radius, rl.Color{color.r / 3, color.g / 3, color.b / 3, 200})
+	if cd <= 0 || cd_max <= 0 {
+		// Ready: filled dot to signal availability
+		rl.DrawCircleV(center, radius - 2, rl.Color{color.r, color.g, color.b, 180})
+		return
+	}
+	// Draw remaining cd as a pie slice sweeping clockwise from top
+	frac := f32(cd) / f32(cd_max)
+	end_angle := -90 + frac * 360
+	rl.DrawCircleSector(center, radius - 1, -90, end_angle, 24, rl.Color{color.r, color.g, color.b, 220})
 }
 
 // Smooth ease-out interpolation

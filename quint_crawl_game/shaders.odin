@@ -14,6 +14,9 @@ Shader_Pipeline :: struct {
 	loc_time:         i32,
 	loc_bloom:        i32,
 	loc_poison:       i32,
+	loc_tile_effect:  i32,
+	loc_scanlines:    i32,
+	scanlines_on:     bool,
 	pipeline_enabled: bool,
 }
 
@@ -35,6 +38,8 @@ init_shaders :: proc(pipeline: ^Shader_Pipeline) {
 	pipeline.loc_time        = rl.GetShaderLocation(pipeline.effects_shader, "u_time")
 	pipeline.loc_bloom       = rl.GetShaderLocation(pipeline.effects_shader, "u_bloom")
 	pipeline.loc_poison      = rl.GetShaderLocation(pipeline.effects_shader, "u_poison")
+	pipeline.loc_tile_effect = rl.GetShaderLocation(pipeline.effects_shader, "u_tile_effect")
+	pipeline.loc_scanlines   = rl.GetShaderLocation(pipeline.effects_shader, "u_scanlines")
 
 	pipeline.pipeline_enabled = true
 	fmt.println("[shaders] Pipeline initialized (effects)")
@@ -106,6 +111,20 @@ end_pipeline :: proc(pipeline: ^Shader_Pipeline, app: ^App_State) {
 	// Poison (driven by player_poison_dur)
 	poison: f32 = f32(g.player_poison_dur) / f32(qc.STATUS_DURATION)
 	rl.SetShaderValue(pipeline.effects_shader, pipeline.loc_poison, &poison, .FLOAT)
+
+	// Per-biome animated tile effect: swamp (biome 2,0) = 1, castle (2,2) = 2
+	tile_effect: i32 = 0
+	bx, by := g.pos_x % 3, g.pos_y % 3
+	if bx == 2 && by == 0 {
+		tile_effect = 1 // swamp
+	} else if bx == 2 && by == 2 {
+		tile_effect = 2 // castle
+	}
+	rl.SetShaderValue(pipeline.effects_shader, pipeline.loc_tile_effect, &tile_effect, .INT)
+
+	// CRT scanlines toggle
+	scanlines: f32 = 1.0 if pipeline.scanlines_on else 0.0
+	rl.SetShaderValue(pipeline.effects_shader, pipeline.loc_scanlines, &scanlines, .FLOAT)
 
 	// --- Draw shaded rt directly to default framebuffer ---
 	rl.BeginShaderMode(pipeline.effects_shader)

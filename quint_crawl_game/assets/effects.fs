@@ -20,6 +20,13 @@ uniform float u_bloom;         // 0.0 = none, 1.0 = max flash
 // Poison screen tint
 uniform float u_poison;        // 0.0 = none, 1.0 = full poison effect
 
+// Per-biome animated tile effect (applied via UV wobble, pre-sample)
+// 0 = none, 1 = swamp ripples, 2 = castle heat shimmer
+uniform int u_tile_effect;
+
+// CRT scanlines (retro toggle)
+uniform float u_scanlines;     // 0.0 = off, 1.0 = full
+
 out vec4 finalColor;
 
 // Simple hash for noise
@@ -30,6 +37,17 @@ float hash(vec2 p) {
 void main() {
     vec2 uv = fragTexCoord;
     vec2 center = vec2(0.5, 0.5);
+
+    // --- Animated tile UV wobble (swamp / castle biomes) ---
+    if (u_tile_effect == 1) {
+        // Swamp: slow horizontal ripples
+        uv.x += sin(uv.y * 18.0 + u_time * 1.5) * 0.004;
+        uv.y += cos(uv.x * 12.0 + u_time * 1.0) * 0.003;
+    } else if (u_tile_effect == 2) {
+        // Castle: heat shimmer, stronger near bottom
+        float heat = (1.0 - uv.y) * 0.006;
+        uv.x += sin(uv.y * 40.0 + u_time * 4.0) * heat;
+    }
 
     // --- Barrel distortion on hit (effect 4) ---
     if (u_aberration > 0.01) {
@@ -84,6 +102,21 @@ void main() {
         // Slight saturation boost
         float lum = dot(color, vec3(0.299, 0.587, 0.114));
         color = mix(vec3(lum), color, 1.0 + u_bloom * 0.3);
+    }
+
+    // --- CRT scanlines (retro toggle) ---
+    if (u_scanlines > 0.01) {
+        // Horizontal dark bands every other pixel row
+        float line = sin(fragTexCoord.y * 540.0) * 0.5 + 0.5;
+        float sl = mix(1.0, 0.78 + 0.22 * line, u_scanlines);
+        color *= sl;
+        // Subtle RGB subpixel tint
+        float col = mod(floor(fragTexCoord.x * 960.0), 3.0);
+        vec3 subpixel = vec3(1.0);
+        if (col < 1.0) subpixel = vec3(1.04, 0.98, 0.98);
+        else if (col < 2.0) subpixel = vec3(0.98, 1.04, 0.98);
+        else subpixel = vec3(0.98, 0.98, 1.04);
+        color *= mix(vec3(1.0), subpixel, u_scanlines * 0.5);
     }
 
     // Clamp final output

@@ -126,6 +126,16 @@ handle_map_input :: proc(app: ^App_State) {
 		}
 	}
 
+	// Toggle CRT scanlines
+	if rl.IsKeyPressed(.F6) {
+		app.pipeline.scanlines_on = !app.pipeline.scanlines_on
+		if app.pipeline.scanlines_on {
+			add_message(app, "Scanlines: ON", {180, 255, 180, 255})
+		} else {
+			add_message(app, "Scanlines: OFF", {180, 180, 180, 255})
+		}
+	}
+
 	// Save game
 	if rl.IsKeyPressed(.F5) {
 		if qc.save_game(g) {
