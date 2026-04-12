@@ -821,7 +821,7 @@ rest_at_village :: proc(g: ^Game_State) -> bool {
 	g.stamina = g.max_stamina
 	if g.comp_active {
 		g.comp_loyalty = min(g.comp_loyalty + LOYALTY_GAIN, MAX_LOYALTY)
-		if g.comp_loyalty == MAX_LOYALTY && g.cq2_maxed < CQ2_TARGET do g.cq2_maxed = CQ2_TARGET
+		if g.comp_loyalty == MAX_LOYALTY && g.cq2_maxed < CQ2_TARGET do g.cq2_maxed += 1
 	}
 	return true
 }
@@ -1377,7 +1377,7 @@ adopt_companion_abstract :: proc(g: ^Game_State, trait, rarity: int) -> bool {
 	g.comp_rarity = rarity
 	g.comp_loyalty = INITIAL_LOYALTY
 	g.comp_command_used = false
-	if g.cq1_adopted < CQ1_TARGET do g.cq1_adopted = CQ1_TARGET
+	if g.cq1_adopted < CQ1_TARGET do g.cq1_adopted += 1
 	return true
 }
 
@@ -1397,7 +1397,7 @@ adopt_companion :: proc(g: ^Game_State, species_idx: int, rarity: int) -> bool {
 	g.comp_rarity = rarity
 	g.comp_loyalty = INITIAL_LOYALTY
 	g.comp_command_used = false
-	if g.cq1_adopted < CQ1_TARGET do g.cq1_adopted = CQ1_TARGET
+	if g.cq1_adopted < CQ1_TARGET do g.cq1_adopted += 1
 	return true
 }
 
@@ -1409,7 +1409,7 @@ feed_companion :: proc(g: ^Game_State) -> bool {
 	if g.qty_potion < 1 do return false
 	g.qty_potion -= 1
 	g.comp_loyalty = min(g.comp_loyalty + LOYALTY_GAIN, MAX_LOYALTY)
-	if g.comp_loyalty == MAX_LOYALTY && g.cq2_maxed < CQ2_TARGET do g.cq2_maxed = CQ2_TARGET
+	if g.comp_loyalty == MAX_LOYALTY && g.cq2_maxed < CQ2_TARGET do g.cq2_maxed += 1
 	return true
 }
 

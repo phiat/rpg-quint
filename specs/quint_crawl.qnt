@@ -565,7 +565,7 @@ module quint_crawl {
       inv' = inv, eqp' = eqp,
       cb' = cb,
       w' = { ...w, turn_count: w.turn_count + 1 },
-      meta' = { ...meta, cq2_maxed: if (new_loyalty == MAX_LOYALTY and meta.cq2_maxed < CQ2_TARGET) CQ2_TARGET else meta.cq2_maxed },
+      meta' = { ...meta, cq2_maxed: if (new_loyalty == MAX_LOYALTY and meta.cq2_maxed < CQ2_TARGET) meta.cq2_maxed + 1 else meta.cq2_maxed },
       comp' = { ...comp, loyalty: new_loyalty },
     }
   }
@@ -1298,7 +1298,7 @@ module quint_crawl {
       inv.qty_wood >= cost,
       inv' = { ...inv, qty_wood: inv.qty_wood - cost },
       comp' = { active: true, trait: t, rarity: r, loyalty: INITIAL_LOYALTY, command_used: false },
-      meta' = { ...meta, cq1_adopted: if (meta.cq1_adopted < CQ1_TARGET) CQ1_TARGET else meta.cq1_adopted },
+      meta' = { ...meta, cq1_adopted: if (meta.cq1_adopted < CQ1_TARGET) meta.cq1_adopted + 1 else meta.cq1_adopted },
       ch' = ch, eqp' = eqp, cb' = cb, w' = w,
     }
   }
@@ -1313,7 +1313,7 @@ module quint_crawl {
     all {
       inv' = { ...inv, qty_potion: inv.qty_potion - 1 },
       comp' = { ...comp, loyalty: new_loyalty },
-      meta' = { ...meta, cq2_maxed: if (new_loyalty == MAX_LOYALTY and meta.cq2_maxed < CQ2_TARGET) CQ2_TARGET else meta.cq2_maxed },
+      meta' = { ...meta, cq2_maxed: if (new_loyalty == MAX_LOYALTY and meta.cq2_maxed < CQ2_TARGET) meta.cq2_maxed + 1 else meta.cq2_maxed },
       ch' = ch, eqp' = eqp, cb' = cb, w' = w,
     }
   }
