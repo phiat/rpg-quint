@@ -574,15 +574,33 @@ module quint_crawl {
     }
   }
 
-  // === Combat: use potion (quick action -- no stamina cost, no CD tick) ===
+  // === Combat: use potion (quick action -- heals then enemy gets a free hit) ===
   action combat_potion = all {
     cb.in_combat, not(meta.game_won), inv.qty_potion > 0, ch.hp > 0,
-    ch' = { ...ch, hp: clamp_hp(ch.hp + POTION_HEAL, ch.max_hp) },
-    inv' = { ...inv, qty_potion: inv.qty_potion - 1 },
-    eqp' = eqp,
-    cb' = { ...cb, combo_count: 0 },
-    w' = { ...w, turn_count: w.turn_count + 1 },
-    meta' = meta, comp' = comp,
+    val healed = clamp_hp(ch.hp + POTION_HEAL, ch.max_hp)
+    val new_hp = healed - incoming_enemy_dmg - player_poison_tick
+    val combat_ends = (new_hp <= 0)
+    val ticked = tick_statuses(cb, false)
+    all {
+      ch' = { ...ch, hp: if (new_hp < 0) 0 else new_hp },
+      inv' = { ...inv, qty_potion: inv.qty_potion - 1 },
+      eqp' = eqp,
+      cb' = { in_combat: if (combat_ends) false else true,
+              enemy_hp: if (combat_ends) 0 else cb.enemy_hp,
+              enemy_attack: if (combat_ends) 0 else cb.enemy_attack,
+              enemy_element: if (combat_ends) 0 else cb.enemy_element,
+              combo_count: 0,
+              player_poison_dur: if (combat_ends) 0 else ticked.player_poison_dur,
+              player_atk_buff_dur: if (combat_ends) 0 else ticked.player_atk_buff_dur,
+              player_def_buff_dur: if (combat_ends) 0 else ticked.player_def_buff_dur,
+              enemy_poison_dur: if (combat_ends) 0 else ticked.enemy_poison_dur,
+              cd_heavy_strike: if (combat_ends) 0 else ticked.cd_heavy_strike,
+              cd_battle_cry: if (combat_ends) 0 else ticked.cd_battle_cry,
+              cd_fortify: if (combat_ends) 0 else ticked.cd_fortify,
+      },
+      w' = { ...w, turn_count: w.turn_count + 1 },
+      meta' = meta, comp' = comp,
+    }
   }
 
   // === Flee combat ===
@@ -726,15 +744,34 @@ module quint_crawl {
     meta' = meta, comp' = comp,
   }
 
-  // === Use antidote (quick action -- costs 1 potion, clears player poison, no CD tick) ===
+  // === Use antidote (quick action -- clears player poison, enemy gets a free hit) ===
   action use_antidote = all {
     cb.in_combat, not(meta.game_won), ch.hp > 0,
     inv.qty_potion > 0, cb.player_poison_dur > 0,
-    inv' = { ...inv, qty_potion: inv.qty_potion - 1 },
-    cb' = { ...cb, player_poison_dur: 0, combo_count: 0 },
-    ch' = ch, eqp' = eqp,
-    w' = { ...w, turn_count: w.turn_count + 1 },
-    meta' = meta, comp' = comp,
+    // Poison cleared this turn, so no player_poison_tick this action.
+    val new_hp = ch.hp - incoming_enemy_dmg
+    val combat_ends = (new_hp <= 0)
+    val ticked = tick_statuses(cb, false)
+    all {
+      ch' = { ...ch, hp: if (new_hp < 0) 0 else new_hp },
+      inv' = { ...inv, qty_potion: inv.qty_potion - 1 },
+      eqp' = eqp,
+      cb' = { in_combat: if (combat_ends) false else true,
+              enemy_hp: if (combat_ends) 0 else cb.enemy_hp,
+              enemy_attack: if (combat_ends) 0 else cb.enemy_attack,
+              enemy_element: if (combat_ends) 0 else cb.enemy_element,
+              combo_count: 0,
+              player_poison_dur: 0,
+              player_atk_buff_dur: if (combat_ends) 0 else ticked.player_atk_buff_dur,
+              player_def_buff_dur: if (combat_ends) 0 else ticked.player_def_buff_dur,
+              enemy_poison_dur: if (combat_ends) 0 else ticked.enemy_poison_dur,
+              cd_heavy_strike: if (combat_ends) 0 else ticked.cd_heavy_strike,
+              cd_battle_cry: if (combat_ends) 0 else ticked.cd_battle_cry,
+              cd_fortify: if (combat_ends) 0 else ticked.cd_fortify,
+      },
+      w' = { ...w, turn_count: w.turn_count + 1 },
+      meta' = meta, comp' = comp,
+    }
   }
 
   // === Poison strike (apply poison to enemy, enemy hits back) ===

@@ -862,11 +862,32 @@ combat_attack :: proc(g: ^Game_State) -> bool {
 combat_potion :: proc(g: ^Game_State) -> bool {
 	if !g.in_combat || g.game_won || g.qty_potion <= 0 || g.hp <= 0 do return false
 	g.turn_count += 1
-	g.hp = min(g.hp + POTION_HEAL, g.max_hp)
 	g.qty_potion -= 1
+	// Heal first
+	g.hp = min(g.hp + POTION_HEAL, g.max_hp)
+	// Enemy gets a free hit (plus player poison tick)
+	enemy_dmg := g.enemy_attack - enchant_def_bonus(g) - def_reduction_active(g)
+	if enemy_dmg < 1 do enemy_dmg = 1
+	poison_dmg := POISON_DMG if g.player_poison_dur > 0 else 0
+	g.hp = max(g.hp - enemy_dmg - poison_dmg, 0)
 	g.combo_count = 0
-
-	// Quick action: no stamina cost, no CD tick
+	if g.hp <= 0 {
+		g.in_combat = false
+		g.enemy_hp = 0
+		g.enemy_attack = 0
+		g.enemy_element = 0
+		g.player_poison_dur = 0
+		g.player_atk_buff_dur = 0
+		g.player_def_buff_dur = 0
+		g.enemy_poison_dur = 0
+		reset_cooldowns(g)
+	} else {
+		if g.player_poison_dur > 0 do g.player_poison_dur -= 1
+		if g.player_atk_buff_dur > 0 do g.player_atk_buff_dur -= 1
+		if g.player_def_buff_dur > 0 do g.player_def_buff_dur -= 1
+		if g.enemy_poison_dur > 0 do g.enemy_poison_dur -= 1
+		tick_cooldowns(g)
+	}
 	return true
 }
 
@@ -1007,10 +1028,28 @@ use_antidote :: proc(g: ^Game_State) -> bool {
 	if g.qty_potion <= 0 || g.player_poison_dur <= 0 do return false
 	g.turn_count += 1
 	g.qty_potion -= 1
+	// Poison cleared this turn — no player poison tick this action.
 	g.player_poison_dur = 0
+	// Enemy gets a free hit
+	enemy_dmg := g.enemy_attack - enchant_def_bonus(g) - def_reduction_active(g)
+	if enemy_dmg < 1 do enemy_dmg = 1
+	g.hp = max(g.hp - enemy_dmg, 0)
 	g.combo_count = 0
-
-	// Quick action: no stamina cost, no CD tick
+	if g.hp <= 0 {
+		g.in_combat = false
+		g.enemy_hp = 0
+		g.enemy_attack = 0
+		g.enemy_element = 0
+		g.player_atk_buff_dur = 0
+		g.player_def_buff_dur = 0
+		g.enemy_poison_dur = 0
+		reset_cooldowns(g)
+	} else {
+		if g.player_atk_buff_dur > 0 do g.player_atk_buff_dur -= 1
+		if g.player_def_buff_dur > 0 do g.player_def_buff_dur -= 1
+		if g.enemy_poison_dur > 0 do g.enemy_poison_dur -= 1
+		tick_cooldowns(g)
+	}
 	return true
 }
 
