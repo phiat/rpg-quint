@@ -94,6 +94,16 @@ defense_power :: proc(g: ^Game_State) -> int {
 	return enchant_def_bonus(g) + def_reduction_active(g) + comp_dmg_reduction(g) + shield_def + armor_def
 }
 
+// Deterministic rarity roll biased by zone tier. Mirrors spec drop_rarity_roll.
+drop_rarity_roll :: proc(zone_tier, turn_count, nonce: int) -> int {
+	h := (turn_count + nonce * 7) % 16
+	if h < 0 do h += 16
+	if zone_tier >= 4 && h == 0 do return 3
+	if zone_tier >= 3 && h % 8 == 0 do return 2
+	if zone_tier >= 2 && h % 4 == 0 do return 1
+	return 0
+}
+
 // Shared kill-accounting: called from every kill path (resolve_combat_hit,
 // counter_attack, and any future site). Handles xp, quest counters, boss
 // flag, companion win, loot, and level-up. The caller is still responsible
@@ -135,10 +145,21 @@ resolve_loot :: proc(g: ^Game_State) {
 		if zlvl >= POISON_APPLY_TIER && tot + 1 < MAX_INVENTORY {
 			g.qty_holy_dust += 1
 		}
+		rarity := drop_rarity_roll(zlvl, pre_turn, pre_xp)
+		g.last_drop_rarity = rarity
+		g.last_sword_drop = 0
+		// Rare+ sword gear drop: high-tier zones, needs inv room, one pending slot.
+		if zlvl >= 3 && rarity >= 1 && tot + 1 < MAX_INVENTORY && g.pending_sword_rarity == 0 {
+			g.qty_sword += 1
+			g.pending_sword_rarity = rarity
+			g.last_sword_drop = rarity
+		}
 		g.pity_counter = 0
 	} else {
 		g.pity_counter += 1
 		g.last_drop = 0
+		g.last_drop_rarity = 0
+		g.last_sword_drop = 0
 	}
 
 	// Trait-keyed secondary drop (~25%). Deterministic hash of position +

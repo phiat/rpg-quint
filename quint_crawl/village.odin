@@ -78,7 +78,8 @@ equip_sword :: proc(g: ^Game_State) -> bool {
 	g.has_sword = true
 	g.qty_sword -= 1
 	g.sword_dur = SWORD_MAX_DUR
-	g.sword_rarity = 0
+	g.sword_rarity = g.pending_sword_rarity
+	g.pending_sword_rarity = 0
 	g.enchant_slot_1 = 0
 	g.enchant_slot_2 = 0
 	g.enchant_slot_3 = 0

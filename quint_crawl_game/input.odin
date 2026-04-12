@@ -449,6 +449,13 @@ handle_enemy_defeated :: proc(app: ^App_State, old_level: int) {
 	} else if g.last_drop == 2 {
 		add_message(app, "Loot: +1 Venom Sac!", {100, 220, 50, 255})
 	}
+	if g.last_sword_drop > 0 {
+		add_message(app,
+			fmt.tprintf("Loot: +1 %s!", sword_rarity_name(g.last_sword_drop)),
+			rarity_text_color(g.last_sword_drop),
+		)
+		g.last_sword_drop = 0
+	}
 }
 
 // Helper: handle player taking damage in combat (shake + flash + poison notification)

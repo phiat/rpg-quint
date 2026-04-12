@@ -45,6 +45,11 @@ module quint_crawl {
 
   type MetaState = {
     game_won: bool, saved_exists: bool, pity_counter: int, last_drop: int,
+    // Rarity tier (0..3) of the most recent loot drop — UI hook.
+    last_drop_rarity: int,
+    // Rarity tier pending for the next equip_sword. Set when a rare+ sword
+    // drops from loot; consumed (cleared) by equip_sword.
+    pending_sword_rarity: int,
     last_kill_turn: int,
     q1_kills: int, q2_zones: int, q3_kills: int,
     cq1_adopted: int, cq2_maxed: int, cq3_wins: int,
@@ -72,8 +77,11 @@ module quint_crawl {
     potion_inc: int,
     venom_inc: int,
     holy_dust_inc: int,
+    sword_inc: int,
     new_pity: int,
     new_last_drop: int,
+    new_last_drop_rarity: int,
+    new_pending_sword_rarity: int,
   }
 
   // === State variables ===
@@ -396,6 +404,16 @@ module quint_crawl {
   // Returns inventory increments (potion vs venom sac) and updated pity
   // counter / last_drop marker. Kill-on-hit actions simply add the
   // increments to inv' and copy new_pity / new_last_drop into meta'.
+  // Deterministic rarity roll, biased by zone tier. Higher tiers unlock
+  // higher rarity bands; lower tiers cap at common/rare.
+  pure def drop_rarity_roll(zone_tier: int, turn_count: int, nonce: int): int = {
+    val h = (turn_count + nonce * 7) % 16
+    if (zone_tier >= 4 and h == 0) 3
+    else if (zone_tier >= 3 and h % 8 == 0) 2
+    else if (zone_tier >= 2 and h % 4 == 0) 1
+    else 0
+  }
+
   pure def compute_loot(m: MetaState, tot: int, defeated_alive: bool, turn_count: int, zone_tier: int, nonce: int): LootDrop = {
     // Nonce (caller passes ch.xp) desyncs the periodic drop pattern from
     // turn_count alone so players can't kill-sync to turn_count % N == 0.
@@ -408,14 +426,21 @@ module quint_crawl {
     // Holy dust stacks on the primary drop, so it only fires when there's
     // room for both items under the inventory cap.
     val drops_holy = should_drop and zone_tier >= POISON_APPLY_TIER and tot + 1 < MAX_INVENTORY
+    val rarity = if (should_drop) drop_rarity_roll(zone_tier, turn_count, nonce) else 0
+    // Rare+ sword gear drop: high-tier zones only, must have room in inv,
+    // must not already carry an unequipped rarity sword in the pending slot.
+    val sword_drop = should_drop and zone_tier >= 3 and rarity >= 1 and tot + 1 < MAX_INVENTORY and m.pending_sword_rarity == 0
     {
       potion_inc: if (should_drop and not(drops_venom)) 1 else 0,
       venom_inc: if (drops_venom) 1 else 0,
       holy_dust_inc: if (drops_holy) 1 else 0,
+      sword_inc: if (sword_drop) 1 else 0,
       new_pity: if (should_drop) 0
                 else if (defeated_alive) m.pity_counter + 1
                 else m.pity_counter,
       new_last_drop: if (drops_venom) 2 else if (should_drop) 1 else 0,
+      new_last_drop_rarity: rarity,
+      new_pending_sword_rarity: if (sword_drop) rarity else m.pending_sword_rarity,
     }
   }
 
@@ -519,7 +544,8 @@ module quint_crawl {
     w' = { pos_x: 0, pos_y: 0, turn_count: 0,
            visited: Set((0, 0)), waypoints: Set((0, 0)),
            chests_opened: Set() },
-    meta' = { game_won: false, saved_exists: false, pity_counter: 0, last_drop: 0, last_kill_turn: 0,
+    meta' = { game_won: false, saved_exists: false, pity_counter: 0, last_drop: 0,
+              last_drop_rarity: 0, pending_sword_rarity: 0, last_kill_turn: 0,
               q1_kills: 0, q2_zones: 0, q3_kills: 0,
               cq1_adopted: 0, cq2_maxed: 0, cq3_wins: 0,
               quest_rewards_claimed: 0,
@@ -705,9 +731,12 @@ module quint_crawl {
                qty_potion: inv.qty_potion + loot.potion_inc,
                qty_venom_sac: inv.qty_venom_sac + loot.venom_inc,
                qty_holy_dust: inv.qty_holy_dust + loot.holy_dust_inc,
+               qty_sword: inv.qty_sword + loot.sword_inc,
       },
       w' = { ...w, turn_count: w.turn_count + 1 },
       meta' = { ...meta, pity_counter: loot.new_pity, last_drop: loot.new_last_drop,
+               last_drop_rarity: loot.new_last_drop_rarity,
+               pending_sword_rarity: loot.new_pending_sword_rarity,
                last_kill_turn: if (enemy_defeated_alive) w.turn_count else meta.last_kill_turn,
                q1_kills: if (enemy_defeated_alive and zone_tier == 1 and meta.q1_kills < Q1_TARGET) meta.q1_kills + 1 else meta.q1_kills,
                q3_kills: if (enemy_defeated_alive and zone_tier == MAX_LEVEL and meta.q3_kills < Q3_TARGET) meta.q3_kills + 1 else meta.q3_kills,
@@ -909,10 +938,13 @@ module quint_crawl {
                qty_potion: inv.qty_potion + loot.potion_inc,
                qty_venom_sac: inv.qty_venom_sac + loot.venom_inc,
                qty_holy_dust: inv.qty_holy_dust + loot.holy_dust_inc,
+               qty_sword: inv.qty_sword + loot.sword_inc,
       },
       eqp' = eqp,
       w' = { ...w, turn_count: w.turn_count + 1 },
       meta' = { ...meta, pity_counter: loot.new_pity, last_drop: loot.new_last_drop,
+               last_drop_rarity: loot.new_last_drop_rarity,
+               pending_sword_rarity: loot.new_pending_sword_rarity,
                last_kill_turn: if (enemy_defeated_alive) w.turn_count else meta.last_kill_turn,
                q1_kills: if (enemy_defeated_alive and zone_tier == 1 and meta.q1_kills < Q1_TARGET) meta.q1_kills + 1 else meta.q1_kills,
                q3_kills: if (enemy_defeated_alive and zone_tier == MAX_LEVEL and meta.q3_kills < Q3_TARGET) meta.q3_kills + 1 else meta.q3_kills,
@@ -990,10 +1022,13 @@ module quint_crawl {
                qty_potion: inv.qty_potion + loot.potion_inc,
                qty_venom_sac: inv.qty_venom_sac + loot.venom_inc,
                qty_holy_dust: inv.qty_holy_dust + loot.holy_dust_inc,
+               qty_sword: inv.qty_sword + loot.sword_inc,
       },
       eqp' = eqp,
       w' = { ...w, turn_count: w.turn_count + 1 },
       meta' = { ...meta, pity_counter: loot.new_pity, last_drop: loot.new_last_drop,
+               last_drop_rarity: loot.new_last_drop_rarity,
+               pending_sword_rarity: loot.new_pending_sword_rarity,
                last_kill_turn: if (enemy_defeated_alive) w.turn_count else meta.last_kill_turn,
                q1_kills: if (enemy_defeated_alive and zone_tier == 1 and meta.q1_kills < Q1_TARGET) meta.q1_kills + 1 else meta.q1_kills,
                q3_kills: if (enemy_defeated_alive and zone_tier == MAX_LEVEL and meta.q3_kills < Q3_TARGET) meta.q3_kills + 1 else meta.q3_kills,
@@ -1068,12 +1103,13 @@ module quint_crawl {
     not(cb.in_combat), not(meta.game_won), ch.hp > 0,
     inv.qty_sword >= 1, not(inv.has_sword),
     inv' = { ...inv, has_sword: true, qty_sword: inv.qty_sword - 1 },
-    // Crafted swords are Common (rarity 0). Rare+ swords come from loot drops.
-    eqp' = { ...eqp, sword_dur: SWORD_MAX_DUR, sword_rarity: 0, enchant_slot_1: 0, enchant_slot_2: 0, enchant_slot_3: 0 },
+    // Equip consumes the pending rarity slot. Crafted swords default to
+    // Common (rarity 0) when no drop is pending; rare+ swords stamp in.
+    eqp' = { ...eqp, sword_dur: SWORD_MAX_DUR, sword_rarity: meta.pending_sword_rarity, enchant_slot_1: 0, enchant_slot_2: 0, enchant_slot_3: 0 },
     ch' = ch,
     cb' = cb,
     w' = { ...w, turn_count: w.turn_count + 1 },
-    meta' = meta, comp' = comp,
+    meta' = { ...meta, pending_sword_rarity: 0 }, comp' = comp,
   }
 
   // === Equip pistol (village, trades in sword for future-tech weapon) ===
@@ -1299,9 +1335,12 @@ module quint_crawl {
                qty_potion: inv.qty_potion + loot.potion_inc,
                qty_venom_sac: inv.qty_venom_sac + loot.venom_inc - (if (auto_poison) 1 else 0),
                qty_holy_dust: inv.qty_holy_dust + loot.holy_dust_inc,
+               qty_sword: inv.qty_sword + loot.sword_inc,
       },
       w' = { ...w, turn_count: w.turn_count + 1 },
       meta' = { ...meta, pity_counter: loot.new_pity, last_drop: loot.new_last_drop,
+               last_drop_rarity: loot.new_last_drop_rarity,
+               pending_sword_rarity: loot.new_pending_sword_rarity,
                last_kill_turn: if (enemy_defeated_alive) w.turn_count else meta.last_kill_turn,
                q1_kills: if (enemy_defeated_alive and zone_tier == 1 and meta.q1_kills < Q1_TARGET) meta.q1_kills + 1 else meta.q1_kills,
                q3_kills: if (enemy_defeated_alive and zone_tier == MAX_LEVEL and meta.q3_kills < Q3_TARGET) meta.q3_kills + 1 else meta.q3_kills,
@@ -1368,9 +1407,12 @@ module quint_crawl {
                qty_potion: inv.qty_potion + loot.potion_inc,
                qty_venom_sac: inv.qty_venom_sac + loot.venom_inc - (if (auto_poison) 1 else 0),
                qty_holy_dust: inv.qty_holy_dust + loot.holy_dust_inc,
+               qty_sword: inv.qty_sword + loot.sword_inc,
       },
       w' = { ...w, turn_count: w.turn_count + 1 },
       meta' = { ...meta, pity_counter: loot.new_pity, last_drop: loot.new_last_drop,
+               last_drop_rarity: loot.new_last_drop_rarity,
+               pending_sword_rarity: loot.new_pending_sword_rarity,
                last_kill_turn: if (enemy_defeated_alive) w.turn_count else meta.last_kill_turn,
                q1_kills: if (enemy_defeated_alive and zone_tier == 1 and meta.q1_kills < Q1_TARGET) meta.q1_kills + 1 else meta.q1_kills,
                q3_kills: if (enemy_defeated_alive and zone_tier == MAX_LEVEL and meta.q3_kills < Q3_TARGET) meta.q3_kills + 1 else meta.q3_kills,
@@ -1606,9 +1648,12 @@ module quint_crawl {
                qty_potion: inv.qty_potion + loot.potion_inc,
                qty_venom_sac: inv.qty_venom_sac + loot.venom_inc,
                qty_holy_dust: inv.qty_holy_dust + loot.holy_dust_inc,
+               qty_sword: inv.qty_sword + loot.sword_inc,
       },
       w' = { ...w, turn_count: w.turn_count + 1 },
       meta' = { ...meta, pity_counter: loot.new_pity, last_drop: loot.new_last_drop,
+               last_drop_rarity: loot.new_last_drop_rarity,
+               pending_sword_rarity: loot.new_pending_sword_rarity,
                last_kill_turn: if (enemy_defeated_alive) w.turn_count else meta.last_kill_turn,
                q1_kills: if (enemy_defeated_alive and zone_tier == 1 and meta.q1_kills < Q1_TARGET) meta.q1_kills + 1 else meta.q1_kills,
                q3_kills: if (enemy_defeated_alive and zone_tier == MAX_LEVEL and meta.q3_kills < Q3_TARGET) meta.q3_kills + 1 else meta.q3_kills,
@@ -1701,9 +1746,12 @@ module quint_crawl {
                qty_potion: inv.qty_potion + loot.potion_inc,
                qty_venom_sac: inv.qty_venom_sac + loot.venom_inc,
                qty_holy_dust: inv.qty_holy_dust + loot.holy_dust_inc,
+               qty_sword: inv.qty_sword + loot.sword_inc,
       },
       w' = { ...w, turn_count: w.turn_count + 1 },
       meta' = { ...meta, pity_counter: loot.new_pity, last_drop: loot.new_last_drop,
+               last_drop_rarity: loot.new_last_drop_rarity,
+               pending_sword_rarity: loot.new_pending_sword_rarity,
                last_kill_turn: if (enemy_defeated_alive) w.turn_count else meta.last_kill_turn,
                q1_kills: if (enemy_defeated_alive and zone_tier == 1 and meta.q1_kills < Q1_TARGET) meta.q1_kills + 1 else meta.q1_kills,
                q3_kills: if (enemy_defeated_alive and zone_tier == MAX_LEVEL and meta.q3_kills < Q3_TARGET) meta.q3_kills + 1 else meta.q3_kills,
@@ -2192,6 +2240,8 @@ module quint_crawl {
 
   /// Sword rarity in valid range
   val sword_rarity_bounded = eqp.sword_rarity >= 0 and eqp.sword_rarity <= MAX_SWORD_RARITY
+  val last_drop_rarity_bounded = meta.last_drop_rarity >= 0 and meta.last_drop_rarity <= MAX_SWORD_RARITY
+  val pending_sword_rarity_bounded = meta.pending_sword_rarity >= 0 and meta.pending_sword_rarity <= MAX_SWORD_RARITY
 
   /// Broken sword gives no attack bonus: neither SWORD_ATK_BONUS nor enchant atk.
   /// (ATK buff and companion atk bonuses are independent and may still apply.

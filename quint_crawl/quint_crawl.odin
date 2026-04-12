@@ -177,6 +177,8 @@ Save_Data :: struct {
 	stamina:      int,
 	max_stamina:  int,
 	pity_counter: int,
+	last_drop_rarity: int,
+	pending_sword_rarity: int,
 	skill_points: int,
 	skill_combo:  bool,
 	skill_poison: bool,
@@ -274,6 +276,11 @@ Game_State :: struct {
 	// Loot
 	pity_counter:        int,
 	last_drop:           int,
+	last_drop_rarity:    int,
+	pending_sword_rarity: int,
+	// Transient UI signal: rarity of sword gear dropped THIS kill (0 = none).
+	// Not serialized; cleared by the UI after it shows the toast.
+	last_sword_drop:     int,
 	// World state
 	turn_count:          int,
 	// Fog of war
@@ -670,6 +677,8 @@ init_game :: proc(g: ^Game_State) {
 	g.cd_battle_cry = 0
 	g.pity_counter = 0
 	g.last_drop = 0
+	g.last_drop_rarity = 0
+	g.pending_sword_rarity = 0
 	g.cd_fortify = 0
 	g.skill_points = 0
 	g.skill_combo = false
