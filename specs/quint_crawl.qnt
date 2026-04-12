@@ -1380,6 +1380,11 @@ module quint_crawl {
   val current_pos_visited = w.visited.contains((w.pos_x, w.pos_y))
   val start_is_waypoint = w.waypoints.contains((0, 0))
   val waypoints_are_visited = w.waypoints.forall(p => w.visited.contains(p))
+  /// All visited cells are on the grid
+  val visited_in_bounds = w.visited.forall(p =>
+    p._1 >= 0 and p._1 < WORLD_SIZE and p._2 >= 0 and p._2 < WORLD_SIZE)
+  /// Every waypoint is a service zone (fast travel assumes this)
+  val waypoint_is_service_zone = w.waypoints.forall(p => zone_has_services(p._1, p._2))
 
   /// Quantities never go negative
   val quantities_non_negative = and {
@@ -1461,6 +1466,10 @@ module quint_crawl {
   /// Base attack grows correctly with level
   val base_attack_scales_with_level =
     ch.base_attack >= INITIAL_ATTACK + (ch.level - 1) * ATK_PER_LEVEL_UP
+
+  /// Victory only set under valid claim_victory guards (safety form of liveness)
+  val victory_preconditions = meta.game_won.implies(
+    ch.level >= MAX_LEVEL and zone_level(w.pos_x, w.pos_y) >= MAX_LEVEL)
 
   /// Win condition requires Castle position
   val win_requires_castle = meta.game_won.implies(
