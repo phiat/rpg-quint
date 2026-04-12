@@ -95,6 +95,7 @@ equip_pistol :: proc(g: ^Game_State) -> bool {
 	g.gold -= PISTOL_UNLOCK_COST
 	g.has_sword = false
 	g.sword_dur = 0
+	g.pending_sword_rarity = 0
 	g.weapon_type = 1
 	g.enchant_slot_1 = 0
 	g.enchant_slot_2 = 0
@@ -112,6 +113,7 @@ equip_staff :: proc(g: ^Game_State) -> bool {
 	g.gold -= STAFF_UNLOCK_COST
 	g.has_sword = false
 	g.sword_dur = 0
+	g.pending_sword_rarity = 0
 	g.weapon_type = 2
 	g.max_mana += STAFF_MAX_MANA_BONUS
 	g.mana = g.max_mana
@@ -130,6 +132,7 @@ equip_dagger :: proc(g: ^Game_State) -> bool {
 	g.gold -= DAGGER_UNLOCK_COST
 	g.has_sword = false
 	g.sword_dur = 0
+	g.pending_sword_rarity = 0
 	g.weapon_type = 3
 	g.enchant_slot_1 = 0
 	g.enchant_slot_2 = 0

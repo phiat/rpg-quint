@@ -86,7 +86,6 @@ module quint_crawl {
     new_last_drop_rarity: int,
     new_pending_sword_rarity: int,
     new_unique_mask: int,
-    unique_fires: bool,
   }
 
   // === State variables ===
@@ -467,7 +466,6 @@ module quint_crawl {
       new_last_drop_rarity: rarity,
       new_pending_sword_rarity: if (sword_drop) rarity else m.pending_sword_rarity,
       new_unique_mask: if (unique_fires) set_unique(unique_mask_in, unique_bit) else unique_mask_in,
-      unique_fires: unique_fires,
     }
   }
 
@@ -1159,7 +1157,7 @@ module quint_crawl {
              enchant_slot_1: 0, enchant_slot_2: 0, enchant_slot_3: 0 },
     cb' = cb,
     w' = { ...w, turn_count: w.turn_count + 1 },
-    meta' = meta, comp' = comp,
+    meta' = { ...meta, pending_sword_rarity: 0 }, comp' = comp,
   }
 
   // === Equip staff (village, trades in sword for a caster weapon) ===
@@ -1181,7 +1179,7 @@ module quint_crawl {
              enchant_slot_1: 0, enchant_slot_2: 0, enchant_slot_3: 0 },
     cb' = cb,
     w' = { ...w, turn_count: w.turn_count + 1 },
-    meta' = meta, comp' = comp,
+    meta' = { ...meta, pending_sword_rarity: 0 }, comp' = comp,
   }
 
   // === Equip dagger (village, trades in sword for a fast blade) ===
@@ -1199,7 +1197,7 @@ module quint_crawl {
              enchant_slot_1: 0, enchant_slot_2: 0, enchant_slot_3: 0 },
     cb' = cb,
     w' = { ...w, turn_count: w.turn_count + 1 },
-    meta' = meta, comp' = comp,
+    meta' = { ...meta, pending_sword_rarity: 0 }, comp' = comp,
   }
 
   // === Buy trinket (vitality, +max_hp) at village ===
