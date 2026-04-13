@@ -12,6 +12,7 @@ Inspired by: [Model-Based Testing for D&D](https://www.loskutoff.com/blog/model-
 ![Title Screen](screenshots/title.png)
 ![Map Exploration](screenshots/map.png)
 ![Combat](screenshots/combat.png)
+![Inventory](screenshots/inventory.png)
 
 ## The Game
 
