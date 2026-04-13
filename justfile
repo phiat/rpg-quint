@@ -76,10 +76,10 @@ traces:
         name=$(basename "$path"); \
         printf "%-20s" "$name"; \
         if [ "$name" = "quint_crawl" ]; then \
-            if quint run --main="$main" --mbt --max-samples=262144 --max-steps=512 --n-traces=32 \
+            if quint run --main="$main" --mbt --max-samples=100000 --max-steps=256 --n-traces=32 \
                 --out-itf="traces/${name}_trace.itf.json" \
                 "specs/${path}.qnt" > /dev/null 2>&1; then \
-                echo "ok (256k samples, 32 traces)"; \
+                echo "ok (100k samples, 32 traces)"; \
             else \
                 echo "FAIL"; \
             fi; \
@@ -101,16 +101,16 @@ trace name main:
     quint run --main={{main}} --mbt --max-steps=8 \
         --out-itf=traces/{{name}}_trace.itf.json "$f"
 
-# Regenerate quint_crawl traces (9x9 integrated spec, 32 traces x 512 steps)
+# Regenerate quint_crawl traces (9x9 integrated spec, 32 traces x 256 steps)
 trace-crawl:
-    quint run --main=quint_crawl_run --mbt --max-samples=262144 --max-steps=512 --n-traces=32 \
+    quint run --main=quint_crawl_run --mbt --max-samples=100000 --max-steps=256 --n-traces=32 \
         --out-itf=traces/quint_crawl_trace.itf.json \
         specs/quint_crawl.qnt
 
-# Deep regen: 8 traces x 512 steps, 128k samples
+# Deep regen: 8 traces x 768 steps, 100k samples
 trace-crawl-deep:
     rm -f traces/quint_crawl_trace*.itf.json
-    quint run --main=quint_crawl_run --mbt --max-samples=131072 --max-steps=512 --n-traces=8 \
+    quint run --main=quint_crawl_run --mbt --max-samples=100000 --max-steps=768 --n-traces=8 \
         --out-itf=traces/quint_crawl_trace.itf.json \
         specs/quint_crawl.qnt
 
