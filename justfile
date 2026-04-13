@@ -107,10 +107,10 @@ trace-crawl:
         --out-itf=traces/quint_crawl_trace.itf.json \
         specs/quint_crawl.qnt
 
-# Deep regen: 16 traces x 256 steps (slower, deeper coverage)
+# Deep regen: 8 traces x 768 steps, 100k samples
 trace-crawl-deep:
     rm -f traces/quint_crawl_trace*.itf.json
-    quint run --main=quint_crawl_run --mbt --max-samples=400000 --max-steps=256 --n-traces=16 \
+    quint run --main=quint_crawl_run --mbt --max-samples=100000 --max-steps=768 --n-traces=8 \
         --out-itf=traces/quint_crawl_trace.itf.json \
         specs/quint_crawl.qnt
 
