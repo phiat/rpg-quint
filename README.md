@@ -1,6 +1,6 @@
 ![Odin](https://img.shields.io/badge/Odin-lang-blue)
 ![Quint](https://img.shields.io/badge/Quint-formal%20spec-purple)
-![Raylib](https://img.shields.io/badge/raylib-5.5-green)
+![Raylib](https://img.shields.io/badge/raylib-6.0-green)
 ![License](https://img.shields.io/badge/license-MIT-blue)
 
 # Quint Crawl — Formally Verified RPG
@@ -195,8 +195,8 @@ just verify NAME MAIN INVARIANT # run invariant check (100k traces, 20 steps)
 
 ## Prerequisites
 
-- [Odin](https://odin-lang.org/) (with vendor:raylib)
-- [Quint](https://quint-lang.org/) (tested with 0.32.0)
+- [Odin](https://odin-lang.org/) `dev-2026-10` (with vendor:raylib 6.0; pinned in `mise.toml`)
+- [Quint](https://quint-lang.org/) (tested with 0.33.0)
 - [just](https://github.com/casey/just) (task runner)
 - X server or WSLg (if running on WSL)
 
