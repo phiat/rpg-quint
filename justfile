@@ -139,7 +139,7 @@ test:
     do \
         name=$(basename "$d"); \
         printf "%-20s" "$name"; \
-        if odin test "$d/" 2>&1 | grep -q "was successful"; then \
+        if odin test "$d/" 2>&1 | grep -qE "(was|were) successful"; then \
             echo "pass"; \
             pass=$((pass + 1)); \
         else \
